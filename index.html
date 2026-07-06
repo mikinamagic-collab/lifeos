@@ -190,7 +190,7 @@ function ghPullSync(){ // synchronous pull at boot, before app reads LS
   x.setRequestHeader('Authorization','Bearer '+GH.cfg.token);x.setRequestHeader('Accept','application/vnd.github+json');
   x.send();
   if(x.status===200){const j=JSON.parse(x.responseText);GH.sha=j.sha;
-   const data=JSON.parse(b64d(j.content));if(data&&data.keys)applyKeys(data.keys);GH.status='ok';}
+   const data=JSON.parse(b64d(j.content));const rk=data&&data.keys?data.keys:null;const rTasks=rk&&rk.cc2_tasks&&rk.cc2_tasks.length;const lTasks=(LS.g('tasks',[])||[]).length;if(rk&&(rTasks||!lTasks)){applyKeys(rk);GH.status='ok';}else if(rk){GH.status='pend';setTimeout(()=>ghPush(false),1200);}else{GH.status='ok';}}
   else if(x.status===404){GH.status='new';}
   else GH.status='err';
  }catch(e){GH.status='err';}}
@@ -210,6 +210,7 @@ const _lss=LS.s.bind(LS);
 LS.s=(k,v)=>{_lss(k,v);if(GH.cfg&&!NOSYNC.has('cc2_'+k)){GH.status='pend';updateChip();clearTimeout(GH.timer);GH.timer=setTimeout(()=>ghPush(false),2500);}};
 window.addEventListener('beforeunload',()=>{if(GH.status==='pend'){clearTimeout(GH.timer);ghPush(false);}});
 ghPullSync();
+if(GH.status==='new'&&Object.keys(collectKeys()).length){setTimeout(()=>ghPush(false),1500);}
 /* ===== end sync layer ===== */
 {const sc=LS.g('cats',null);if(sc&&sc.length)PROJECTS=sc;else LS.s('cats',PROJECTS);}
 function saveCats(){LS.s('cats',PROJECTS);}
@@ -688,7 +689,7 @@ document.getElementById('ghBtn').onclick=()=>{
   msg.textContent='Testing…';
   fetch('https://api.github.com/repos/'+o+'/'+r,{headers:{Authorization:'Bearer '+t,Accept:'application/vnd.github+json'}})
   .then(res=>{if(res.ok){GH.cfg={owner:o,repo:r,token:t};localStorage.setItem('lifeos_gh',JSON.stringify(GH.cfg));
-    msg.textContent='✓ Connected. Syncing your data…';GH.status='pend';updateChip();ghPush(false);setTimeout(()=>location.reload(),2500);}
+    msg.textContent='✓ Connected. Loading your data…';setTimeout(()=>location.reload(),900);}
    else if(res.status===404)msg.textContent='✗ Repo not found — check username/repo name, and that the token has access to it.';
    else if(res.status===401)msg.textContent='✗ Token rejected — check it was copied fully and hasn\'t expired.';
    else msg.textContent='✗ Error '+res.status;})
