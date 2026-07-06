@@ -198,7 +198,7 @@ function ghPush(retry){if(!GH.cfg)return;GH.status='sync';updateChip();
  const body={message:'lifeos sync '+new Date().toISOString(),
   content:b64e(JSON.stringify({updated:new Date().toISOString(),keys:collectKeys()},null,1))};
  if(GH.sha)body.sha=GH.sha;
- fetch(ghUrl(),{method:'PUT',headers:ghHdr(),body:JSON.stringify(body),keepalive:true})
+ fetch(ghUrl(),{method:'PUT',headers:ghHdr(),body:JSON.stringify(body)})
  .then(r=>r.json().then(j=>({ok:r.ok,st:r.status,j})))
  .then(({ok,st,j})=>{
   if(ok){GH.sha=j.content.sha;GH.status='ok';updateChip();}
@@ -593,7 +593,7 @@ function doImport(txt){let d;try{d=JSON.parse(txt);}catch(e){toast('⚠️ Not v
  const keys=d.keys||d;let n=0;for(const k in keys)if(k.startsWith('cc2_'))n++;
  if(!n){toast('⚠️ No data found in that file');return;}
  applyKeys(keys);toast('Imported ✓ — syncing & reloading…');
- if(GH.cfg){GH.status='pend';updateChip();ghPush(false);setTimeout(()=>location.reload(),2000);}
+ if(GH.cfg){GH.status='pend';updateChip();ghPush(false);const t0=Date.now();const iv=setInterval(()=>{if(GH.status==='ok'){clearInterval(iv);location.reload();}else if(GH.status==='err'||Date.now()-t0>25000){clearInterval(iv);toast('⚠️ Cloud sync failed — data kept in this browser. Open ⚙️ and try again.');updateChip();}},300);}
  else setTimeout(()=>location.reload(),800);}
 document.getElementById('ghBtn').onclick=()=>{
  const cfg=GH.cfg||{owner:'',repo:'',token:''};
