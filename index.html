@@ -257,13 +257,14 @@ document.getElementById('impBtn').onclick=async()=>{
 function taskRow(t,opts){opts=opts||{};
  const p=catOf(t.pid);const b=dueBucket(t);
  const el=document.createElement('div');el.className='row';
- const chk=document.createElement('div');chk.className='chk '+(t.pri||'');chk.onclick=()=>{t.done=true;t.star=false;save();toast('Done ✓');render();};
+ const chk=document.createElement('div');chk.className='chk '+(t.pri||'');chk.onclick=()=>{t.done=true;t.doneAt=TODAY;t.star=false;save();toast('Done ✓');render();};
  const star=document.createElement('div');star.className='star'+(t.star?' on':'');star.textContent=t.star?'★':'☆';star.title='Top 3';star.onclick=()=>{if(!t.star&&STORE.filter(x=>x.star).length>=3){toast('Top 3 full');return;}t.star=!t.star;save();render();};
  const body=document.createElement('div');body.className='tbody';
  let m=`<span class="chip area" style="background:${p.color}">${p.name||''}</span>`;
  if(t.q)m+=`<span class="chip q q-${t.q}">${{do:'Do now',plan:'Schedule',deleg:'Delegate',drop:'Drop'}[t.q]}</span>`;
  if(b==='over')m+=`<span class="chip over">Overdue ${t.due}</span>`;else if(b==='today')m+=`<span class="chip today">Today</span>`;else if(b==='soon')m+=`<span class="chip soon">${t.due}</span>`;else if(b==='later')m+=`<span class="chip">${t.due}</span>`;
  if(t.pri)m+=`<span class="chip" style="color:var(--${t.pri})">${t.pri.toUpperCase()}</span>`;
+ if(t.parked)m+=`<span class="chip">💤 parked</span>`;
  const ttl=document.createElement('div');ttl.className='ttl'+(t.done?' done':'');ttl.textContent=t.content;ttl.title='Click to edit';ttl.onclick=()=>editModal(t);
  body.appendChild(ttl);const mt=document.createElement('div');mt.className='meta';mt.innerHTML=m;body.appendChild(mt);
  const acts=document.createElement('div');acts.className='acts';
@@ -300,7 +301,7 @@ function editModal(t){
  host.querySelector('.mbg').onclick=e=>{if(e.target===host.querySelector('.mbg'))close();};
  host.querySelector('.cancel').onclick=close;
  host.querySelector('.del').onclick=()=>{STORE=STORE.filter(x=>x!==t);save();close();toast('Deleted');render();};
- host.querySelector('.save').onclick=()=>{t.content=document.getElementById('e_c').value.trim()||t.content;t.pid=document.getElementById('e_a').value;t.due=document.getElementById('e_d').value||null;t.pri=document.getElementById('e_p').value||null;t.rec=document.getElementById('e_r').value.trim()||null;save();close();toast('Saved');render();};
+ host.querySelector('.save').onclick=()=>{t.content=document.getElementById('e_c').value.trim()||t.content;t.pid=document.getElementById('e_a').value;t.due=document.getElementById('e_d').value||null;if(t.due)t.parked=false;t.pri=document.getElementById('e_p').value||null;t.rec=document.getElementById('e_r').value.trim()||null;save();close();toast('Saved');render();};
 }
 
 function catsModal(){
@@ -359,7 +360,31 @@ function statsBar(){const A=active(),over=A.filter(t=>dueBucket(t)==='over').len
 function card(t,h){const c=document.createElement('div');c.className='card';c.innerHTML=`<h2>${t}</h2>`+(h?`<p class="hint">${h}</p>`:'');return c;}
 function empty(m){const e=document.createElement('div');e.className='empty';e.textContent=m;return e;}
 
+function shutdownModal(){
+ const doneToday=STORE.filter(t=>t.done&&t.doneAt===TODAY);
+ const left=active().filter(t=>!t.rec&&['over','today'].includes(dueBucket(t)));
+ const host=document.getElementById('modalHost');
+ const d1=new Date(today);d1.setDate(d1.getDate()+1);const tom=iso(d1);
+ let h='<div class="mbg" id="sdBg"><div class="modal" style="max-width:440px"><h3>🌙 Luk dagen</h3>';
+ h+='<p style="font-size:13px;margin:6px 0">✅ Færdig i dag: <b>'+doneToday.length+'</b>'+(doneToday.length?' — godt gået!':'')+'</p>';
+ if(doneToday.length)h+='<div style="font-size:12px;color:var(--muted);max-height:90px;overflow:auto;margin-bottom:4px">'+doneToday.map(t=>'✓ '+esc(t.content)).join('<br>')+'</div>';
+ if(left.length)h+='<p style="font-size:13px;margin:10px 0 4px">⏭ Stadig åben ('+left.length+') — ryk eller lad ligge:</p><div id="sdLeft" style="max-height:150px;overflow:auto"></div><button class="cancel" id="sdRoll" style="margin-top:6px">Ryk alle til i morgen</button>';
+ h+='<label style="display:block;font-size:12px;color:var(--muted);margin:12px 0 3px">Én linje om dagen (valgfrit)</label><input id="sdNote" style="width:100%" placeholder="F.eks. God dag — kom videre med CV">';
+ h+='<div class="mbtns"><button class="save" id="sdDone">Luk dagen ✓</button><button class="cancel" id="sdX">Annullér</button></div></div></div>';
+ host.innerHTML=h;
+ const lw=document.getElementById('sdLeft');
+ if(lw)left.forEach(t=>{const r=document.createElement('div');r.className='row';r.innerHTML='<div class="tbody"><div class="ttl" style="font-size:12.5px">'+esc(t.content)+'</div></div>';const b=document.createElement('button');b.className='btn';b.textContent='→ i morgen';b.onclick=()=>{t.due=tom;t.parked=false;save();b.textContent='✓';b.disabled=true;};r.appendChild(b);lw.appendChild(r);});
+ const rl=document.getElementById('sdRoll');
+ if(rl)rl.onclick=()=>{left.forEach(t=>{t.due=tom;t.parked=false;});save();rl.textContent='✓ Rykket';rl.disabled=true;if(lw)lw.querySelectorAll('button').forEach(x=>{x.textContent='✓';x.disabled=true;});};
+ document.getElementById('sdX').onclick=()=>host.innerHTML='';
+ document.getElementById('sdBg').onclick=e=>{if(e.target.id==='sdBg')host.innerHTML='';};
+ document.getElementById('sdDone').onclick=()=>{const n=document.getElementById('sdNote').value.trim();if(n){const j=LS.g('journal',[]);j.push({date:TODAY,note:n});LS.s('journal',j);}LS.s('dayclosed',TODAY);host.innerHTML='';toast('Dagen er lukket 🌙 Sov godt');render();};
+}
 function focusP(w){
+ const bar=document.createElement('div');bar.style.cssText='display:flex;justify-content:flex-end;margin:0 0 10px;gap:8px;align-items:center';
+ if(LS.g('dayclosed','')===TODAY){bar.innerHTML='<span class="chip" style="background:#e8f5ee;color:#1a7f4b;padding:6px 12px;font-size:12px">🌙 Dagen er lukket ✓</span>';}
+ else{const b=document.createElement('button');b.className='imp';b.style.marginLeft='0';b.textContent='🌙 Luk dagen';b.onclick=shutdownModal;bar.appendChild(b);}
+ w.appendChild(bar);
  const evu=evUpcoming(7);
  if(evu.length){const ce=card('🎂 Birthdays & dates this week','');evu.forEach(e=>{const r=document.createElement('div');r.className='row';r.innerHTML=`<div style="font-size:17px">${evIcon(e)}</div><div class="tbody"><div class="ttl">${esc(e.name)}${evAge(e)!=null?' (turns '+evAge(e)+')':''}</div><div class="meta"><span class="chip ${evDays(e)===0?'today':'soon'}">${evWhen(e)}</span></div></div>`;r.querySelector('.ttl').onclick=()=>eventModal(e);ce.appendChild(r);});w.appendChild(ce);}
  const top=active().filter(t=>t.star);
@@ -367,7 +392,21 @@ function focusP(w){
  const dm=active().filter(t=>t.q==='do'&&!t.star);
  const list=top.concat(dm).slice(0,6);
  if(list.length)list.forEach(t=>c1.appendChild(taskRow(t)));else c1.appendChild(empty('Nothing pinned yet — tap ☆ on a task.'));w.appendChild(c1);
- const urg=active().filter(t=>['over','today'].includes(dueBucket(t))).sort((a,b)=>score(b)-score(a));
+ const rot=active().filter(t=>{if(!t.due||t.rec||t.parked)return false;const dd=Math.round((today-new Date(t.due+'T12:00'))/864e5);return dd>7;}).sort((a,b)=>a.due<b.due?-1:1);
+ if(rot.length){const cr=card('🍂 Rotting — overdue more than a week','Decide now so nothing quietly dies: give it a real date, park it for the weekly review, or let it go.');
+  rot.forEach(t=>{const r=document.createElement('div');r.className='row';r.innerHTML='<div style="font-size:15px">🍂</div>';
+   const bd=document.createElement('div');bd.className='tbody';
+   const tt=document.createElement('div');tt.className='ttl';tt.textContent=t.content;tt.onclick=()=>editModal(t);bd.appendChild(tt);
+   const mm=document.createElement('div');mm.className='meta';mm.innerHTML='<span class="chip over">Overdue '+esc(t.due)+'</span><span class="chip area" style="background:'+catOf(t.pid).color+'">'+esc(catOf(t.pid).name)+'</span>';bd.appendChild(mm);
+   const acts=document.createElement('div');acts.className='acts';
+   const b1=document.createElement('button');b1.className='btn';b1.textContent='📅 New date';b1.onclick=()=>editModal(t);
+   const b2=document.createElement('button');b2.className='btn';b2.textContent='💤 Park';b2.title='Removes the date — resurfaces at weekly review';b2.onclick=()=>{t.due=null;t.parked=true;save();toast('Parked 💤');render();};
+   const b3=document.createElement('button');b3.className='btn';b3.textContent='🗑';b3.style.color='var(--over)';b3.onclick=()=>{if(confirm('Delete "'+t.content+'"?')){STORE=STORE.filter(x=>x!==t);save();toast('Deleted');render();}};
+   acts.appendChild(b1);acts.appendChild(b2);acts.appendChild(b3);bd.appendChild(acts);
+   r.appendChild(bd);cr.appendChild(r);});
+  w.appendChild(cr);}
+ const rotIds=new Set(rot.map(t=>t.id));
+ const urg=active().filter(t=>['over','today'].includes(dueBucket(t))&&!rotIds.has(t.id)).sort((a,b)=>score(b)-score(a));
  const c2=card('🔥 Needs attention now','Overdue + due today.');if(urg.length)urg.forEach(t=>c2.appendChild(taskRow(t)));else c2.appendChild(empty('Nothing overdue or due today 🎉'));w.appendChild(c2);
  const soon=active().filter(t=>dueBucket(t)==='soon').sort((a,b)=>score(b)-score(a));
  if(soon.length){const c3=card('📆 Next 7 days','');soon.forEach(t=>c3.appendChild(taskRow(t)));w.appendChild(c3);}
@@ -430,7 +469,7 @@ function bulkBar(){const c=document.createElement('div');c.className='card';c.st
  const lbl=document.createElement('span');lbl.textContent='Move to:';lbl.style.fontSize='12.5px';
  const sel=document.createElement('select');sel.style.cssText='font:inherit;border:1px solid var(--line);border-radius:8px;padding:6px 8px';sel.innerHTML=PROJECTS.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
  const mv=document.createElement('button');mv.className='btn';mv.textContent='Move';mv.onclick=()=>{const n=SEL.size;STORE.forEach(t=>{if(SEL.has(t.id))t.pid=sel.value;});SEL.clear();save();toast('Moved '+n+' task'+(n>1?'s':''));render();};
- const cp=document.createElement('button');cp.className='btn';cp.textContent='✓ Complete';cp.onclick=()=>{STORE.forEach(t=>{if(SEL.has(t.id)){t.done=true;t.star=false;}});SEL.clear();save();toast('Completed');render();};
+ const cp=document.createElement('button');cp.className='btn';cp.textContent='✓ Complete';cp.onclick=()=>{STORE.forEach(t=>{if(SEL.has(t.id)){t.done=true;t.doneAt=TODAY;t.star=false;}});SEL.clear();save();toast('Completed');render();};
  const dl=document.createElement('button');dl.className='btn';dl.style.color='var(--over)';dl.textContent='🗑 Delete';dl.onclick=()=>{if(confirm('Delete '+SEL.size+' selected task(s)?')){STORE=STORE.filter(t=>!SEL.has(t.id));SEL.clear();save();toast('Deleted');render();}};
  const cl=document.createElement('button');cl.className='btn';cl.textContent='Clear';cl.onclick=()=>{SEL.clear();render();};
  [lbl,sel,mv,cp,dl,cl].forEach(x=>row.appendChild(x));c.appendChild(row);return c;}
@@ -447,7 +486,7 @@ function allP(w){
  const known=new Set(PROJECTS.map(p=>p.id));const orphIds=[...new Set(active().filter(t=>!known.has(t.pid)).map(t=>t.pid))];
  orphIds.forEach(id=>catCard(w,id,'Uncategorised','#9aa0a6',true));
  const done=STORE.filter(t=>t.done);
- if(done.length){const c=card('✅ Completed — '+done.length,'');const body=document.createElement('div');body.className='area-body';done.slice(0,50).forEach(t=>{const r=document.createElement('div');r.className='row';r.innerHTML=`<div class="chk sq done"></div><div class="tbody"><div class="ttl done">${esc(t.content)}</div></div>`;r.querySelector('.chk').onclick=()=>{t.done=false;save();render();};body.appendChild(r);});const h=c.querySelector('h2');h.style.cursor='pointer';h.onclick=()=>body.classList.toggle('open');c.appendChild(body);w.appendChild(c);}
+ if(done.length){const c=card('✅ Completed — '+done.length,'');const body=document.createElement('div');body.className='area-body';done.slice(0,50).forEach(t=>{const r=document.createElement('div');r.className='row';r.innerHTML=`<div class="chk sq done"></div><div class="tbody"><div class="ttl done">${esc(t.content)}</div></div>`;r.querySelector('.chk').onclick=()=>{t.done=false;delete t.doneAt;save();render();};body.appendChild(r);});const h=c.querySelector('h2');h.style.cursor='pointer';h.onclick=()=>body.classList.toggle('open');c.appendChild(body);w.appendChild(c);}
 }
 let tlRef=new Date(today);
 function weekStart(d){const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return x;}
@@ -546,16 +585,42 @@ function datesP(w){
   const del=document.createElement('div');del.className='star';del.textContent='🗑';del.title='Delete';del.onclick=()=>{if(confirm('Delete '+e.name+'?')){EVENTS=EVENTS.filter(x=>x!==e);ESEL.delete(e.id);saveEv();toast('Deleted');render();}};
   r.appendChild(sel);r.appendChild(ic);r.appendChild(body);r.appendChild(del);c.appendChild(r);});
  w.appendChild(c);}
+function gapAllow(rec){const r=(rec||'').toLowerCase();if(r.includes('hver 2'))return 2;if(r.includes('uge')||r.includes('week'))return 7;if(r.includes('hverdage'))return 3;return 1;}
+function habitStreak(t,done){
+ const FR=LS.g('hfreeze',{m:'',used:0,bridged:{}});FR.bridged=FR.bridged||{};
+ const cm=TODAY.slice(0,7);if(FR.m!==cm){FR.m=cm;FR.used=0;}
+ const allow=gapAllow(t.rec);
+ const ds=[...new Set(done)].sort().reverse();
+ if(!ds.length)return{n:0,frozen:false,best:LS.g('hbest',{})[t.id]||0};
+ const day=s=>Math.round(new Date(s+'T12:00').getTime()/864e5);
+ let frozen=false,n=0;
+ const gap0=day(TODAY)-day(ds[0]);
+ if(gap0<=allow){n=1;}
+ else if(gap0===allow+1){const key=t.id+':'+ds[0];
+  if(FR.bridged[key]){n=1;frozen=true;}
+  else if(FR.used<2){FR.used++;FR.bridged[key]=true;LS.s('hfreeze',FR);n=1;frozen=true;}
+ }
+ if(n===0)return{n:0,frozen:false,best:LS.g('hbest',{})[t.id]||0};
+ for(let i=1;i<ds.length;i++){const g=day(ds[i-1])-day(ds[i]);
+  if(g<=allow){n++;continue;}
+  if(g===allow+1){const key=t.id+':'+ds[i];
+   if(FR.bridged[key]){n++;continue;}
+   if(FR.used<2){FR.used++;FR.bridged[key]=true;LS.s('hfreeze',FR);n++;continue;}}
+  break;}
+ const best=LS.g('hbest',{});if(n>(best[t.id]||0)){best[t.id]=n;LS.s('hbest',best);}
+ return{n,frozen,best:best[t.id]||n};
+}
 function habitsP(w){
  const H=habitsAll();const c=card('🔁 Habit tracker','Your daily routines (from Apple Notes). Tap the circle to log today. Add more via + below.');
  const grid=document.createElement('div');grid.className='hgrid';const log=LS.g('hlog',{});
- H.forEach(t=>{const done=log[t.id]||[];let streak=0;for(let i=0;i<90;i++){const d=new Date(today);d.setDate(d.getDate()-i);if(done.includes(iso(d)))streak++;else break;}
+ {const FRi=LS.g('hfreeze',{m:'',used:0});const frLeft=FRi.m===TODAY.slice(0,7)?Math.max(0,2-FRi.used):2;const hint=c.querySelector('.hint');if(hint)hint.textContent+=' 🧊 '+frLeft+'/2 streak-freezes left this month — a freeze auto-saves your streak when you miss one day.';}
+ H.forEach(t=>{const done=log[t.id]||[];const sf=habitStreak(t,done);const streak=sf.n;
   const mon=new Date(today);mon.setDate(today.getDate()-((today.getDay()+6)%7));
   let week='';for(let i=0;i<7;i++){const d=new Date(mon);d.setDate(mon.getDate()+i);const ds=iso(d);const isT=ds===TODAY;const future=d>today;week+=`<div class="dot ${done.includes(ds)?'done':''} ${isT?'tdy':''}" style="${future?'opacity:.4':''}">${done.includes(ds)?'✓':['M','T','O','T','F','L','S'][i]}</div>`;}
   const row=document.createElement('div');row.className='habit';
   const nm=document.createElement('div');nm.className='hname';nm.innerHTML=`${esc(t.content)} <span class="chip rec">🔁 ${t.rec}</span>`;nm.style.cursor='pointer';nm.title='Click to edit';nm.onclick=()=>habitModal(t);
   const wk=document.createElement('div');wk.className='week';wk.innerHTML=week;
-  const sk=document.createElement('div');sk.className='streak';sk.textContent='🔥 '+streak+'d';
+  const sk=document.createElement('div');sk.className='streak';sk.textContent='🔥 '+streak+'d'+(sf.frozen?' 🧊':'');sk.title='Længste streak: '+(sf.best||streak)+'d'+(sf.frozen?' · 🧊 freeze brugt':'');
   row.appendChild(nm);row.appendChild(wk);row.appendChild(sk);
   const btn=document.createElement('button');btn.className='btn';btn.textContent=done.includes(TODAY)?'✓ done':'Log today';btn.onclick=()=>{if(done.includes(TODAY))return;done.push(TODAY);log[t.id]=done;LS.s('hlog',log);toast('Logged 🔁');render();};row.appendChild(btn);
   const ed=document.createElement('button');ed.className='btn';ed.textContent='✏️';ed.title='Edit habit';ed.onclick=()=>habitModal(t);row.appendChild(ed);
