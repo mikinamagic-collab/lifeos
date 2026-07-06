@@ -361,6 +361,54 @@ function statsBar(){const A=active(),over=A.filter(t=>dueBucket(t)==='over').len
 function card(t,h){const c=document.createElement('div');c.className='card';c.innerHTML=`<h2>${t}</h2>`+(h?`<p class="hint">${h}</p>`:'');return c;}
 function empty(m){const e=document.createElement('div');e.className='empty';e.textContent=m;return e;}
 
+function morningModal(){
+ const host=document.getElementById('modalHost');
+ const d1=new Date(today);d1.setDate(d1.getDate()+1);const tom=iso(d1);
+ const leftovers=()=>active().filter(t=>!t.rec&&dueBucket(t)==='over');
+ const sel=new Set(STORE.filter(t=>t.star&&!t.done).map(t=>t.id));
+ let step=leftovers().length?1:2;
+ function shell(inner,btns){host.innerHTML='<div class="mbg" id="mpBg"><div class="modal" style="max-width:460px"><h3>☀️ Planlæg dagen <span style="font-weight:400;color:var(--muted);font-size:12px">trin '+(step)+' af 3</span></h3>'+inner+'<div class="mbtns">'+btns+'</div></div></div>';
+  document.getElementById('mpBg').onclick=e=>{if(e.target.id==='mpBg')host.innerHTML='';};}
+ function renderStep(){
+  if(step===1){
+   const L=leftovers();
+   if(!L.length){step=2;renderStep();return;}
+   shell('<p style="font-size:13px">⏭ Fra i går ('+L.length+') — hvad gør vi?</p><div id="mpL" style="max-height:200px;overflow:auto"></div>',
+    '<button class="cancel" id="mpAllTom">Ryk alle til i morgen</button><button class="save" id="mpN1">Videre →</button>');
+   const lw=document.getElementById('mpL');
+   L.forEach(t=>{const r=document.createElement('div');r.className='row';
+    const bd=document.createElement('div');bd.className='tbody';bd.innerHTML='<div class="ttl" style="font-size:12.5px">'+esc(t.content)+'</div><div class="meta"><span class="chip over">'+esc(t.due)+'</span></div>';
+    const a=document.createElement('div');a.className='acts';
+    [['I dag',()=>{t.due=TODAY;}],['I morgen',()=>{t.due=tom;}],['💤',()=>{t.due=null;t.parked=true;}]].forEach(([txt,fn])=>{const b=document.createElement('button');b.className='btn';b.textContent=txt;b.onclick=()=>{fn();save();renderStep();};a.appendChild(b);});
+    bd.appendChild(a);r.appendChild(bd);lw.appendChild(r);});
+   document.getElementById('mpAllTom').onclick=()=>{leftovers().forEach(t=>{t.due=tom;});save();step=2;renderStep();};
+   document.getElementById('mpN1').onclick=()=>{step=2;renderStep();};
+  }else if(step===2){
+   const cand=active().filter(t=>!t.rec&&(['over','today'].includes(dueBucket(t))||t.q==='do'||t.pri==='p1'||t.star)).sort((a,b)=>score(b)-score(a)).slice(0,12);
+   shell('<p style="font-size:13px">⭐ Vælg dagens Top 3 — de vigtigste, ikke de letteste:</p><div id="mpC" style="max-height:220px;overflow:auto"></div><p id="mpCnt" style="font-size:12px;color:var(--muted)"></p>',
+    '<button class="cancel" id="mpB2">← Tilbage</button><button class="save" id="mpN2">Videre →</button>');
+   const cw=document.getElementById('mpC');const cnt=document.getElementById('mpCnt');
+   const upd=()=>{cnt.textContent=sel.size+'/3 valgt';};
+   cand.forEach(t=>{const r=document.createElement('div');r.className='row';
+    const c=document.createElement('div');c.className='chk sq'+(sel.has(t.id)?' done':'');c.onclick=()=>{if(sel.has(t.id))sel.delete(t.id);else{if(sel.size>=3){toast('Max 3 — fjern én først');return;}sel.add(t.id);}c.className='chk sq'+(sel.has(t.id)?' done':'');upd();};
+    const bd=document.createElement('div');bd.className='tbody';bd.innerHTML='<div class="ttl" style="font-size:12.5px">'+esc(t.content)+'</div><div class="meta"><span class="chip area" style="background:'+catOf(t.pid).color+'">'+esc(catOf(t.pid).name)+'</span>'+(t.due?'<span class="chip">'+esc(t.due)+'</span>':'')+'</div>';
+    r.appendChild(c);r.appendChild(bd);cw.appendChild(r);});
+   upd();
+   document.getElementById('mpB2').onclick=()=>{step=1;renderStep();};
+   document.getElementById('mpN2').onclick=()=>{step=3;renderStep();};
+  }else{
+   STORE.forEach(t=>{t.star=sel.has(t.id)&&!t.done;});save();
+   const tc=active().filter(t=>!t.rec&&dueBucket(t)==='today').length;
+   let inner='<p style="font-size:13px">📋 Dagens plan: <b>'+sel.size+'</b> i Top 3 · <b>'+tc+'</b> med deadline i dag.</p>';
+   if(tc>5)inner+='<p style="font-size:13px;color:var(--over)">⚠️ '+tc+' opgaver i dag er mange — overvej at rykke et par stykker, så dagen kan lykkes.</p>';
+   else inner+='<p style="font-size:13px;color:#1a7f4b">✓ Det ser realistisk ud.</p>';
+   inner+='<p style="font-size:12px;color:var(--muted)">Husk: blokér tid i kalenderen til dine Top 3.</p>';
+   shell(inner,'<button class="cancel" id="mpB3">← Tilbage</button><button class="save" id="mpGo">Planen er klar ☀️</button>');
+   document.getElementById('mpB3').onclick=()=>{step=2;renderStep();};
+   document.getElementById('mpGo').onclick=()=>{LS.s('lastplan',TODAY);host.innerHTML='';toast('Planen er klar ☀️ God dag!');render();};
+  }}
+ renderStep();
+}
 function shutdownModal(){
  const doneToday=STORE.filter(t=>t.done&&t.doneAt===TODAY);
  const left=active().filter(t=>!t.rec&&['over','today'].includes(dueBucket(t)));
@@ -386,6 +434,10 @@ function focusP(w){
  if(LS.g('dayclosed','')===TODAY){bar.innerHTML='<span class="chip" style="background:#e8f5ee;color:#1a7f4b;padding:6px 12px;font-size:12px">🌙 Dagen er lukket ✓</span>';}
  else{const b=document.createElement('button');b.className='imp';b.style.marginLeft='0';b.textContent='🌙 Luk dagen';b.onclick=shutdownModal;bar.appendChild(b);}
  w.appendChild(bar);
+ if(LS.g('lastplan','')!==TODAY&&LS.g('dayclosed','')!==TODAY){const pb=document.createElement('div');pb.className='banner';pb.style.cssText='display:flex;align-items:center;gap:10px;flex-wrap:wrap';pb.innerHTML='☀️ <b>Dagen er ikke planlagt endnu</b> — 2 minutter, så er du klar.';
+  const go=document.createElement('button');go.className='save';go.style.cssText='padding:7px 14px;border:none;border-radius:9px;background:var(--accent);color:#fff;cursor:pointer;font-weight:600';go.textContent='☀️ Planlæg dagen';go.onclick=morningModal;
+  const sk=document.createElement('button');sk.className='cancel';sk.style.cssText='padding:7px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;cursor:pointer';sk.textContent='Spring over';sk.onclick=()=>{LS.s('lastplan',TODAY);render();};
+  pb.appendChild(go);pb.appendChild(sk);w.appendChild(pb);}
  const evu=evUpcoming(7);
  if(evu.length){const ce=card('🎂 Birthdays & dates this week','');evu.forEach(e=>{const r=document.createElement('div');r.className='row';r.innerHTML=`<div style="font-size:17px">${evIcon(e)}</div><div class="tbody"><div class="ttl">${esc(e.name)}${evAge(e)!=null?' (turns '+evAge(e)+')':''}</div><div class="meta"><span class="chip ${evDays(e)===0?'today':'soon'}">${evWhen(e)}</span></div></div>`;r.querySelector('.ttl').onclick=()=>eventModal(e);ce.appendChild(r);});w.appendChild(ce);}
  const top=active().filter(t=>t.star);
