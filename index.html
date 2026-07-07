@@ -173,7 +173,7 @@ const RAW={};
 let UID=1;
 const LS={g(k,d){try{return JSON.parse(localStorage.getItem('cc2_'+k))??d}catch(e){return d}},s(k,v){localStorage.setItem('cc2_'+k,JSON.stringify(v))}};
 /* ===== GitHub sync layer ===== */
-const NOSYNC=new Set(['cc2_tab','cc2_pmode','cc2_tlview']);
+const NOSYNC=new Set(['cc2_tab','cc2_pmode','cc2_tlview','cc2_catopen']);
 const GH={cfg:JSON.parse(localStorage.getItem('lifeos_gh')||'null'),sha:null,timer:null,status:'off'};
 function ghUrl(){return 'https://api.github.com/repos/'+GH.cfg.owner+'/'+GH.cfg.repo+'/contents/data.json';}
 function ghHdr(){return {Authorization:'Bearer '+GH.cfg.token,Accept:'application/vnd.github+json'};}
@@ -220,6 +220,8 @@ if(!STORE){STORE=seed();LS.s('tasks',STORE);}else{UID=STORE.reduce((m,t)=>Math.m
 function save(){LS.s('tasks',STORE);}
 let SEL=new Set();
 let ESEL=new Set();
+let catOpen=LS.g('catopen',{});
+function saveCatOpen(){LS.s('catopen',catOpen);}
 const BAKED_EVENTS=[];
 let EVENTS=LS.g('events',null);
 if(!EVENTS){EVENTS=BAKED_EVENTS.map(e=>({...e}));LS.s('events',EVENTS);}
@@ -513,9 +515,10 @@ function catCard(w,id,name,color,sel){const items=active().filter(t=>t.pid===id)
   const c=document.createElement('div');c.className='card';const h=document.createElement('div');h.className='area-h';
   const allSel=items.every(t=>SEL.has(t.id));
   h.innerHTML=`<span style="width:10px;height:10px;border-radius:50%;background:${color};display:inline-block"></span><b>${esc(name)}</b><span class="ct">${items.length} tasks · <span class="selall" style="cursor:pointer;color:var(--accent)">${allSel?'clear':'select all'}</span></span>`;
-  const body=document.createElement('div');body.className='area-body'+(items.length<=25?' open':'');items.forEach(t=>body.appendChild(taskRow(t,{sel})));
+  const isOpen=catOpen.hasOwnProperty(id)?catOpen[id]:(items.length<=25);
+  const body=document.createElement('div');body.className='area-body'+(isOpen?' open':'');items.forEach(t=>body.appendChild(taskRow(t,{sel})));
   h.querySelector('.selall').onclick=e=>{e.stopPropagation();if(allSel)items.forEach(t=>SEL.delete(t.id));else items.forEach(t=>SEL.add(t.id));render();};
-  h.onclick=()=>body.classList.toggle('open');c.appendChild(h);c.appendChild(body);w.appendChild(c);}
+  h.onclick=()=>{catOpen[id]=body.classList.toggle('open');saveCatOpen();};c.appendChild(h);c.appendChild(body);w.appendChild(c);}
 function bulkBar(){const c=document.createElement('div');c.className='card';c.style.cssText='position:sticky;top:44px;z-index:4;border-color:var(--accent);border-width:2px';
  c.innerHTML=`<b>${SEL.size} selected</b>`;
  const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px';
