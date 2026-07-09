@@ -50,6 +50,15 @@ h1{font-size:20px;margin:0;font-weight:700;letter-spacing:-.01em}
 .row:hover .acts,.row.exp .acts{display:flex}
 .rowtog{cursor:pointer;color:#c7c9cd;font-size:19px;line-height:1;flex:0 0 auto;margin-top:1px;padding:4px 6px}
 .row:hover .rowtog{color:#9aa0a6}.row.exp .rowtog{color:var(--accent)}
+.subsinline{display:none;margin-top:8px}
+.row.exp .subsinline{display:block}
+.subs2{padding-left:2px}
+.sub{display:flex;align-items:center;gap:9px;padding:4px 0;font-size:13px}
+.subchk{width:19px;height:19px;border:2px solid #c7c9cd;border-radius:5px;cursor:pointer;flex:0 0 auto;position:relative}
+.subchk.done{background:var(--home);border-color:var(--home)}
+.subchk.done:after{content:'✓';color:#fff;font-size:11px;position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.subtxt.done{text-decoration:line-through;color:var(--muted)}
+.subadd{display:flex;gap:6px;margin-top:6px}
 .btn{font-size:12px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 11px;min-height:38px;display:inline-flex;align-items:center;cursor:pointer;color:#374151}
 .btn:hover{background:#f3f4f6}.btn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 .btn.p1{color:var(--p1)}.btn.p2{color:var(--p2)}.btn.p3{color:var(--p3)}
@@ -262,6 +271,25 @@ document.getElementById('impBtn').onclick=async()=>{
 };
 
 // ---------- task row ----------
+function chAllDone(t){return t.children&&t.children.length&&t.children.every(c=>c.done);}
+function newSid(){return 's'+Date.now().toString(36)+Math.floor(Math.random()*10000);}
+function chToggle(t,c){c.done=!c.done;if(chAllDone(t)){t.done=true;t.doneAt=TODAY;t.star=false;toast('Alle deltrin fuldført ✓');}save();}
+function chAdd(t,txt){if(!t.children)t.children=[];t.children.push({id:newSid(),txt:txt,done:false});save();}
+function chDel(t,c){t.children=(t.children||[]).filter(x=>x!==c);save();}
+function buildChecklist(t,onChange){
+ const wrap=document.createElement('div');wrap.className='subs2';
+ (t.children||[]).forEach(c=>{const r=document.createElement('div');r.className='sub';
+  const cb=document.createElement('div');cb.className='subchk'+(c.done?' done':'');cb.onclick=e=>{e.stopPropagation();chToggle(t,c);onChange();};
+  const tx=document.createElement('div');tx.className='subtxt'+(c.done?' done':'');tx.textContent=c.txt;tx.style.flex='1';
+  const dl=document.createElement('span');dl.textContent='🗑';dl.style.cssText='cursor:pointer;color:#c7c9cd;font-size:12px';dl.onclick=e=>{e.stopPropagation();chDel(t,c);onChange();};
+  r.appendChild(cb);r.appendChild(tx);r.appendChild(dl);wrap.appendChild(r);});
+ const add=document.createElement('div');add.className='subadd';
+ const inp=document.createElement('input');inp.placeholder='Tilføj deltrin…';inp.style.cssText='flex:1;border:1px solid var(--line);border-radius:7px;padding:6px 8px;font:inherit';
+ inp.onclick=e=>e.stopPropagation();
+ inp.onkeydown=e=>{e.stopPropagation();if(e.key==='Enter'&&inp.value.trim()){chAdd(t,inp.value.trim());onChange();}};
+ add.appendChild(inp);wrap.appendChild(add);return wrap;
+}
+
 function taskRow(t,opts){opts=opts||{};
  const p=catOf(t.pid);const b=dueBucket(t);
  const el=document.createElement('div');el.className='row';
@@ -274,6 +302,7 @@ function taskRow(t,opts){opts=opts||{};
  if(t.pri)m+=`<span class="chip" style="color:var(--${t.pri})">${t.pri.toUpperCase()}</span>`;
  if(t.time)m+=`<span class="chip">🕒 ${t.time}</span>`;
  if(t.parked)m+=`<span class="chip">💤 parked</span>`;
+ if(t.children&&t.children.length){const _cd=t.children.filter(c=>c.done).length;m+='<span class="chip" style="background:#eef7f2;color:#1f6b52">☑ '+_cd+'/'+t.children.length+'</span>';}
  const ttl=document.createElement('div');ttl.className='ttl'+(t.done?' done':'');ttl.textContent=t.content;ttl.title='Click to edit';ttl.onclick=()=>editModal(t);
  body.appendChild(ttl);const mt=document.createElement('div');mt.className='meta';mt.innerHTML=m;body.appendChild(mt);
  const acts=document.createElement('div');acts.className='acts';
@@ -282,6 +311,7 @@ function taskRow(t,opts){opts=opts||{};
  const bm=document.createElement('button');bm.className='btn';bm.textContent='I morgen';bm.onclick=()=>{const d=new Date(today);d.setDate(d.getDate()+1);t.due=iso(d);save();render();};acts.appendChild(bm);
  const bd=document.createElement('button');bd.className='btn';bd.textContent='🗑';bd.title='Delete';bd.style.color='var(--over)';bd.onclick=()=>{if(confirm('Slet "'+t.content+'"?')){STORE=STORE.filter(x=>x!==t);SEL.delete(t.id);save();toast('Slettet');render();}};acts.appendChild(bd);
  body.appendChild(acts);
+ if(t.children&&t.children.length){const _cl=buildChecklist(t,render);_cl.classList.add('subsinline');body.appendChild(_cl);}
  if(opts.sel){const sb=document.createElement('div');sb.className='chk sq'+(SEL.has(t.id)?' done':'');sb.title='Select';sb.style.marginTop='1px';sb.onclick=()=>{if(SEL.has(t.id))SEL.delete(t.id);else SEL.add(t.id);render();};el.appendChild(sb);}
  const tog=document.createElement('div');tog.className='rowtog';tog.textContent='⋯';tog.title='Vis handlinger';tog.onclick=e=>{e.stopPropagation();el.classList.toggle('exp');};
  el.appendChild(chk);el.appendChild(body);el.appendChild(star);el.appendChild(tog);return el;
@@ -335,12 +365,14 @@ function editModal(t){
    <label>Livsområde</label>${areaSelect(t.pid).replace('<select','<select id="e_a"')}
    <div class="mrow"><div><label>Forfaldsdato</label><input id="e_d" type="date" value="${t.due||''}"></div><div><label>Tidspunkt</label><input id="e_t" type="time" value="${t.time||''}"></div><div><label>Prioritet</label><select id="e_p"><option value="">Ingen</option><option value="p1"${t.pri==='p1'?' selected':''}>P1</option><option value="p2"${t.pri==='p2'?' selected':''}>P2</option><option value="p3"${t.pri==='p3'?' selected':''}>P3</option></select></div></div>
    <label>Gentagelse (tom = engangs)</label><input id="e_r" value="${esc(t.rec||'')}" placeholder="e.g. hver dag">
+   <label>Deltrin (tjekliste)</label><div id="e_ch"></div>
    <div class="mbtns"><button class="del">Slet</button><button class="cancel">Annullér</button><button class="save">Gem</button></div>
  </div></div>`;
  const close=()=>host.innerHTML='';
  host.querySelector('.mbg').onclick=e=>{if(e.target===host.querySelector('.mbg'))close();};
  host.querySelector('.cancel').onclick=close;
  host.querySelector('.del').onclick=()=>{STORE=STORE.filter(x=>x!==t);save();close();toast('Slettet');render();};
+ (function(){const c=document.getElementById('e_ch');const rf=()=>{c.innerHTML='';c.appendChild(buildChecklist(t,rf));};rf();})();
  host.querySelector('.save').onclick=()=>{t.content=document.getElementById('e_c').value.trim()||t.content;t.pid=document.getElementById('e_a').value;t.due=document.getElementById('e_d').value||null;if(t.due)t.parked=false;t.time=document.getElementById('e_t').value||null;t.pri=document.getElementById('e_p').value||null;t.rec=document.getElementById('e_r').value.trim()||null;save();close();toast('Gemt');render();};
 }
 
@@ -800,7 +832,7 @@ const PROJ=LS.g('projdefs',[]);
 function projP(w){const b=document.createElement('div');b.className='banner';b.innerHTML='🚀 Langsigtede projekter → milepæle. Kryds dem af, eller tryk <b>＋ liste</b> for at føje en milepæl til som opgave.';w.appendChild(b);
  PROJ.forEach((p,pi)=>{const st=LS.g('proj_'+pi,{});const ms=p.ms.map((x,i)=>{const txt=typeof x==='string'?x:x.t;const def=typeof x==='object'&&x.done;return{txt,done:st[i]!==undefined?st[i]:def};});const done=ms.filter(m=>m.done).length,pct=Math.round(done/ms.length*100);
   const el=document.createElement('div');el.className='pj';el.innerHTML=`<div class="pj-h"><span style="width:11px;height:11px;border-radius:50%;background:${p.color};display:inline-block"></span><b>${p.name}</b><span class="pill ${p.pill}">${p.pillTxt}</span><span style="margin-left:auto;color:var(--muted);font-size:12px">${done}/${ms.length}</span></div><div class="pj-note">${esc(p.note)}</div><div class="prog"><i style="width:${pct}%"></i></div>`;
-  ms.forEach((m,i)=>{const r=document.createElement('div');r.className='ms';const c=document.createElement('div');c.className='chk sq'+(m.done?' done':'');c.onclick=()=>{st[i]=!m.done;LS.s('proj_'+pi,st);render();};const tx=document.createElement('div');tx.className='txt'+(m.done?' done':'');tx.textContent=m.txt;tx.style.flex='1';const sd=document.createElement('button');sd.className='send';sd.textContent='＋ liste';sd.onclick=()=>{const pid=p.name==='Job Search'||p.name.includes('Upskilling')?'6P7v4xHhHhWfW8C8':(p.name==='Greenhouse'?'6PqMhjm7xH525cRf':'6P7v4xMFq9mf9xgh');STORE.unshift({id:'t'+(UID++),content:m.txt,pid,due:null,rec:null,pri:null,q:null,imp:null,eff:null,done:false,star:false,src:'me'});save();toast('Tilføjet til din liste ✓');};r.appendChild(c);r.appendChild(tx);r.appendChild(sd);el.appendChild(r);});w.appendChild(el);});}
+  ms.forEach((m,i)=>{const r=document.createElement('div');r.className='ms';const c=document.createElement('div');c.className='chk sq'+(m.done?' done':'');c.onclick=()=>{st[i]=!m.done;LS.s('proj_'+pi,st);render();};const tx=document.createElement('div');tx.className='txt'+(m.done?' done':'');tx.textContent=m.txt;tx.style.flex='1';const sd=document.createElement('button');sd.className='send';sd.textContent='＋ liste';sd.onclick=()=>{const pid=p.name==='Job Search'||p.name.includes('Upskilling')?'6P7v4xHhHhWfW8C8':(p.name==='Greenhouse'?'6PqMhjm7xH525cRf':'6P7v4xMFq9mf9xgh');STORE.unshift({id:'t'+(UID++),content:m.txt,pid,due:null,rec:null,pri:null,q:null,imp:null,eff:null,done:false,star:false,src:'me'});save();toast('Tilføjet til din liste ✓');};r.appendChild(c);r.appendChild(tx);r.appendChild(sd);el.appendChild(r);});{const _clb=document.createElement('button');_clb.className='send';_clb.style.margin='4px 0 0';_clb.textContent='＋ som tjekliste-opgave';_clb.onclick=()=>{const pid=p.name==='Job Search'||p.name.includes('Upskilling')?'6P7v4xHhHhWfW8C8':(p.name==='Greenhouse'?'6PqMhjm7xH525cRf':'6P7v4xMFq9mf9xgh');const kids=ms.filter(m=>!m.done).map(m=>({id:newSid(),txt:m.txt,done:false}));if(!kids.length){toast('Ingen åbne milepæle');return;}STORE.unshift({id:'t'+(UID++),content:p.name,pid,due:null,rec:null,pri:null,q:null,imp:null,eff:null,done:false,star:false,src:'me',children:kids});save();toast('Oprettet som tjekliste ✓');render();};el.appendChild(_clb);}w.appendChild(el);});}
 function goalP(w){const pr=document.createElement('div');pr.className='principle';const _pp=LS.g('principle','');pr.innerHTML='🧭 <b>Ledende princip:</b> '+esc(_pp||'—');if(!_pp)pr.style.display='none';w.appendChild(pr);
  const g=LS.g('goaldefs',[]);
  g.forEach((x,gi)=>{const st=LS.g('goal_'+gi,{});const done=x.ms.filter((m,i)=>st[i]).length,pct=Math.round(done/x.ms.length*100);const el=document.createElement('div');el.className='pj';el.innerHTML=`<div class="pj-h"><span style="width:11px;height:11px;border-radius:50%;background:${x.c};display:inline-block"></span><b>${x.n}</b><span style="margin-left:auto;color:var(--muted);font-size:12px">${done}/${x.ms.length}</span></div><div class="pj-note">${esc(x.note)}</div><div class="prog"><i style="width:${pct}%"></i></div>`;x.ms.forEach((m,i)=>{const r=document.createElement('div');r.className='ms';const c=document.createElement('div');c.className='chk sq'+(st[i]?' done':'');c.onclick=()=>{st[i]=!st[i];LS.s('goal_'+gi,st);render();};const tx=document.createElement('div');tx.className='txt'+(st[i]?' done':'');tx.textContent=m;tx.style.flex='1';r.appendChild(c);r.appendChild(tx);el.appendChild(r);});w.appendChild(el);});
