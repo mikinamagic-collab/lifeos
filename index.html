@@ -449,6 +449,7 @@ function statsBar(){const A=active(),over=A.filter(t=>dueBucket(t)==='over').len
  d.innerHTML=mk(A.length,'åbne')+mk(over,'forfaldne','var(--over)')+mk(tdy,'i dag','var(--today)')+mk(nd,'uden dato','var(--muted)')+mk(uns,'usorteret','var(--deleg)');return d;}
 function card(t,h){const c=document.createElement('div');c.className='card';c.innerHTML=`<h2>${t}</h2>`+(h?`<p class="hint">${h}</p>`:'');return c;}
 function empty(m){const e=document.createElement('div');e.className='empty';e.textContent=m;return e;}
+function emptyCTA(msg,label,fn){const d=document.createElement('div');d.className='empty';d.style.cssText='padding:14px 4px;text-align:center';const p=document.createElement('div');p.style.marginBottom='9px';p.textContent=msg;d.appendChild(p);const b=document.createElement('button');b.textContent=label;b.style.cssText='border:none;background:var(--accent);color:#fff;border-radius:9px;padding:9px 15px;font-weight:600;cursor:pointer;min-height:40px';b.onclick=fn;d.appendChild(b);return d;}
 
 function morningModal(){
  const host=document.getElementById('modalHost');
@@ -593,7 +594,7 @@ function focusP(w){
  const c1=card('⭐ Mine Top 3 i dag','Sæt ☆ på en opgave for at fastgøre den her. Eller sortér i Prioritér → "Gør nu" lander også her.');
  const dm=active().filter(t=>t.q==='do'&&!t.star);
  const list=top.concat(dm).slice(0,6);
- if(list.length)list.forEach(t=>c1.appendChild(taskRow(t)));else c1.appendChild(empty('Intet fastgjort endnu — tryk ☆ på en opgave.'));w.appendChild(c1);
+ if(list.length)list.forEach(t=>c1.appendChild(taskRow(t)));else c1.appendChild(emptyCTA('Ingen Top 3 endnu. Vælg de 3 vigtigste — så ved du præcis hvor du starter. ⭐','☀️ Vælg dagens Top 3',morningModal));w.appendChild(c1);
  const evu=evUpcoming(7);
  if(evu.length){const ce=card('🎂 Fødselsdage & datoer i denne uge','');evu.forEach(e=>{const r=document.createElement('div');r.className='row';r.innerHTML=`<div style="font-size:17px">${evIcon(e)}</div><div class="tbody"><div class="ttl">${esc(e.name)}${evAge(e)!=null?' (fylder '+evAge(e)+')':''}</div><div class="meta"><span class="chip ${evDays(e)===0?'today':'soon'}">${evWhen(e)}</span></div></div>`;r.querySelector('.ttl').onclick=()=>eventModal(e);ce.appendChild(r);});w.appendChild(ce);}
  const rot=active().filter(t=>{if(!t.due||t.rec||t.parked)return false;const dd=Math.round((today-new Date(t.due+'T12:00'))/864e5);return dd>7;}).sort((a,b)=>a.due<b.due?-1:1);
@@ -611,7 +612,7 @@ function focusP(w){
   w.appendChild(cr);}
  const rotIds=new Set(rot.map(t=>t.id));
  const urg=active().filter(t=>['over','today'].includes(dueBucket(t))&&!rotIds.has(t.id)).sort((a,b)=>score(b)-score(a));
- const c2=card('🔥 Kræver handling nu','Forfaldne + til i dag.');if(urg.length)urg.forEach(t=>c2.appendChild(taskRow(t)));else c2.appendChild(empty('Intet forfaldent eller til i dag 🎉'));w.appendChild(c2);
+ const c2=card('🔥 Kræver handling nu','Forfaldne + til i dag.');if(urg.length)urg.forEach(t=>c2.appendChild(taskRow(t)));else c2.appendChild(empty('Alt under kontrol — intet forfaldent eller til i dag 🎉  Nyd en rolig dag, eller kig på "Næste 7 dage".'));w.appendChild(c2);
  const soon=active().filter(t=>dueBucket(t)==='soon').sort((a,b)=>score(b)-score(a));
  if(soon.length){const c3=card('📆 Næste 7 dage','');soon.forEach(t=>c3.appendChild(taskRow(t)));w.appendChild(c3);}
 }
@@ -780,7 +781,7 @@ function datesP(w){
   row.appendChild(dl);row.appendChild(cl);bb.appendChild(row);w.appendChild(bb);}
  const b=document.createElement('div');b.className='banner';b.innerHTML='🎂 Fødselsdage gentages hvert år og viser en alder; andre nøgledatoer er engangs. Tryk på <b>firkanten</b> for at vælge flere og slette samlet.';w.appendChild(b);
  const c=card('Kommende — '+up.length,'Soonest first. Square to select, name to edit.');
- if(!up.length)c.appendChild(empty('Ingen endnu — tilføj en fødselsdag eller dato ovenfor.'));
+ if(!up.length)c.appendChild(empty('Ingen datoer endnu. Tilføj fødselsdage & vigtige datoer ovenfor 🎂 — så minder appen dig i god tid.'));
  up.forEach(e=>{const r=document.createElement('div');r.className='row';
   const sel=document.createElement('div');sel.className='chk sq'+(ESEL.has(e.id)?' done':'');sel.style.marginTop='2px';sel.title='Select';sel.onclick=()=>{if(ESEL.has(e.id))ESEL.delete(e.id);else ESEL.add(e.id);render();};
   const ic=document.createElement('div');ic.style.fontSize='18px';ic.style.marginTop='1px';ic.textContent=evIcon(e);
