@@ -267,6 +267,7 @@ function taskRow(t,opts){opts=opts||{};
  if(t.q)m+=`<span class="chip q q-${t.q}">${{do:'Do now',plan:'Schedule',deleg:'Delegate',drop:'Drop'}[t.q]}</span>`;
  if(b==='over')m+=`<span class="chip over">Overdue ${t.due}</span>`;else if(b==='today')m+=`<span class="chip today">Today</span>`;else if(b==='soon')m+=`<span class="chip soon">${t.due}</span>`;else if(b==='later')m+=`<span class="chip">${t.due}</span>`;
  if(t.pri)m+=`<span class="chip" style="color:var(--${t.pri})">${t.pri.toUpperCase()}</span>`;
+ if(t.time)m+=`<span class="chip">🕒 ${t.time}</span>`;
  if(t.parked)m+=`<span class="chip">💤 parked</span>`;
  const ttl=document.createElement('div');ttl.className='ttl'+(t.done?' done':'');ttl.textContent=t.content;ttl.title='Click to edit';ttl.onclick=()=>editModal(t);
  body.appendChild(ttl);const mt=document.createElement('div');mt.className='meta';mt.innerHTML=m;body.appendChild(mt);
@@ -282,12 +283,42 @@ function taskRow(t,opts){opts=opts||{};
 
 // ---------- add + edit ----------
 function areaSelect(sel){return `<select>${PROJECTS.map(p=>`<option value="${p.id}"${p.id===sel?' selected':''}>${p.name}</option>`).join('')}</select>`;}
+// ---------- F1: natural-language quick add ----------
+const CATCOLORS=['#5b7fdb','#e0679a','#2fa38a','#c99a2e','#8a6bd1','#d1453b','#2f86a3','#a3662f'];
+function fmtDue(d){try{return new Date(d+'T00:00:00').toLocaleDateString('da-DK',{weekday:'short',day:'numeric',month:'short'});}catch(e){return d;}}
+function parseQuickAdd(raw,commit){
+ let s=' '+raw+' ';let pri=null,due=null,time=null,pid=null,newCatName=null;
+ s=s.replace(/\s!p([123])\b/i,(m,n)=>{pri='p'+n;return ' ';});
+ s=s.replace(/\s#([\p{L}\d_-]+)/u,(m,name)=>{
+   const lc=name.toLowerCase();
+   const found=PROJECTS.find(p=>p.name.toLowerCase()===lc)||PROJECTS.find(p=>p.name.toLowerCase().startsWith(lc)||lc.startsWith(p.name.toLowerCase()))||PROJECTS.find(p=>p.name.toLowerCase().includes(lc)||lc.includes(p.name.toLowerCase()))||PROJECTS.find(p=>lc.length>=3&&p.name.toLowerCase().slice(0,Math.min(4,lc.length))===lc.slice(0,Math.min(4,lc.length)));
+   if(found){pid=found.id;}
+   else if(commit){const np={id:'c'+Date.now(),name:name.charAt(0).toUpperCase()+name.slice(1),color:CATCOLORS[PROJECTS.length%CATCOLORS.length]};PROJECTS.push(np);saveCats();pid=np.id;}
+   else{newCatName=name.charAt(0).toUpperCase()+name.slice(1);}
+   return ' ';});
+ s=s.replace(/\s(?:kl\.?\s*)?([01]?\d|2[0-3])[:.]([0-5]\d)\b/i,(m,h,mi)=>{time=String(h).padStart(2,'0')+':'+mi;return ' ';});
+ if(!time)s=s.replace(/\skl\.?\s*([01]?\d|2[0-3])\b/i,(m,h)=>{time=String(h).padStart(2,'0')+':00';return ' ';});
+ const rel=[[/\si\s?overmorgen\b/i,2],[/\bday after tomorrow\b/i,2],[/\si\s?morgen\b/i,1],[/\btomorrow\b/i,1],[/\si\s?dag\b/i,0],[/\btoday\b/i,0],[/\bn[æa]ste uge\b/i,7],[/\bnext week\b/i,7]];
+ let hit=false;
+ for(const it of rel){if(it[0].test(s)){const dd=new Date(today);dd.setDate(dd.getDate()+it[1]);due=iso(dd);s=s.replace(it[0],' ');hit=true;break;}}
+ if(!hit){const days={'søndag':0,sondag:0,sunday:0,mandag:1,monday:1,tirsdag:2,tuesday:2,onsdag:3,wednesday:3,torsdag:4,thursday:4,fredag:5,friday:5,'lørdag':6,lordag:6,saturday:6};
+  const wdre=/\s(?:p[åa] |on |n[æa]ste |next )?(søndag|sondag|sunday|mandag|monday|tirsdag|tuesday|onsdag|wednesday|torsdag|thursday|fredag|friday|lørdag|lordag|saturday)\b/i;
+  const mm=s.match(wdre);
+  if(mm){const targ=days[mm[1].toLowerCase()];const dd=new Date(today);let add=(targ-dd.getDay()+7)%7;if(add===0)add=7;dd.setDate(dd.getDate()+add);due=iso(dd);s=s.replace(wdre,' ');hit=true;}}
+ if(!hit){const dre=/\s(\d{1,2})[\/.](\d{1,2})(?:[\/.](\d{2,4}))?\b/;const mm=s.match(dre);
+  if(mm){const dd=+mm[1],mo=+mm[2];if(mo>=1&&mo<=12&&dd>=1&&dd<=31){let yr=mm[3]?+mm[3]:today.getFullYear();if(yr<100)yr+=2000;let dt=new Date(yr,mo-1,dd);if(!mm[3]&&dt<today)dt=new Date(yr+1,mo-1,dd);due=iso(dt);s=s.replace(dre,' ');hit=true;}}}
+ if(time&&!due)due=TODAY;
+ const content=s.replace(/\s+/g,' ').trim();
+ return {content,due,time,pri,pid,newCatName};
+}
+
 function addBar(defPid){
  const d=document.createElement('div');d.className='addbar';
- d.innerHTML=`<input class="t" placeholder="Add a task… (press Enter)"><select class="a">${PROJECTS.map(p=>`<option value="${p.id}"${p.id===defPid?' selected':''}>${p.name}</option>`).join('')}</select><button class="go">Add</button>`;
- const inp=d.querySelector('.t'),asel=d.querySelector('.a'),go=d.querySelector('.go');
- const add=()=>{const v=inp.value.trim();if(!v)return;STORE.unshift({id:'t'+(UID++),content:v,pid:asel.value,due:null,rec:null,pri:null,q:null,imp:null,eff:null,done:false,star:false,src:'me'});save();inp.value='';toast('Added ✓');render();};
- go.onclick=add;inp.onkeydown=e=>{if(e.key==='Enter')add();};
+ d.innerHTML=`<input class="t" placeholder="f.eks. Ring til tandlæge i morgen 14:00 !p1 #Familie"><select class="a">${PROJECTS.map(p=>`<option value="${p.id}"${p.id===defPid?' selected':''}>${p.name}</option>`).join('')}</select><button class="go">Add</button><div class="qa-prev" style="flex-basis:100%;width:100%;font-size:12px;margin-top:6px;display:none"></div>`;
+ const inp=d.querySelector('.t'),asel=d.querySelector('.a'),go=d.querySelector('.go'),prev=d.querySelector('.qa-prev');
+ const preview=()=>{const v=inp.value.trim();if(!v){prev.style.display='none';return;}const r=parseQuickAdd(v,false);const ch=[];ch.push('“'+esc(r.content||'…')+'”');if(r.due)ch.push('📅 '+fmtDue(r.due));if(r.time)ch.push('🕒 '+r.time);if(r.pri)ch.push(r.pri.toUpperCase());if(r.pid)ch.push('#'+esc(catOf(r.pid).name));else if(r.newCatName)ch.push('＋#'+esc(r.newCatName));prev.innerHTML=ch.map(c=>`<span class="chip">${c}</span>`).join(' ');prev.style.display='flex';prev.style.flexWrap='wrap';prev.style.gap='4px';};
+ const add=()=>{const v=inp.value.trim();if(!v)return;const r=parseQuickAdd(v,true);STORE.unshift({id:'t'+(UID++),content:r.content||v,pid:r.pid||asel.value,due:r.due||null,time:r.time||null,rec:null,pri:r.pri||null,q:null,imp:null,eff:null,done:false,star:false,src:'me'});save();inp.value='';prev.style.display='none';toast('Tilføjet ✓');render();};
+ inp.oninput=preview;go.onclick=add;inp.onkeydown=e=>{if(e.key==='Enter')add();};
  return d;
 }
 function editModal(t){
@@ -296,7 +327,7 @@ function editModal(t){
    <h3>Edit task</h3>
    <label>Task</label><input id="e_c" value="${esc(t.content).replace(/"/g,'&quot;')}">
    <label>Life area</label>${areaSelect(t.pid).replace('<select','<select id="e_a"')}
-   <div class="mrow"><div><label>Due date</label><input id="e_d" type="date" value="${t.due||''}"></div><div><label>Priority</label><select id="e_p"><option value="">None</option><option value="p1"${t.pri==='p1'?' selected':''}>P1</option><option value="p2"${t.pri==='p2'?' selected':''}>P2</option><option value="p3"${t.pri==='p3'?' selected':''}>P3</option></select></div></div>
+   <div class="mrow"><div><label>Due date</label><input id="e_d" type="date" value="${t.due||''}"></div><div><label>Time</label><input id="e_t" type="time" value="${t.time||''}"></div><div><label>Priority</label><select id="e_p"><option value="">None</option><option value="p1"${t.pri==='p1'?' selected':''}>P1</option><option value="p2"${t.pri==='p2'?' selected':''}>P2</option><option value="p3"${t.pri==='p3'?' selected':''}>P3</option></select></div></div>
    <label>Recurring (leave blank for one-off)</label><input id="e_r" value="${esc(t.rec||'')}" placeholder="e.g. hver dag">
    <div class="mbtns"><button class="del">Delete</button><button class="cancel">Cancel</button><button class="save">Save</button></div>
  </div></div>`;
@@ -304,7 +335,7 @@ function editModal(t){
  host.querySelector('.mbg').onclick=e=>{if(e.target===host.querySelector('.mbg'))close();};
  host.querySelector('.cancel').onclick=close;
  host.querySelector('.del').onclick=()=>{STORE=STORE.filter(x=>x!==t);save();close();toast('Deleted');render();};
- host.querySelector('.save').onclick=()=>{t.content=document.getElementById('e_c').value.trim()||t.content;t.pid=document.getElementById('e_a').value;t.due=document.getElementById('e_d').value||null;if(t.due)t.parked=false;t.pri=document.getElementById('e_p').value||null;t.rec=document.getElementById('e_r').value.trim()||null;save();close();toast('Saved');render();};
+ host.querySelector('.save').onclick=()=>{t.content=document.getElementById('e_c').value.trim()||t.content;t.pid=document.getElementById('e_a').value;t.due=document.getElementById('e_d').value||null;if(t.due)t.parked=false;t.time=document.getElementById('e_t').value||null;t.pri=document.getElementById('e_p').value||null;t.rec=document.getElementById('e_r').value.trim()||null;save();close();toast('Saved');render();};
 }
 
 function catsModal(){
@@ -586,17 +617,17 @@ function calView(w,mode){
 function calCell(d,mode,curMonth){const ds=iso(d);const out=mode==='month'&&d.getMonth()!==curMonth;const isT=ds===TODAY;
  const cell=document.createElement('div');cell.className='cell'+(mode==='week'?' wk':'')+(out?' out':'')+(isT?' tdy':'');
  const dn=document.createElement('span');dn.className='dn';dn.textContent=(d.getDate()===1||(mode==='week'))?d.toLocaleDateString('en-GB',{day:'numeric',month:'short'}):d.getDate();cell.appendChild(dn);
- const tks=active().filter(t=>t.due===ds).sort((a,b)=>score(b)-score(a));const evs=evByDate(ds);
+ const tks=active().filter(t=>t.due===ds).sort((a,b)=>((a.time||'99:99').localeCompare(b.time||'99:99'))||score(b)-score(a));const evs=evByDate(ds);
  const max=mode==='week'?30:3;let shown=0;
  evs.forEach(e=>{if(shown>=max)return;const x=document.createElement('div');x.className='ev bd';x.textContent=evIcon(e)+' '+e.name;x.title=e.name;x.onclick=ev=>{ev.stopPropagation();eventModal(e);};cell.appendChild(x);shown++;});
- tks.forEach(t=>{if(shown>=max)return;const x=document.createElement('div');x.className='ev tk'+(t.due<TODAY?' over':'');x.textContent=t.content;x.title=t.content;x.onclick=ev=>{ev.stopPropagation();editModal(t);};cell.appendChild(x);shown++;});
+ tks.forEach(t=>{if(shown>=max)return;const x=document.createElement('div');x.className='ev tk'+(t.due<TODAY?' over':'');x.textContent=(t.time?t.time+' ':'')+t.content;x.title=t.content;x.onclick=ev=>{ev.stopPropagation();editModal(t);};cell.appendChild(x);shown++;});
  const total=evs.length+tks.length;if(total>shown){const m=document.createElement('div');m.className='more';m.textContent='+'+(total-shown)+' more';cell.appendChild(m);}
  cell.onclick=()=>{let v=null;try{v=prompt('Add a task on '+d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+':');}catch(e){}if(v&&v.trim()){STORE.unshift({id:'t'+(UID++),content:v.trim(),pid:PROJECTS[0]&&PROJECTS[0].id,due:ds,rec:null,pri:null,q:null,imp:null,eff:null,done:false,star:false,src:'me'});save();toast('Added ✓');render();}};
  return cell;}
 function dayCol(lbl,sub,items,over,tdy,events){const d=document.createElement('div');d.className='day'+(tdy?' tdy':'');d.innerHTML=`<h4><b>${lbl}</b><span>${sub}</span></h4>`;
  (events||[]).forEach(e=>{const x=document.createElement('div');x.className='tlt';x.style.borderLeftColor='#e0679a';x.style.background='#fdf1f6';x.textContent=evIcon(e)+' '+e.name;x.title=e.name;x.style.cursor='pointer';x.onclick=()=>eventModal(e);d.appendChild(x);});
  if(!items.length&&!(events&&events.length)){d.innerHTML+='<div style="color:#c3c6ca;font-size:11px">—</div>';return d;}
- items.forEach(t=>{const x=document.createElement('div');x.className='tlt'+(over?' over':'');x.textContent=t.content;x.title=t.content;x.style.cursor='pointer';x.onclick=()=>editModal(t);d.appendChild(x);});return d;}
+ items.forEach(t=>{const x=document.createElement('div');x.className='tlt'+(over?' over':'');x.textContent=(t.time?t.time+' ':'')+t.content;x.title=t.content;x.style.cursor='pointer';x.onclick=()=>editModal(t);d.appendChild(x);});return d;}
 // ---- Dates / birthdays panel ----
 function evWhen(e){const n=evNext(e);if(!n)return '';const d=evDays(e);const ds=n.toLocaleDateString('en-GB',{day:'numeric',month:'short'});if(d<0)return ds;if(d===0)return 'Today 🎉';if(d===1)return 'Tomorrow · '+ds;return 'in '+d+' days · '+ds;}
 function eventAddBar(){const d=document.createElement('div');d.className='addbar';
