@@ -132,6 +132,7 @@ h1{font-size:20px;margin:0;font-weight:700;letter-spacing:-.01em}
 .ev.tk{background:#eef7f2;color:#1f6b52}.ev.tk.over{background:#fdeceb;color:#b0362c}
 .more{font-size:10px;color:var(--muted);margin-top:2px}
 .toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:9px 16px;border-radius:10px;font-size:13px;opacity:0;transition:.25s;pointer-events:none;z-index:40;max-width:90%}
+.toast.act{pointer-events:auto}
 .toast.show{opacity:1}
 /* modal */
 .mbg{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}
@@ -247,7 +248,7 @@ const today=new Date();today.setHours(0,0,0,0);
 const iso=d=>{const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
 const TODAY=iso(today);
 document.getElementById('dateStr').textContent=today.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
-function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
+function toast(m){const t=document.getElementById('toast');t.classList.remove('act');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
 function esc(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
 const active=()=>STORE.filter(t=>!t.done&&!t.rec);
 const habitsAll=()=>STORE.filter(t=>t.rec&&!t.done);
@@ -291,6 +292,22 @@ function buildChecklist(t,onChange){
 }
 
 function textOn(bg){if(typeof bg!=='string'||bg.charAt(0)!=='#')return '#fff';let h=bg.slice(1);if(h.length===3)h=h.split('').map(c=>c+c).join('');const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);const L=(0.299*r+0.587*g+0.114*b)/255;return L>0.6?'#22262b':'#fff';}
+function pushTrash(entries){const tr=LS.g('trash',[]);const now=Date.now();entries.forEach(e=>tr.push({type:e.type,item:e.item,at:now}));LS.s('trash',tr);}
+function pruneTrash(){const tr=LS.g('trash',[]);const cut=Date.now()-2592000000;const keep=tr.filter(x=>x.at>=cut);if(keep.length!==tr.length)LS.s('trash',keep);}
+let _tuTimer;
+function toastUndo(msg,undoFn){const t=document.getElementById('toast');t.innerHTML='';t.classList.add('act');const sp=document.createElement('span');sp.textContent=msg+'  ';t.appendChild(sp);const b=document.createElement('button');b.textContent='Fortryd';b.style.cssText='background:none;border:none;color:#8ab4ff;font:inherit;font-weight:700;cursor:pointer;padding:0 2px';b.onclick=()=>{clearTimeout(_tuTimer);t.classList.remove('show');undoFn();};t.appendChild(b);t.classList.add('show');clearTimeout(_tuTimer);_tuTimer=setTimeout(()=>{t.classList.remove('show');},6000);}
+function delTasks(list,label){if(!list||!list.length)return;const ids=new Set(list.map(t=>t.id));STORE=STORE.filter(t=>!ids.has(t.id));list.forEach(t=>SEL.delete(t.id));pushTrash(list.map(t=>({type:'task',item:t})));save();toastUndo(label||(list.length>1?list.length+' opgaver slettet':'Slettet'),()=>{list.forEach(t=>STORE.unshift(t));LS.s('trash',LS.g('trash',[]).filter(x=>!(x.type==='task'&&ids.has(x.item.id))));save();render();});render();}
+function delEvents(list,label){if(!list||!list.length)return;const ids=new Set(list.map(e=>e.id));EVENTS=EVENTS.filter(e=>!ids.has(e.id));list.forEach(e=>ESEL.delete(e.id));pushTrash(list.map(e=>({type:'event',item:e})));saveEv();toastUndo(label||(list.length>1?list.length+' datoer slettet':'Slettet'),()=>{list.forEach(e=>EVENTS.push(e));LS.s('trash',LS.g('trash',[]).filter(x=>!(x.type==='event'&&ids.has(x.item.id))));saveEv();render();});render();}
+function trashModal(){pruneTrash();const host=document.getElementById('modalHost');const tr=LS.g('trash',[]);
+ let rows='';for(let i=tr.length-1;i>=0;i--){const x=tr[i];const name=x.type==='task'?x.item.content:x.item.name;const age=Math.floor((Date.now()-x.at)/86400000);rows+='<div class="row" data-i="'+i+'"><div class="tbody"><div class="ttl" style="font-size:13px">'+(x.type==='event'?'🎂 ':'')+esc(name||'—')+'</div><div class="meta"><span class="chip">'+age+'d siden</span></div></div><button class="btn rest">Gendan</button><button class="btn perm" style="color:var(--over)">Slet</button></div>';}
+ host.innerHTML='<div class="mbg" id="trBg"><div class="modal" style="max-width:440px;max-height:80vh;overflow:auto"><h3>🗑 Papirkurv</h3><p class="hint">Slettede ting gemmes i 30 dage. Gendan eller slet permanent.</p><div id="trList">'+(rows||'<div class="empty">Papirkurven er tom.</div>')+'</div><div class="mbtns">'+(tr.length?'<button class="del" id="trEmpty">Tøm papirkurv</button>':'')+'<button class="save" id="trClose">Luk</button></div></div></div>';
+ const close=()=>host.innerHTML='';
+ host.querySelector('#trBg').onclick=e=>{if(e.target.id==='trBg')close();};
+ host.querySelector('#trClose').onclick=close;
+ const te=host.querySelector('#trEmpty');if(te)te.onclick=()=>{if(confirm('Tøm papirkurven permanent?')){LS.s('trash',[]);close();toast('Papirkurv tømt');}};
+ host.querySelectorAll('#trList .row').forEach(r=>{const i=+r.dataset.i;r.querySelector('.rest').onclick=()=>{const cur=LS.g('trash',[]);const entry=cur[i];if(!entry)return;if(entry.type==='task')STORE.unshift(entry.item);else EVENTS.push(entry.item);cur.splice(i,1);LS.s('trash',cur);if(entry.type==='task')save();else saveEv();toast('Gendannet');trashModal();render();};r.querySelector('.perm').onclick=()=>{const cur=LS.g('trash',[]);cur.splice(i,1);LS.s('trash',cur);trashModal();};});
+}
+
 function taskRow(t,opts){opts=opts||{};
  const p=catOf(t.pid);const b=dueBucket(t);
  const el=document.createElement('div');el.className='row';
@@ -310,7 +327,7 @@ function taskRow(t,opts){opts=opts||{};
  ['p1','p2','p3'].forEach(pv=>{const bb=document.createElement('button');bb.className='btn '+pv+(t.pri===pv?' on':'');bb.textContent=pv.toUpperCase();bb.onclick=()=>{t.pri=t.pri===pv?null:pv;save();render();};acts.appendChild(bb);});
  const bt=document.createElement('button');bt.className='btn';bt.textContent='📅 I dag';bt.onclick=()=>{t.due=TODAY;save();render();};acts.appendChild(bt);
  const bm=document.createElement('button');bm.className='btn';bm.textContent='I morgen';bm.onclick=()=>{const d=new Date(today);d.setDate(d.getDate()+1);t.due=iso(d);save();render();};acts.appendChild(bm);
- const bd=document.createElement('button');bd.className='btn';bd.textContent='🗑';bd.title='Delete';bd.style.color='var(--over)';bd.onclick=()=>{if(confirm('Slet "'+t.content+'"?')){STORE=STORE.filter(x=>x!==t);SEL.delete(t.id);save();toast('Slettet');render();}};acts.appendChild(bd);
+ const bd=document.createElement('button');bd.className='btn';bd.textContent='🗑';bd.title='Delete';bd.style.color='var(--over)';bd.onclick=()=>{delTasks([t]);};acts.appendChild(bd);
  body.appendChild(acts);
  if(t.children&&t.children.length){const _cl=buildChecklist(t,render);_cl.classList.add('subsinline');body.appendChild(_cl);}
  if(opts.sel){const sb=document.createElement('div');sb.className='chk sq'+(SEL.has(t.id)?' done':'');sb.title='Select';sb.style.marginTop='1px';sb.onclick=()=>{if(SEL.has(t.id))SEL.delete(t.id);else SEL.add(t.id);render();};el.appendChild(sb);}
@@ -372,7 +389,7 @@ function editModal(t){
  const close=()=>host.innerHTML='';
  host.querySelector('.mbg').onclick=e=>{if(e.target===host.querySelector('.mbg'))close();};
  host.querySelector('.cancel').onclick=close;
- host.querySelector('.del').onclick=()=>{STORE=STORE.filter(x=>x!==t);save();close();toast('Slettet');render();};
+ host.querySelector('.del').onclick=()=>{close();delTasks([t]);};
  (function(){const c=document.getElementById('e_ch');const rf=()=>{c.innerHTML='';c.appendChild(buildChecklist(t,rf));};rf();})();
  host.querySelector('.save').onclick=()=>{t.content=document.getElementById('e_c').value.trim()||t.content;t.pid=document.getElementById('e_a').value;t.due=document.getElementById('e_d').value||null;if(t.due)t.parked=false;t.time=document.getElementById('e_t').value||null;t.pri=document.getElementById('e_p').value||null;t.rec=document.getElementById('e_r').value.trim()||null;save();close();toast('Gemt');render();};
 }
@@ -415,7 +432,7 @@ function habitModal(t){
  sel.onchange=()=>{cust.style.display=sel.value==='__custom__'?'block':'none';};
  host.querySelector('.mbg').onclick=e=>{if(e.target===host.querySelector('.mbg'))close();};
  host.querySelector('.cancel').onclick=close;
- host.querySelector('.del').onclick=()=>{if(confirm('Slet denne vane?')){STORE=STORE.filter(x=>x!==t);const l=LS.g('hlog',{});delete l[t.id];LS.s('hlog',l);save();close();toast('Vane slettet');render();}};
+ host.querySelector('.del').onclick=()=>{const l=LS.g('hlog',{});delete l[t.id];LS.s('hlog',l);close();delTasks([t],'Vane slettet');};
  host.querySelector('.save').onclick=()=>{t.content=document.getElementById('h_c').value.trim()||t.content;t.rec=sel.value==='__custom__'?(cust.value.trim()||t.rec):sel.value;save();close();toast('Gemt');render();};
 }
 // ---------- render ----------
@@ -524,7 +541,7 @@ function weeklyModal(){
    document.getElementById('wWeek').onclick=()=>{t.due=fri;t.parked=false;save();nx();};
    document.getElementById('wPark').onclick=()=>{t.parked=true;save();nx();};
    document.getElementById('wSkip').onclick=nx;
-   document.getElementById('wDel').onclick=()=>{STORE=STORE.filter(x=>x!==t);save();renderStep();};
+   document.getElementById('wDel').onclick=()=>{pushTrash([{type:'task',item:t}]);STORE=STORE.filter(x=>x!==t);save();renderStep();};
    document.getElementById('wDate').onchange=e=>{if(e.target.value){t.due=e.target.value;t.parked=false;save();nx();}};
    document.getElementById('wEnough').onclick=()=>{step=2;renderStep();};
   }else if(step===2){
@@ -532,7 +549,7 @@ function weeklyModal(){
    if(!P.length){step=3;renderStep();return;}
    shell('<p style="font-size:13px">💤 Parkerede opgaver ('+P.length+') — beslut hver enkelt:</p><div id="wP" style="max-height:240px;overflow:auto"></div>','<button class="cancel" id="wB2">← Tilbage</button><button class="save" id="wN2">Videre →</button>');
    const pw=document.getElementById('wP');
-   P.forEach(t=>{const r=document.createElement('div');r.className='row';const bd=document.createElement('div');bd.className='tbody';bd.innerHTML='<div class="ttl" style="font-size:12.5px">'+esc(t.content)+'</div><div class="meta"><span class="chip area" style="background:'+catOf(t.pid).color+';color:'+textOn(catOf(t.pid).color)+'">'+esc(catOf(t.pid).name)+'</span></div>';const a=document.createElement('div');a.className='acts';const b1=document.createElement('button');b1.className='btn';b1.textContent='Genaktivér (fre)';b1.onclick=()=>{t.due=fri;t.parked=false;save();r.remove();};const b2=document.createElement('button');b2.className='btn';b2.textContent='Behold 💤';b2.onclick=()=>{r.remove();};const b3=document.createElement('button');b3.className='btn';b3.style.color='var(--over)';b3.textContent='Slet';b3.onclick=()=>{STORE=STORE.filter(x=>x!==t);save();r.remove();};a.appendChild(b1);a.appendChild(b2);a.appendChild(b3);bd.appendChild(a);r.appendChild(bd);pw.appendChild(r);});
+   P.forEach(t=>{const r=document.createElement('div');r.className='row';const bd=document.createElement('div');bd.className='tbody';bd.innerHTML='<div class="ttl" style="font-size:12.5px">'+esc(t.content)+'</div><div class="meta"><span class="chip area" style="background:'+catOf(t.pid).color+';color:'+textOn(catOf(t.pid).color)+'">'+esc(catOf(t.pid).name)+'</span></div>';const a=document.createElement('div');a.className='acts';const b1=document.createElement('button');b1.className='btn';b1.textContent='Genaktivér (fre)';b1.onclick=()=>{t.due=fri;t.parked=false;save();r.remove();};const b2=document.createElement('button');b2.className='btn';b2.textContent='Behold 💤';b2.onclick=()=>{r.remove();};const b3=document.createElement('button');b3.className='btn';b3.style.color='var(--over)';b3.textContent='Slet';b3.onclick=()=>{pushTrash([{type:'task',item:t}]);STORE=STORE.filter(x=>x!==t);save();r.remove();};a.appendChild(b1);a.appendChild(b2);a.appendChild(b3);bd.appendChild(a);r.appendChild(bd);pw.appendChild(r);});
    document.getElementById('wB2').onclick=()=>{step=1;i1=0;renderStep();};
    document.getElementById('wN2').onclick=()=>{step=3;renderStep();};
   }else if(step===3){
@@ -588,7 +605,7 @@ function focusP(w){
    const acts=document.createElement('div');acts.className='acts';
    const b1=document.createElement('button');b1.className='btn';b1.textContent='📅 Ny dato';b1.onclick=()=>editModal(t);
    const b2=document.createElement('button');b2.className='btn';b2.textContent='💤 Park';b2.title='Removes the date — resurfaces at weekly review';b2.onclick=()=>{t.due=null;t.parked=true;save();toast('Parked 💤');render();};
-   const b3=document.createElement('button');b3.className='btn';b3.textContent='🗑';b3.style.color='var(--over)';b3.onclick=()=>{if(confirm('Slet "'+t.content+'"?')){STORE=STORE.filter(x=>x!==t);save();toast('Slettet');render();}};
+   const b3=document.createElement('button');b3.className='btn';b3.textContent='🗑';b3.style.color='var(--over)';b3.onclick=()=>{delTasks([t]);};
    acts.appendChild(b1);acts.appendChild(b2);acts.appendChild(b3);bd.appendChild(acts);
    r.appendChild(bd);cr.appendChild(r);});
   w.appendChild(cr);}
@@ -658,7 +675,7 @@ function bulkBar(){const c=document.createElement('div');c.className='card';c.st
  const sel=document.createElement('select');sel.style.cssText='font:inherit;border:1px solid var(--line);border-radius:8px;padding:6px 8px';sel.innerHTML=PROJECTS.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
  const mv=document.createElement('button');mv.className='btn';mv.textContent='Flyt';mv.onclick=()=>{const n=SEL.size;STORE.forEach(t=>{if(SEL.has(t.id))t.pid=sel.value;});SEL.clear();save();toast('Flyttet '+n+' task'+(n>1?'s':''));render();};
  const cp=document.createElement('button');cp.className='btn';cp.textContent='✓ Fuldfør';cp.onclick=()=>{STORE.forEach(t=>{if(SEL.has(t.id)){t.done=true;t.doneAt=TODAY;t.star=false;}});SEL.clear();save();toast('Fuldført');render();};
- const dl=document.createElement('button');dl.className='btn';dl.style.color='var(--over)';dl.textContent='🗑 Slet';dl.onclick=()=>{if(confirm('Slet '+SEL.size+' markerede opgave(r)?')){STORE=STORE.filter(t=>!SEL.has(t.id));SEL.clear();save();toast('Slettet');render();}};
+ const dl=document.createElement('button');dl.className='btn';dl.style.color='var(--over)';dl.textContent='🗑 Slet';dl.onclick=()=>{delTasks(STORE.filter(t=>SEL.has(t.id)));};
  const cl=document.createElement('button');cl.className='btn';cl.textContent='Ryd';cl.onclick=()=>{SEL.clear();render();};
  [lbl,sel,mv,cp,dl,cl].forEach(x=>row.appendChild(x));c.appendChild(row);return c;}
 function allP(w){
@@ -666,6 +683,7 @@ function allP(w){
  const mb=document.createElement('div');mb.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px';
  const mgb=document.createElement('button');mgb.className='btn';mgb.textContent='⚙️ Rediger kategorier';mgb.onclick=catsModal;mb.appendChild(mgb);
  const sall=document.createElement('button');sall.className='btn';sall.textContent='☑︎ Vælg alle';sall.onclick=()=>{active().forEach(t=>SEL.add(t.id));render();};mb.appendChild(sall);
+ const trb=document.createElement('button');trb.className='btn';trb.textContent='🗑 Papirkurv';trb.onclick=trashModal;mb.appendChild(trb);
  w.appendChild(mb);
  if(SEL.size)w.appendChild(bulkBar());
  const b=document.createElement('div');b.className='banner';b.innerHTML='📋 Alt, efter livsområde. Tryk på <b>firkanten</b> på en opgave for at masse-vælge, <b>🗑</b> for at slette, titlen for at redigere, ☆ for at fastgøre, P1–P3 / 📅 for at prioritere.';w.appendChild(b);
@@ -745,7 +763,7 @@ function eventModal(e){const host=document.getElementById('modalHost');const dv=
    <div class="mbtns"><button class="del">Slet</button><button class="cancel">Annullér</button><button class="save">Gem</button></div></div></div>`;
  const close=()=>host.innerHTML='';host.querySelector('.mbg').onclick=ev=>{if(ev.target===host.querySelector('.mbg'))close();};
  host.querySelector('.cancel').onclick=close;
- host.querySelector('.del').onclick=()=>{EVENTS=EVENTS.filter(x=>x!==e);saveEv();close();toast('Slettet');render();};
+ host.querySelector('.del').onclick=()=>{close();delEvents([e]);};
  host.querySelector('.save').onclick=()=>{const n=document.getElementById('v_n').value.trim()||e.name,v=document.getElementById('v_d').value,by=document.getElementById('v_b').checked;e.name=n;if(v){if(by){e.type='bday';e.md=v.slice(5);e.y=+v.slice(0,4)||null;delete e.iso;}else{e.type='event';e.iso=v;delete e.md;delete e.y;}}saveEv();close();toast('Gemt');render();};}
 function datesP(w){
  w.appendChild(eventAddBar());
@@ -757,7 +775,7 @@ function datesP(w){
  w.appendChild(ctr);
  if(ESEL.size){const bb=document.createElement('div');bb.className='card';bb.style.cssText='position:sticky;top:44px;z-index:4;border-color:var(--accent);border-width:2px';bb.innerHTML=`<b>${ESEL.size} markeret</b>`;
   const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-top:8px';
-  const dl=document.createElement('button');dl.className='btn';dl.style.color='var(--over)';dl.textContent='🗑 Slet';dl.onclick=()=>{if(confirm('Slet '+ESEL.size+' markerede dato(er)?')){EVENTS=EVENTS.filter(e=>!ESEL.has(e.id));ESEL.clear();saveEv();toast('Slettet');render();}};
+  const dl=document.createElement('button');dl.className='btn';dl.style.color='var(--over)';dl.textContent='🗑 Slet';dl.onclick=()=>{delEvents(EVENTS.filter(e=>ESEL.has(e.id)));};
   const cl=document.createElement('button');cl.className='btn';cl.textContent='Ryd';cl.onclick=()=>{ESEL.clear();render();};
   row.appendChild(dl);row.appendChild(cl);bb.appendChild(row);w.appendChild(bb);}
  const b=document.createElement('div');b.className='banner';b.innerHTML='🎂 Fødselsdage gentages hvert år og viser en alder; andre nøgledatoer er engangs. Tryk på <b>firkanten</b> for at vælge flere og slette samlet.';w.appendChild(b);
@@ -770,7 +788,7 @@ function datesP(w){
   const nm=document.createElement('div');nm.className='ttl';nm.textContent=e.name+(age!=null?'  (fylder '+age+')':'');nm.onclick=()=>eventModal(e);
   const mt=document.createElement('div');mt.className='meta';const d=evDays(e);mt.innerHTML=`<span class="chip ${d===0?'today':(d<=7?'soon':'')}">${evWhen(e)}</span>`+(e.type==='bday'?'<span class="chip rec">🔁 årlig</span>':'');
   body.appendChild(nm);body.appendChild(mt);
-  const del=document.createElement('div');del.className='star';del.textContent='🗑';del.title='Delete';del.onclick=()=>{if(confirm('Slet '+e.name+'?')){EVENTS=EVENTS.filter(x=>x!==e);ESEL.delete(e.id);saveEv();toast('Slettet');render();}};
+  const del=document.createElement('div');del.className='star';del.textContent='🗑';del.title='Delete';del.onclick=()=>{delEvents([e]);};
   r.appendChild(sel);r.appendChild(ic);r.appendChild(body);r.appendChild(del);c.appendChild(r);});
  w.appendChild(c);}
 function gapAllow(rec){const r=(rec||'').toLowerCase();if(r.includes('hver 2'))return 2;if(r.includes('uge')||r.includes('week'))return 7;if(r.includes('hverdage'))return 3;return 1;}
@@ -812,7 +830,7 @@ function habitsP(w){
   row.appendChild(nm);row.appendChild(wk);row.appendChild(sk);
   const btn=document.createElement('button');btn.className='btn';btn.textContent=done.includes(TODAY)?'✓ logget':'Log i dag';btn.onclick=()=>{if(done.includes(TODAY))return;done.push(TODAY);log[t.id]=done;LS.s('hlog',log);toast('Logget 🔁');render();};row.appendChild(btn);
   const ed=document.createElement('button');ed.className='btn';ed.textContent='✏️';ed.title='Rediger vane';ed.onclick=()=>habitModal(t);row.appendChild(ed);
-  const dl=document.createElement('button');dl.className='btn';dl.textContent='🗑';dl.title='Slet vane';dl.style.color='var(--over)';dl.onclick=()=>{if(confirm('Slet vane "'+t.content+'"?')){STORE=STORE.filter(x=>x!==t);const l=LS.g('hlog',{});delete l[t.id];LS.s('hlog',l);save();toast('Vane slettet');render();}};row.appendChild(dl);
+  const dl=document.createElement('button');dl.className='btn';dl.textContent='🗑';dl.title='Slet vane';dl.style.color='var(--over)';dl.onclick=()=>{const l=LS.g('hlog',{});delete l[t.id];LS.s('hlog',l);delTasks([t],'Vane slettet');};row.appendChild(dl);
   grid.appendChild(row);});
  c.appendChild(grid);w.appendChild(c);
  const ac=document.createElement('div');ac.className='addbar';ac.innerHTML=`<input class="t" placeholder="Ny daglig vane… (Enter)"><button class="go">Tilføj vane</button>`;
@@ -894,7 +912,7 @@ updateChip();
 /* ===== end UI ===== */
 
 document.querySelectorAll('.tab').forEach(x=>x.onclick=()=>{LS.s('tab',x.dataset.p);render();});
-render();
+pruneTrash();render();
 </script>
 </body>
 </html>
