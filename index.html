@@ -468,15 +468,77 @@ function shutdownModal(){
  document.getElementById('sdBg').onclick=e=>{if(e.target.id==='sdBg')host.innerHTML='';};
  document.getElementById('sdDone').onclick=()=>{const n=document.getElementById('sdNote').value.trim();if(n){const j=LS.g('journal',[]);j.push({date:TODAY,note:n});LS.s('journal',j);}LS.s('dayclosed',TODAY);host.innerHTML='';toast('Dagen er lukket 🌙 Sov godt');render();};
 }
+function weeklyModal(){
+ const host=document.getElementById('modalHost');
+ const fri=(()=>{const d=new Date(today);let add=(5-d.getDay()+7)%7;if(add===0)add=7;d.setDate(d.getDate()+add);return iso(d);})();
+ const d1=new Date(today);d1.setDate(d1.getDate()+1);const tom=iso(d1);
+ let step=1,i1=0;
+ const undated=()=>active().filter(t=>!t.rec&&!t.due&&!t.parked).sort((a,b)=>score(b)-score(a));
+ const parked=()=>active().filter(t=>!t.rec&&t.parked);
+ function shell(inner,btns){host.innerHTML='<div class="mbg" id="wrBg"><div class="modal" style="max-width:480px"><h3>🧭 Ugentlig gennemgang <span style="font-weight:400;color:var(--muted);font-size:12px">trin '+step+' af 4</span></h3>'+inner+'<div class="mbtns" style="flex-wrap:wrap;gap:6px">'+btns+'</div></div></div>';document.getElementById('wrBg').onclick=e=>{if(e.target.id==='wrBg')host.innerHTML='';};}
+ function renderStep(){
+  if(step===1){
+   const U=undated();
+   if(!U.length||i1>=U.length){shell('<p style="font-size:13px">✅ Bunken er ryddet for nu.</p>','<button class="save" id="wN">Videre →</button>');document.getElementById('wN').onclick=()=>{step=2;renderStep();};return;}
+   const t=U[i1];
+   let inner='<p style="font-size:12px;color:var(--muted)">Ryd bunken · opgave '+(i1+1)+' af '+U.length+' uden dato</p>';
+   inner+='<div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin:6px 0"><div class="ttl" style="font-size:14px">'+esc(t.content)+'</div><div class="meta"><span class="chip area" style="background:'+catOf(t.pid).color+'">'+esc(catOf(t.pid).name)+'</span></div></div>';
+   inner+='<div style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Vælg dato: <input type="date" id="wDate" style="border:1px solid var(--line);border-radius:8px;padding:7px"></div>';
+   shell(inner,'<button class="btn" id="wToday">I dag</button><button class="btn" id="wTom">I morgen</button><button class="btn" id="wWeek">I denne uge (fre)</button><button class="btn" id="wPark">💤 Parkér</button><button class="btn" id="wSkip">Spring over</button><button class="btn" id="wDel" style="color:var(--over)">Slet</button><button class="cancel" id="wEnough">Det er nok →</button>');
+   const nx=()=>{i1++;renderStep();};
+   document.getElementById('wToday').onclick=()=>{t.due=TODAY;t.parked=false;save();nx();};
+   document.getElementById('wTom').onclick=()=>{t.due=tom;t.parked=false;save();nx();};
+   document.getElementById('wWeek').onclick=()=>{t.due=fri;t.parked=false;save();nx();};
+   document.getElementById('wPark').onclick=()=>{t.parked=true;save();nx();};
+   document.getElementById('wSkip').onclick=nx;
+   document.getElementById('wDel').onclick=()=>{STORE=STORE.filter(x=>x!==t);save();renderStep();};
+   document.getElementById('wDate').onchange=e=>{if(e.target.value){t.due=e.target.value;t.parked=false;save();nx();}};
+   document.getElementById('wEnough').onclick=()=>{step=2;renderStep();};
+  }else if(step===2){
+   const P=parked();
+   if(!P.length){step=3;renderStep();return;}
+   shell('<p style="font-size:13px">💤 Parkerede opgaver ('+P.length+') — beslut hver enkelt:</p><div id="wP" style="max-height:240px;overflow:auto"></div>','<button class="cancel" id="wB2">← Tilbage</button><button class="save" id="wN2">Videre →</button>');
+   const pw=document.getElementById('wP');
+   P.forEach(t=>{const r=document.createElement('div');r.className='row';const bd=document.createElement('div');bd.className='tbody';bd.innerHTML='<div class="ttl" style="font-size:12.5px">'+esc(t.content)+'</div><div class="meta"><span class="chip area" style="background:'+catOf(t.pid).color+'">'+esc(catOf(t.pid).name)+'</span></div>';const a=document.createElement('div');a.className='acts';const b1=document.createElement('button');b1.className='btn';b1.textContent='Genaktivér (fre)';b1.onclick=()=>{t.due=fri;t.parked=false;save();r.remove();};const b2=document.createElement('button');b2.className='btn';b2.textContent='Behold 💤';b2.onclick=()=>{r.remove();};const b3=document.createElement('button');b3.className='btn';b3.style.color='var(--over)';b3.textContent='Slet';b3.onclick=()=>{STORE=STORE.filter(x=>x!==t);save();r.remove();};a.appendChild(b1);a.appendChild(b2);a.appendChild(b3);bd.appendChild(a);r.appendChild(bd);pw.appendChild(r);});
+   document.getElementById('wB2').onclick=()=>{step=1;i1=0;renderStep();};
+   document.getElementById('wN2').onclick=()=>{step=3;renderStep();};
+  }else if(step===3){
+   if(!PROJ.length){step=4;renderStep();return;}
+   shell('<p style="font-size:13px">🎯 Næste handling pr. projekt:</p><div id="wPr" style="max-height:260px;overflow:auto"></div>','<button class="cancel" id="wB3">← Tilbage</button><button class="save" id="wN3">Videre →</button>');
+   const prw=document.getElementById('wPr');
+   PROJ.forEach((p,pi)=>{const st=LS.g('proj_'+pi,{});const ms=p.ms.map((x,i)=>({txt:typeof x==='string'?x:x.t,done:st[i]!==undefined?st[i]:(typeof x==='object'&&x.done)}));const next=ms.find(m=>!m.done);const r=document.createElement('div');r.className='row';const bd=document.createElement('div');bd.className='tbody';bd.innerHTML='<div class="ttl" style="font-size:13px"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+p.color+';margin-right:5px"></span>'+esc(p.name)+'</div><div class="meta"><span style="font-size:12px;color:var(--muted)">'+(next?'Næste: '+esc(next.txt):'Alle milepæle klaret 🎉')+'</span></div>';if(next){const b=document.createElement('button');b.className='btn';b.textContent='＋ Gør til opgave';b.onclick=()=>{const pid=p.name==='Job Search'||p.name.includes('Upskilling')?'6P7v4xHhHhWfW8C8':(p.name==='Greenhouse'?'6PqMhjm7xH525cRf':'6P7v4xMFq9mf9xgh');STORE.unshift({id:'t'+(UID++),content:next.txt,pid,due:null,rec:null,pri:null,q:null,imp:null,eff:null,done:false,star:false,src:'me'});save();b.textContent='✓ tilføjet';b.disabled=true;};bd.appendChild(b);}r.appendChild(bd);prw.appendChild(r);});
+   document.getElementById('wB3').onclick=()=>{step=2;renderStep();};
+   document.getElementById('wN3').onclick=()=>{step=4;renderStep();};
+  }else{
+   const day=s=>Math.round(new Date(s+'T12:00').getTime()/864e5);
+   const wk=STORE.filter(t=>t.done&&t.doneAt&&(day(TODAY)-day(t.doneAt))<=6);
+   const log=LS.g('hlog',{});const habits=habitsAll();
+   const streaks=habits.map(t=>({n:habitStreak(t,log[t.id]||[]).n,name:t.content})).filter(s=>s.n>0).sort((a,b)=>b.n-a.n).slice(0,5);
+   const gd=LS.g('goaldefs',[]);let gTot=0,gDone=0;gd.forEach((x,gi)=>{const st=LS.g('goal_'+gi,{});x.ms.forEach((m,i)=>{gTot++;if(st[i])gDone++;});});
+   let inner='<p style="font-size:14px">🎉 <b>Ugens sejre</b></p>';
+   inner+='<p style="font-size:13px">✅ <b>'+wk.length+'</b> opgaver fuldført i denne uge.</p>';
+   if(wk.length)inner+='<div style="font-size:12px;color:var(--muted);max-height:90px;overflow:auto;margin-bottom:6px">'+wk.slice(0,8).map(t=>'✓ '+esc(t.content)).join('<br>')+(wk.length>8?'<br>…og '+(wk.length-8)+' mere':'')+'</div>';
+   inner+='<p style="font-size:13px">🔁 Vane-streaks: '+(streaks.length?streaks.map(s=>esc(s.name)+' '+s.n+'d').join(' · '):'ingen aktive endnu')+'</p>';
+   inner+='<p style="font-size:13px">🌟 Mål: <b>'+gDone+'/'+gTot+'</b> milepæle krydset af.</p>';
+   inner+='<p style="font-size:12px;color:var(--muted)">Godt arbejde, Nina. Ryd hovedet — ugen er sat.</p>';
+   shell(inner,'<button class="cancel" id="wB4">← Tilbage</button><button class="save" id="wFin">Færdig ✓</button>');
+   document.getElementById('wB4').onclick=()=>{step=3;renderStep();};
+   document.getElementById('wFin').onclick=()=>{LS.s('lastreview',TODAY);host.innerHTML='';toast('Ugentlig gennemgang færdig 🎉');render();};
+  }}
+ renderStep();
+}
+
 function focusP(w){
  const bar=document.createElement('div');bar.style.cssText='display:flex;justify-content:flex-end;margin:0 0 10px;gap:8px;align-items:center';
  if(LS.g('dayclosed','')===TODAY){bar.innerHTML='<span class="chip" style="background:#e8f5ee;color:#1a7f4b;padding:6px 12px;font-size:12px">🌙 Dagen er lukket ✓</span>';}
  else{const b=document.createElement('button');b.className='imp';b.style.marginLeft='0';b.textContent='🌙 Luk dagen';b.onclick=shutdownModal;bar.appendChild(b);}
+ const rv=document.createElement('button');rv.className='imp';rv.style.marginLeft='0';rv.textContent='🧭 Ugentlig gennemgang';rv.onclick=weeklyModal;bar.appendChild(rv);
  w.appendChild(bar);
  if(LS.g('lastplan','')!==TODAY&&LS.g('dayclosed','')!==TODAY){const pb=document.createElement('div');pb.className='banner';pb.style.cssText='display:flex;align-items:center;gap:10px;flex-wrap:wrap';pb.innerHTML='☀️ <b>Dagen er ikke planlagt endnu</b> — 2 minutter, så er du klar.';
   const go=document.createElement('button');go.className='save';go.style.cssText='padding:7px 14px;border:none;border-radius:9px;background:var(--accent);color:#fff;cursor:pointer;font-weight:600';go.textContent='☀️ Planlæg dagen';go.onclick=morningModal;
   const sk=document.createElement('button');sk.className='cancel';sk.style.cssText='padding:7px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;cursor:pointer';sk.textContent='Spring over';sk.onclick=()=>{LS.s('lastplan',TODAY);render();};
   pb.appendChild(go);pb.appendChild(sk);w.appendChild(pb);}
+ {const _mon=new Date(today);_mon.setDate(today.getDate()-((today.getDay()+6)%7));const _monISO=iso(_mon);const _lr=LS.g('lastreview','');if(today.getDay()===0&&_lr<_monISO&&LS.g('dayclosed','')!==TODAY){const rb=document.createElement('div');rb.className='banner';rb.style.cssText='display:flex;align-items:center;gap:10px;flex-wrap:wrap';rb.innerHTML='🧭 <b>Søndag — tid til ugentlig gennemgang</b> — ryd bunken og sæt ugen.';const g=document.createElement('button');g.className='save';g.style.cssText='padding:7px 14px;border:none;border-radius:9px;background:var(--accent);color:#fff;cursor:pointer;font-weight:600';g.textContent='🧭 Start gennemgang';g.onclick=weeklyModal;const s=document.createElement('button');s.className='cancel';s.style.cssText='padding:7px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;cursor:pointer';s.textContent='Ikke nu';s.onclick=()=>{LS.s('lastreview',TODAY);render();};rb.appendChild(g);rb.appendChild(s);w.appendChild(rb);}}
  const evu=evUpcoming(7);
  if(evu.length){const ce=card('🎂 Fødselsdage & datoer i denne uge','');evu.forEach(e=>{const r=document.createElement('div');r.className='row';r.innerHTML=`<div style="font-size:17px">${evIcon(e)}</div><div class="tbody"><div class="ttl">${esc(e.name)}${evAge(e)!=null?' (turns '+evAge(e)+')':''}</div><div class="meta"><span class="chip ${evDays(e)===0?'today':'soon'}">${evWhen(e)}</span></div></div>`;r.querySelector('.ttl').onclick=()=>eventModal(e);ce.appendChild(r);});w.appendChild(ce);}
  const top=active().filter(t=>t.star);
