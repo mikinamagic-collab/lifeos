@@ -53,7 +53,7 @@ h1{font-size:20px;margin:0;font-weight:700;letter-spacing:-.01em}
 .subsinline{display:none;margin-top:8px}
 .row.exp .subsinline{display:block}
 .subs2{padding-left:2px}
-.sub{display:flex;align-items:center;gap:9px;padding:4px 0;font-size:13px}
+.subrow{display:flex;align-items:center;gap:9px;padding:4px 0;font-size:13px}
 .subchk{width:19px;height:19px;border:2px solid #c7c9cd;border-radius:5px;cursor:pointer;flex:0 0 auto;position:relative}
 .subchk.done{background:var(--home);border-color:var(--home)}
 .subchk.done:after{content:'✓';color:#fff;font-size:11px;position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
@@ -183,6 +183,7 @@ let PROJECTS=[
 ];
 const IMPORT_SRC=PROJECTS.map(p=>({id:p.id,name:p.name}));
 function catOf(id){return PROJECTS.find(p=>p.id===id)||{name:'Uden kategori',color:'#9aa0a6'};}
+function catByName(n){const lc=String(n).toLowerCase();const f=PROJECTS.find(p=>p.name.toLowerCase()===lc);return f?f.id:(PROJECTS[0]&&PROJECTS[0].id);}
 const T="2026-07-06";
 const RAW={};
 
@@ -229,6 +230,7 @@ ghPullSync();
 if(GH.status==='new'&&Object.keys(collectKeys()).length){setTimeout(()=>ghPush(false),1500);}
 /* ===== end sync layer ===== */
 {const sc=LS.g('cats',null);if(sc&&sc.length)PROJECTS=sc;else LS.s('cats',PROJECTS);}
+PROJECTS.forEach(p=>{if(!/^#[0-9a-fA-F]{3,8}$/.test(p.color||''))p.color='#9aa0a6';});
 function saveCats(){LS.s('cats',PROJECTS);}
 let STORE=LS.g('tasks',null);
 function seed(){const a=[];for(const pid in RAW){RAW[pid].forEach(x=>{const o=typeof x==='string'?{c:x}:x;a.push({id:'t'+(UID++),content:o.c,pid,due:o.d||null,rec:o.r||null,pri:null,q:null,imp:null,eff:null,done:false,star:false,src:'todoist'});});}return a;}
@@ -251,7 +253,7 @@ const iso=d=>{const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()
 const TODAY=iso(today);
 document.getElementById('dateStr').textContent=today.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
 function toast(m){const t=document.getElementById('toast');t.classList.remove('act');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
-function esc(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 const active=()=>STORE.filter(t=>!t.done&&!t.rec);
 const habitsAll=()=>STORE.filter(t=>t.rec&&!t.done);
 function dueBucket(t){if(!t.due)return null;if(t.due<TODAY)return 'over';if(t.due===TODAY)return 'today';return (new Date(t.due)-today)/86400000<=7?'soon':'later';}
@@ -281,7 +283,7 @@ function chAdd(t,txt){if(!t.children)t.children=[];t.children.push({id:newSid(),
 function chDel(t,c){t.children=(t.children||[]).filter(x=>x!==c);save();}
 function buildChecklist(t,onChange){
  const wrap=document.createElement('div');wrap.className='subs2';
- (t.children||[]).forEach(c=>{const r=document.createElement('div');r.className='sub';
+ (t.children||[]).forEach(c=>{const r=document.createElement('div');r.className='subrow';
   const cb=document.createElement('div');cb.className='subchk'+(c.done?' done':'');cb.onclick=e=>{e.stopPropagation();chToggle(t,c);onChange();};
   const tx=document.createElement('div');tx.className='subtxt'+(c.done?' done':'');tx.textContent=c.txt;tx.style.flex='1';
   const dl=document.createElement('span');dl.textContent='🗑';dl.style.cssText='cursor:pointer;color:#c7c9cd;font-size:12px';dl.onclick=e=>{e.stopPropagation();chDel(t,c);onChange();};
@@ -316,11 +318,11 @@ function taskRow(t,opts){opts=opts||{};
  const chk=document.createElement('div');chk.className='chk '+(t.pri||'');chk.onclick=()=>{t.done=true;t.doneAt=TODAY;t.star=false;save();toast('Færdig ✓');render();};
  const star=document.createElement('div');star.className='star'+(t.star?' on':'');star.textContent=t.star?'★':'☆';star.title='Top 3';star.onclick=()=>{if(!t.star&&STORE.filter(x=>x.star).length>=3){toast('Top 3 er fuld');return;}t.star=!t.star;save();render();};
  const body=document.createElement('div');body.className='tbody';
- let m=`<span class="chip area" style="background:${p.color};color:${textOn(p.color)}">${p.name||''}</span>`;
+ let m=`<span class="chip area" style="background:${p.color};color:${textOn(p.color)}">${esc(p.name||'')}</span>`;
  if(t.q)m+=`<span class="chip q q-${t.q}">${{do:'Gør nu',plan:'Planlæg',deleg:'Delegér',drop:'Drop'}[t.q]}</span>`;
- if(b==='over')m+=`<span class="chip over">Forfaldt ${t.due}</span>`;else if(b==='today')m+=`<span class="chip today">I dag</span>`;else if(b==='soon')m+=`<span class="chip soon">${t.due}</span>`;else if(b==='later')m+=`<span class="chip">${t.due}</span>`;
+ if(b==='over')m+=`<span class="chip over">Forfaldt ${esc(t.due)}</span>`;else if(b==='today')m+=`<span class="chip today">I dag</span>`;else if(b==='soon')m+=`<span class="chip soon">${esc(t.due)}</span>`;else if(b==='later')m+=`<span class="chip">${esc(t.due)}</span>`;
  if(t.pri)m+=`<span class="chip" style="color:var(--${t.pri})">${t.pri.toUpperCase()}</span>`;
- if(t.time)m+=`<span class="chip">🕒 ${t.time}</span>`;
+ if(t.time)m+=`<span class="chip">🕒 ${esc(t.time)}</span>`;
  if(t.parked)m+=`<span class="chip">💤 parked</span>`;
  if(t.children&&t.children.length){const _cd=t.children.filter(c=>c.done).length;m+='<span class="chip" style="background:#eef7f2;color:#1f6b52">☑ '+_cd+'/'+t.children.length+'</span>';}
  const ttl=document.createElement('div');ttl.className='ttl'+(t.done?' done':'');ttl.textContent=t.content;ttl.title='Click to edit';ttl.onclick=()=>editModal(t);
@@ -338,7 +340,7 @@ function taskRow(t,opts){opts=opts||{};
 }
 
 // ---------- add + edit ----------
-function areaSelect(sel){return `<select>${PROJECTS.map(p=>`<option value="${p.id}"${p.id===sel?' selected':''}>${p.name}</option>`).join('')}</select>`;}
+function areaSelect(sel){return `<select>${PROJECTS.map(p=>`<option value="${p.id}"${p.id===sel?' selected':''}>${esc(p.name)}</option>`).join('')}</select>`;}
 // ---------- F1: natural-language quick add ----------
 const CATCOLORS=['#5b7fdb','#e0679a','#2fa38a','#c99a2e','#8a6bd1','#d1453b','#2f86a3','#a3662f'];
 function fmtDue(d){try{return new Date(d+'T00:00:00').toLocaleDateString('da-DK',{weekday:'short',day:'numeric',month:'short'});}catch(e){return d;}}
@@ -370,7 +372,7 @@ function parseQuickAdd(raw,commit){
 
 function addBar(defPid){
  const d=document.createElement('div');d.className='addbar';
- d.innerHTML=`<input class="t" placeholder="f.eks. Ring til tandlæge i morgen 14:00 !p1 #Familie"><select class="a">${PROJECTS.map(p=>`<option value="${p.id}"${p.id===defPid?' selected':''}>${p.name}</option>`).join('')}</select><button class="go">Tilføj</button><div class="qa-prev" style="flex-basis:100%;width:100%;font-size:12px;margin-top:6px;display:none"></div>`;
+ d.innerHTML=`<input class="t" placeholder="f.eks. Ring til tandlæge i morgen 14:00 !p1 #Familie"><select class="a">${PROJECTS.map(p=>`<option value="${p.id}"${p.id===defPid?' selected':''}>${esc(p.name)}</option>`).join('')}</select><button class="go">Tilføj</button><div class="qa-prev" style="flex-basis:100%;width:100%;font-size:12px;margin-top:6px;display:none"></div>`;
  const inp=d.querySelector('.t'),asel=d.querySelector('.a'),go=d.querySelector('.go'),prev=d.querySelector('.qa-prev');
  const preview=()=>{const v=inp.value.trim();if(!v){prev.style.display='none';return;}const r=parseQuickAdd(v,false);const ch=[];ch.push('“'+esc(r.content||'…')+'”');if(r.due)ch.push('📅 '+fmtDue(r.due));if(r.time)ch.push('🕒 '+r.time);if(r.pri)ch.push(r.pri.toUpperCase());if(r.pid)ch.push('#'+esc(catOf(r.pid).name));else if(r.newCatName)ch.push('＋#'+esc(r.newCatName));prev.innerHTML=ch.map(c=>`<span class="chip">${c}</span>`).join(' ');prev.style.display='flex';prev.style.flexWrap='wrap';prev.style.gap='4px';};
  const add=()=>{const v=inp.value.trim();if(!v)return;const r=parseQuickAdd(v,true);STORE.unshift({id:'t'+(UID++),content:r.content||v,pid:r.pid||asel.value,due:r.due||null,time:r.time||null,rec:null,pri:r.pri||null,q:null,imp:null,eff:null,done:false,star:false,src:'me'});save();inp.value='';prev.style.display='none';toast('Tilføjet ✓');render();};
@@ -587,7 +589,7 @@ function weeklyModal(){
    if(!PROJ.length){step=4;renderStep();return;}
    shell('<p style="font-size:13px">🎯 Næste handling pr. projekt:</p><div id="wPr" style="max-height:260px;overflow:auto"></div>','<button class="cancel" id="wB3">← Tilbage</button><button class="save" id="wN3">Videre →</button>');
    const prw=document.getElementById('wPr');
-   PROJ.forEach((p,pi)=>{const st=LS.g('proj_'+pi,{});const ms=p.ms.map((x,i)=>({txt:typeof x==='string'?x:x.t,done:st[i]!==undefined?st[i]:(typeof x==='object'&&x.done)}));const next=ms.find(m=>!m.done);const r=document.createElement('div');r.className='row';const bd=document.createElement('div');bd.className='tbody';bd.innerHTML='<div class="ttl" style="font-size:13px"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+p.color+';margin-right:5px"></span>'+esc(p.name)+'</div><div class="meta"><span style="font-size:12px;color:var(--muted)">'+(next?'Næste: '+esc(next.txt):'Alle milepæle klaret 🎉')+'</span></div>';if(next){const b=document.createElement('button');b.className='btn';b.textContent='＋ Gør til opgave';b.onclick=()=>{const pid=p.name==='Job Search'||p.name.includes('Upskilling')?'6P7v4xHhHhWfW8C8':(p.name==='Greenhouse'?'6PqMhjm7xH525cRf':'6P7v4xMFq9mf9xgh');STORE.unshift({id:'t'+(UID++),content:next.txt,pid,due:null,rec:null,pri:null,q:null,imp:null,eff:null,done:false,star:false,src:'me'});save();b.textContent='✓ tilføjet';b.disabled=true;};bd.appendChild(b);}r.appendChild(bd);prw.appendChild(r);});
+   PROJ.forEach((p,pi)=>{const st=LS.g('proj_'+pi,{});const ms=p.ms.map((x,i)=>({txt:typeof x==='string'?x:x.t,done:st[i]!==undefined?st[i]:(typeof x==='object'&&x.done)}));const next=ms.find(m=>!m.done);const r=document.createElement('div');r.className='row';const bd=document.createElement('div');bd.className='tbody';bd.innerHTML='<div class="ttl" style="font-size:13px"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+p.color+';margin-right:5px"></span>'+esc(p.name)+'</div><div class="meta"><span style="font-size:12px;color:var(--muted)">'+(next?'Næste: '+esc(next.txt):'Alle milepæle klaret 🎉')+'</span></div>';if(next){const b=document.createElement('button');b.className='btn';b.textContent='＋ Gør til opgave';b.onclick=()=>{const pid=p.name==='Job Search'||p.name.includes('Upskilling')?catByName('Work'):(p.name==='Greenhouse'?catByName('Home'):catByName('Family'));STORE.unshift({id:'t'+(UID++),content:next.txt,pid,due:null,rec:null,pri:null,q:null,imp:null,eff:null,done:false,star:false,src:'me'});save();b.textContent='✓ tilføjet';b.disabled=true;};bd.appendChild(b);}r.appendChild(bd);prw.appendChild(r);});
    document.getElementById('wB3').onclick=()=>{step=2;renderStep();};
    document.getElementById('wN3').onclick=()=>{step=4;renderStep();};
   }else{
@@ -771,7 +773,7 @@ function calCell(d,mode,curMonth){const ds=iso(d);const out=mode==='month'&&d.ge
  const max=mode==='week'?30:3;let shown=0;
  evs.forEach(e=>{if(shown>=max)return;const x=document.createElement('div');x.className='ev bd';x.textContent=evIcon(e)+' '+e.name;x.title=e.name;x.onclick=ev=>{ev.stopPropagation();eventModal(e);};cell.appendChild(x);shown++;});
  tks.forEach(t=>{if(shown>=max)return;const x=document.createElement('div');x.className='ev tk'+(t.due<TODAY?' over':'');x.textContent=(t.time?t.time+' ':'')+t.content;x.title=t.content;x.onclick=ev=>{ev.stopPropagation();editModal(t);};cell.appendChild(x);shown++;});
- const total=evs.length+tks.length;if(total>shown){const m=document.createElement('div');m.className='more';m.textContent='+'+(total-shown)+ mere;cell.appendChild(m);}
+ const total=evs.length+tks.length;if(total>shown){const m=document.createElement('div');m.className='more';m.textContent='+'+(total-shown)+' mere';cell.appendChild(m);}
  cell.onclick=()=>{let v=null;try{v=prompt('Tilføj en opgave d. '+d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+':');}catch(e){}if(v&&v.trim()){STORE.unshift({id:'t'+(UID++),content:v.trim(),pid:PROJECTS[0]&&PROJECTS[0].id,due:ds,rec:null,pri:null,q:null,imp:null,eff:null,done:false,star:false,src:'me'});save();toast('Added ✓');render();}};
  return cell;}
 function dayCol(lbl,sub,items,over,tdy,events){const d=document.createElement('div');d.className='day'+(tdy?' tdy':'');d.innerHTML=`<h4><b>${lbl}</b><span>${sub}</span></h4>`;
@@ -855,7 +857,7 @@ function habitsP(w){
   const mon=new Date(today);mon.setDate(today.getDate()-((today.getDay()+6)%7));
   let week='';for(let i=0;i<7;i++){const d=new Date(mon);d.setDate(mon.getDate()+i);const ds=iso(d);const isT=ds===TODAY;const future=d>today;week+=`<div class="dot ${done.includes(ds)?'done':''} ${isT?'tdy':''}" style="${future?'opacity:.4':''}">${done.includes(ds)?'✓':['M','T','O','T','F','L','S'][i]}</div>`;}
   const row=document.createElement('div');row.className='habit';
-  const nm=document.createElement('div');nm.className='hname';nm.innerHTML=`${esc(t.content)} <span class="chip rec">🔁 ${t.rec}</span>`;nm.style.cursor='pointer';nm.title='Click to edit';nm.onclick=()=>habitModal(t);
+  const nm=document.createElement('div');nm.className='hname';nm.innerHTML=`${esc(t.content)} <span class="chip rec">🔁 ${esc(t.rec)}</span>`;nm.style.cursor='pointer';nm.title='Click to edit';nm.onclick=()=>habitModal(t);
   const wk=document.createElement('div');wk.className='week';wk.innerHTML=week;
   const sk=document.createElement('div');sk.className='streak';sk.textContent='🔥 '+streak+'d'+(sf.frozen?' 🧊':'');sk.title='Længste streak: '+(sf.best||streak)+'d'+(sf.frozen?' · 🧊 freeze brugt':'');
   row.appendChild(nm);row.appendChild(wk);row.appendChild(sk);
@@ -865,7 +867,7 @@ function habitsP(w){
   grid.appendChild(row);});
  c.appendChild(grid);w.appendChild(c);
  const ac=document.createElement('div');ac.className='addbar';ac.innerHTML=`<input class="t" placeholder="Ny daglig vane… (Enter)"><button class="go">Tilføj vane</button>`;
- const inp=ac.querySelector('.t');const add=()=>{const v=inp.value.trim();if(!v)return;STORE.push({id:'t'+(UID++),content:v,pid:'6P7v4xMFq9mf9xgh',due:TODAY,rec:'hver dag',pri:null,q:null,imp:null,eff:null,done:false,star:false,src:'me'});save();inp.value='';toast('Vane tilføjet');render();};ac.querySelector('.go').onclick=add;inp.onkeydown=e=>{if(e.key==='Enter')add();};w.appendChild(ac);
+ const inp=ac.querySelector('.t');const add=()=>{const v=inp.value.trim();if(!v)return;STORE.push({id:'t'+(UID++),content:v,pid:catByName('Family'),due:TODAY,rec:'hver dag',pri:null,q:null,imp:null,eff:null,done:false,star:false,src:'me'});save();inp.value='';toast('Vane tilføjet');render();};ac.querySelector('.go').onclick=add;inp.onkeydown=e=>{if(e.key==='Enter')add();};w.appendChild(ac);
 }
 // wheel
 const HEALTH_DEFAULT={
@@ -972,11 +974,11 @@ function fillMonth(){const m=document.getElementById('mlist');if(!m)return;let h
 const PROJ=LS.g('projdefs',[]);
 function projP(w){const b=document.createElement('div');b.className='banner';b.innerHTML='🚀 Langsigtede projekter → milepæle. Kryds dem af, eller tryk <b>＋ liste</b> for at føje en milepæl til som opgave.';w.appendChild(b);
  PROJ.forEach((p,pi)=>{const st=LS.g('proj_'+pi,{});const ms=p.ms.map((x,i)=>{const txt=typeof x==='string'?x:x.t;const def=typeof x==='object'&&x.done;return{txt,done:st[i]!==undefined?st[i]:def};});const done=ms.filter(m=>m.done).length,pct=Math.round(done/ms.length*100);
-  const el=document.createElement('div');el.className='pj';el.innerHTML=`<div class="pj-h"><span style="width:11px;height:11px;border-radius:50%;background:${p.color};display:inline-block"></span><b>${p.name}</b><span class="pill ${p.pill}">${p.pillTxt}</span><span style="margin-left:auto;color:var(--muted);font-size:12px">${done}/${ms.length}</span></div><div class="pj-note">${esc(p.note)}</div><div class="prog"><i style="width:${pct}%"></i></div>`;
-  ms.forEach((m,i)=>{const r=document.createElement('div');r.className='ms';const c=document.createElement('div');c.className='chk sq'+(m.done?' done':'');c.onclick=()=>{st[i]=!m.done;LS.s('proj_'+pi,st);render();};const tx=document.createElement('div');tx.className='txt'+(m.done?' done':'');tx.textContent=m.txt;tx.style.flex='1';const sd=document.createElement('button');sd.className='send';sd.textContent='＋ liste';sd.onclick=()=>{const pid=p.name==='Job Search'||p.name.includes('Upskilling')?'6P7v4xHhHhWfW8C8':(p.name==='Greenhouse'?'6PqMhjm7xH525cRf':'6P7v4xMFq9mf9xgh');STORE.unshift({id:'t'+(UID++),content:m.txt,pid,due:null,rec:null,pri:null,q:null,imp:null,eff:null,done:false,star:false,src:'me'});save();toast('Tilføjet til din liste ✓');};r.appendChild(c);r.appendChild(tx);r.appendChild(sd);el.appendChild(r);});{const _clb=document.createElement('button');_clb.className='send';_clb.style.margin='4px 0 0';_clb.textContent='＋ som tjekliste-opgave';_clb.onclick=()=>{const pid=p.name==='Job Search'||p.name.includes('Upskilling')?'6P7v4xHhHhWfW8C8':(p.name==='Greenhouse'?'6PqMhjm7xH525cRf':'6P7v4xMFq9mf9xgh');const kids=ms.filter(m=>!m.done).map(m=>({id:newSid(),txt:m.txt,done:false}));if(!kids.length){toast('Ingen åbne milepæle');return;}STORE.unshift({id:'t'+(UID++),content:p.name,pid,due:null,rec:null,pri:null,q:null,imp:null,eff:null,done:false,star:false,src:'me',children:kids});save();toast('Oprettet som tjekliste ✓');render();};el.appendChild(_clb);}w.appendChild(el);});}
+  const el=document.createElement('div');el.className='pj';el.innerHTML=`<div class="pj-h"><span style="width:11px;height:11px;border-radius:50%;background:${esc(p.color)};display:inline-block"></span><b>${esc(p.name)}</b><span class="pill ${esc(p.pill)}">${esc(p.pillTxt)}</span><span style="margin-left:auto;color:var(--muted);font-size:12px">${done}/${ms.length}</span></div><div class="pj-note">${esc(p.note)}</div><div class="prog"><i style="width:${pct}%"></i></div>`;
+  ms.forEach((m,i)=>{const r=document.createElement('div');r.className='ms';const c=document.createElement('div');c.className='chk sq'+(m.done?' done':'');c.onclick=()=>{st[i]=!m.done;LS.s('proj_'+pi,st);render();};const tx=document.createElement('div');tx.className='txt'+(m.done?' done':'');tx.textContent=m.txt;tx.style.flex='1';const sd=document.createElement('button');sd.className='send';sd.textContent='＋ liste';sd.onclick=()=>{const pid=p.name==='Job Search'||p.name.includes('Upskilling')?catByName('Work'):(p.name==='Greenhouse'?catByName('Home'):catByName('Family'));STORE.unshift({id:'t'+(UID++),content:m.txt,pid,due:null,rec:null,pri:null,q:null,imp:null,eff:null,done:false,star:false,src:'me'});save();toast('Tilføjet til din liste ✓');};r.appendChild(c);r.appendChild(tx);r.appendChild(sd);el.appendChild(r);});{const _clb=document.createElement('button');_clb.className='send';_clb.style.margin='4px 0 0';_clb.textContent='＋ som tjekliste-opgave';_clb.onclick=()=>{const pid=p.name==='Job Search'||p.name.includes('Upskilling')?catByName('Work'):(p.name==='Greenhouse'?catByName('Home'):catByName('Family'));const kids=ms.filter(m=>!m.done).map(m=>({id:newSid(),txt:m.txt,done:false}));if(!kids.length){toast('Ingen åbne milepæle');return;}STORE.unshift({id:'t'+(UID++),content:p.name,pid,due:null,rec:null,pri:null,q:null,imp:null,eff:null,done:false,star:false,src:'me',children:kids});save();toast('Oprettet som tjekliste ✓');render();};el.appendChild(_clb);}w.appendChild(el);});}
 function goalP(w){const pr=document.createElement('div');pr.className='principle';const _pp=LS.g('principle','');pr.innerHTML='🧭 <b>Ledende princip:</b> '+esc(_pp||'—');if(!_pp)pr.style.display='none';w.appendChild(pr);
  const g=LS.g('goaldefs',[]);
- g.forEach((x,gi)=>{const st=LS.g('goal_'+gi,{});const done=x.ms.filter((m,i)=>st[i]).length,pct=Math.round(done/x.ms.length*100);const el=document.createElement('div');el.className='pj';el.innerHTML=`<div class="pj-h"><span style="width:11px;height:11px;border-radius:50%;background:${x.c};display:inline-block"></span><b>${x.n}</b><span style="margin-left:auto;color:var(--muted);font-size:12px">${done}/${x.ms.length}</span></div><div class="pj-note">${esc(x.note)}</div><div class="prog"><i style="width:${pct}%"></i></div>`;x.ms.forEach((m,i)=>{const r=document.createElement('div');r.className='ms';const c=document.createElement('div');c.className='chk sq'+(st[i]?' done':'');c.onclick=()=>{st[i]=!st[i];LS.s('goal_'+gi,st);render();};const tx=document.createElement('div');tx.className='txt'+(st[i]?' done':'');tx.textContent=m;tx.style.flex='1';r.appendChild(c);r.appendChild(tx);el.appendChild(r);});w.appendChild(el);});
+ g.forEach((x,gi)=>{const st=LS.g('goal_'+gi,{});const done=x.ms.filter((m,i)=>st[i]).length,pct=Math.round(done/x.ms.length*100);const el=document.createElement('div');el.className='pj';el.innerHTML=`<div class="pj-h"><span style="width:11px;height:11px;border-radius:50%;background:${esc(x.c)};display:inline-block"></span><b>${esc(x.n)}</b><span style="margin-left:auto;color:var(--muted);font-size:12px">${done}/${x.ms.length}</span></div><div class="pj-note">${esc(x.note)}</div><div class="prog"><i style="width:${pct}%"></i></div>`;x.ms.forEach((m,i)=>{const r=document.createElement('div');r.className='ms';const c=document.createElement('div');c.className='chk sq'+(st[i]?' done':'');c.onclick=()=>{st[i]=!st[i];LS.s('goal_'+gi,st);render();};const tx=document.createElement('div');tx.className='txt'+(st[i]?' done':'');tx.textContent=m;tx.style.flex='1';r.appendChild(c);r.appendChild(tx);el.appendChild(r);});w.appendChild(el);});
  const big=card('🌅 Det store billede (1–3 år)','');const bg=document.createElement('div');bg.className='gbig';['Sundt familieliv','Sikker nok indkomst i familievenligt job','Flere børn (1–2)','Blive i huset i Roskilde'].forEach(t=>{const s=document.createElement('span');s.textContent=t;bg.appendChild(s);});big.appendChild(bg);w.appendChild(big);}
 
 
