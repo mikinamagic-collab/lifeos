@@ -845,12 +845,12 @@ const HEALTH_DEFAULT={
  oneLiner:'Sandsynligvis tidligt gravid (IVF, scanning 21. juli). Planen er blid vedligeholdelse — hold dig aktiv, beskyt bækkenbunden, spis godt, hav det godt.',
  reminder:'Din krop sætter tempoet. En træt dag = hvile eller en gåtur. Det er at følge planen, ikke at fejle.',
  week:[
-  {id:'man',day:'Mandag',title:'Gåtur 30–40 min + bækkenbundssæt',tick:true},
-  {id:'tir',day:'Tirsdag',title:'Blid styrke 25–30 min (8 kg, kontrolleret)',tick:true},
-  {id:'ons',day:'Onsdag',title:'Hvile eller let gåtur/hike',tick:false},
-  {id:'tor',day:'Torsdag',title:'Gåtur 30–40 min + bækkenbundssæt',tick:true},
-  {id:'fre',day:'Fredag',title:'Blid styrke 25–30 min (form-fokus)',tick:true},
-  {id:'wknd',day:'Weekend',title:'1 afslappet aktivitet du nyder (gåtur, svøm, hike)',tick:true}
+  {id:'man',day:'Mandag',items:[{id:'i0',t:'Gåtur 30–40 min'},{id:'i1',t:'Bækkenbundssæt'}]},
+  {id:'tir',day:'Tirsdag',items:[{id:'i0',t:'Blid styrke 25–30 min (8 kg, kontrolleret)'}]},
+  {id:'ons',day:'Onsdag',rest:true,items:[{id:'i0',t:'Hvile eller let gåtur/hike'}]},
+  {id:'tor',day:'Torsdag',items:[{id:'i0',t:'Gåtur 30–40 min'},{id:'i1',t:'Bækkenbundssæt'}]},
+  {id:'fre',day:'Fredag',items:[{id:'i0',t:'Blid styrke 25–30 min (form-fokus)'}]},
+  {id:'wknd',day:'Weekend',items:[{id:'i0',t:'1 afslappet aktivitet du nyder (gåtur, svøm, hike)'}]}
  ],
  principles:['Vedligehold, ikke max. Ingen nye præstationsmål, ingen løft til udmattelse, pres ikke tempoet.','Beskyt bækkenbunden fra dag ét (du havde bækkenbundsløsning sidst).','Taletest: kan du ikke holde en samtale mens du bevæger dig, er det for hårdt.','Undgå overophedning, hold dig hydreret, træn aldrig til udmattelse.'],
  strengthDo:['Goblet squats (lavt)','Kontrollerede dødløft til knæhøjde','Stående pres','Roninger','Glute bridges','Sidelæns benarbejde','Bækkenbunds-aktivering'],
@@ -863,45 +863,71 @@ const HEALTH_DEFAULT={
  parked:['Løb 7 km uden pauser','Ro 30 min uden pauser','Progression i kettlebell-styrke (12 → 16 → 20 kg)'],
  scan:{date:'2026-07-21',questions:['Er det sikkert at fortsætte udendørs løb på mit niveau, eller skal jeg skifte til gåture?','Nogen grænse for kettlebell / styrke — vægtloft eller øvelser at undgå?','Anbefaler I en fysioterapeut med bækkenbunds-speciale nu, forebyggende?','Hvilket gravidvitamin / folsyre-dosis vil I have mig på?','Noget jeg specifikt skal undgå givet IVF-graviditeten?']}
 };
-function healthGet(){return LS.g('health',{log:{},scanAsked:{}});}
+function healthGet(){let h=LS.g('health',null);if(!h){h={plan:JSON.parse(JSON.stringify(HEALTH_DEFAULT)),log:{},scanAsked:{},habitsSeeded:false};LS.s('health',h);}else{if(!h.plan)h.plan=JSON.parse(JSON.stringify(HEALTH_DEFAULT));h.log=h.log||{};h.scanAsked=h.scanAsked||{};}return h;}
 function healthSet(h){LS.s('health',h);}
+function ensureHealthHabits(h){if(h.habitsSeeded)return;let cat=PROJECTS.find(p=>p.name.toLowerCase()==='sundhed');if(!cat){cat={id:'c'+Date.now(),name:'Sundhed',color:'#2fa38a'};PROJECTS.push(cat);saveCats();}const mk=(txt)=>{if(!STORE.some(t=>t.rec&&t.content===txt))STORE.push({id:'t'+(UID++),content:txt,pid:cat.id,due:TODAY,rec:'hver dag',pri:null,q:null,imp:null,eff:null,done:false,star:false,src:'health'});};mk('Bækkenbundssæt (3 min)');mk('Sund aften-snack (byt slik ud)');h.habitsSeeded=true;healthSet(h);save();}
+function healthCount(P,log){let done=0,tot=0;P.week.forEach(d=>{if(d.rest)return;d.items.forEach(it=>{tot++;if(log&&log.done&&log.done[d.id+'.'+it.id])done++;});});return{done,tot};}
 function sectionCard(title,builder){const c=document.createElement('div');c.className='card';const h=document.createElement('div');h.className='area-h';h.innerHTML='<b>'+title+'</b><span class="ct">vis/skjul</span>';const b=document.createElement('div');b.className='area-body';builder(b);h.onclick=()=>b.classList.toggle('open');c.appendChild(h);c.appendChild(b);return c;}
-function ulOf(arr){const u=document.createElement('ul');u.style.cssText='margin:6px 0 0;padding-left:20px;font-size:13.5px;line-height:1.5';arr.forEach(x=>{const li=document.createElement('li');li.textContent=x;u.appendChild(li);});return u;}
-function snackModal(){const H=HEALTH_DEFAULT;const host=document.getElementById('modalHost');host.innerHTML='<div class="mbg" id="hsBg"><div class="modal" style="max-width:420px;max-height:80vh;overflow:auto"><h3>🍫 Snack-swaps</h3><p class="hint">Byt aften-snacken ud med noget der stiller samme trang.</p><div id="hsC"></div><div class="mbtns"><button class="save" id="hsX">Luk</button></div></div></div>';const c=document.getElementById('hsC');const s1=document.createElement('div');s1.innerHTML='<b style="font-size:13px">Sødt</b>';s1.appendChild(ulOf(H.snackSweet));const s2=document.createElement('div');s2.style.marginTop='10px';s2.innerHTML='<b style="font-size:13px">Salt / sprødt</b>';s2.appendChild(ulOf(H.snackSalty));c.appendChild(s1);c.appendChild(s2);const close=()=>host.innerHTML='';document.getElementById('hsBg').onclick=e=>{if(e.target.id==='hsBg')close();};document.getElementById('hsX').onclick=close;}
-function pelvicModal(){const H=HEALTH_DEFAULT;const host=document.getElementById('modalHost');host.innerHTML='<div class="mbg" id="hpBg"><div class="modal" style="max-width:440px;max-height:80vh;overflow:auto"><h3>🧘 Bækkenbund & blid styrke</h3><div id="hpC"></div><div class="mbtns"><button class="save" id="hpX">Luk</button></div></div></div>';const c=document.getElementById('hpC');const p=document.createElement('p');p.style.cssText='font-size:13.5px;line-height:1.5';p.textContent=H.pelvic;c.appendChild(p);const d1=document.createElement('div');d1.style.marginTop='8px';d1.innerHTML='<b style="font-size:13px;color:#1a7f4b">Ja til</b>';d1.appendChild(ulOf(H.strengthDo));const d2=document.createElement('div');d2.style.marginTop='8px';d2.innerHTML='<b style="font-size:13px;color:var(--over)">Nej til</b>';d2.appendChild(ulOf(H.strengthDont));c.appendChild(d1);c.appendChild(d2);const close=()=>host.innerHTML='';document.getElementById('hpBg').onclick=e=>{if(e.target.id==='hpBg')close();};document.getElementById('hpX').onclick=close;}
+function ulOf(arr){const u=document.createElement('ul');u.style.cssText='margin:6px 0 0;padding-left:20px;font-size:13.5px;line-height:1.5';(arr||[]).forEach(x=>{const li=document.createElement('li');li.textContent=x;u.appendChild(li);});return u;}
+function snackModal(){const P=healthGet().plan;const host=document.getElementById('modalHost');host.innerHTML='<div class="mbg" id="hsBg"><div class="modal" style="max-width:420px;max-height:80vh;overflow:auto"><h3>🍫 Snack-swaps</h3><p class="hint">Byt aften-snacken ud med noget der stiller samme trang.</p><div id="hsC"></div><div class="mbtns"><button class="save" id="hsX">Luk</button></div></div></div>';const c=document.getElementById('hsC');const s1=document.createElement('div');s1.innerHTML='<b style="font-size:13px">Sødt</b>';s1.appendChild(ulOf(P.snackSweet));const s2=document.createElement('div');s2.style.marginTop='10px';s2.innerHTML='<b style="font-size:13px">Salt / sprødt</b>';s2.appendChild(ulOf(P.snackSalty));c.appendChild(s1);c.appendChild(s2);const close=()=>host.innerHTML='';document.getElementById('hsBg').onclick=e=>{if(e.target.id==='hsBg')close();};document.getElementById('hsX').onclick=close;}
+function pelvicModal(){const P=healthGet().plan;const host=document.getElementById('modalHost');host.innerHTML='<div class="mbg" id="hpBg"><div class="modal" style="max-width:440px;max-height:80vh;overflow:auto"><h3>🧘 Bækkenbund & blid styrke</h3><div id="hpC"></div><div class="mbtns"><button class="save" id="hpX">Luk</button></div></div></div>';const c=document.getElementById('hpC');const p=document.createElement('p');p.style.cssText='font-size:13.5px;line-height:1.5';p.textContent=P.pelvic;c.appendChild(p);const d1=document.createElement('div');d1.style.marginTop='8px';d1.innerHTML='<b style="font-size:13px;color:#1a7f4b">Ja til</b>';d1.appendChild(ulOf(P.strengthDo));const d2=document.createElement('div');d2.style.marginTop='8px';d2.innerHTML='<b style="font-size:13px;color:var(--over)">Nej til</b>';d2.appendChild(ulOf(P.strengthDont));c.appendChild(d1);c.appendChild(d2);const close=()=>host.innerHTML='';document.getElementById('hpBg').onclick=e=>{if(e.target.id==='hpBg')close();};document.getElementById('hpX').onclick=close;}
+function ta(val){return '<textarea style="width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;font-size:13px;min-height:60px">'+esc(val).replace(/"/g,'&quot;')+'</textarea>';}
+function healthEditModal(){const h=healthGet();const P=h.plan;const host=document.getElementById('modalHost');
+ const dayBlocks=P.week.map((d,i)=>'<label style="margin-top:8px">'+esc(d.day)+(d.rest?' (hviledag)':'')+' — en linje pr. punkt</label>'+'<textarea data-day="'+i+'" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;font-size:13px;min-height:50px">'+esc(d.items.map(it=>it.t).join('\n'))+'</textarea>').join('');
+ host.innerHTML='<div class="mbg" id="heBg"><div class="modal" style="max-width:480px;max-height:85vh;overflow:auto"><h3>✏️ Rediger plan</h3><p class="hint">Levende dokument — justér når din klinik/krop kræver det.</p>'
+ +'<label>Étlinje</label>'+ta(P.oneLiner)
+ +'<label>Påmindelse</label><input id="he_rem" style="width:100%" value="'+esc(P.reminder).replace(/"/g,'&quot;')+'">'
+ +'<h4 style="margin:12px 0 2px;font-size:13px">Ugeplan</h4><div id="he_days">'+dayBlocks+'</div>'
+ +'<label style="margin-top:10px">Principper (én pr. linje)</label>'+ta((P.principles||[]).join('\n'))
+ +'<label>Styrke — Ja (én pr. linje)</label>'+ta((P.strengthDo||[]).join('\n'))
+ +'<label>Styrke — Nej (én pr. linje)</label>'+ta((P.strengthDont||[]).join('\n'))
+ +'<label>Bækkenbund (tekst)</label>'+ta(P.pelvic)
+ +'<label>Snacks — sødt (én pr. linje)</label>'+ta((P.snackSweet||[]).join('\n'))
+ +'<label>Snacks — salt (én pr. linje)</label>'+ta((P.snackSalty||[]).join('\n'))
+ +'<label>Essentials (én pr. linje)</label>'+ta((P.essentials||[]).join('\n'))
+ +'<label>Advarselstegn (tekst)</label>'+ta(P.warnings)
+ +'<label>Efter fødslen (én pr. linje)</label>'+ta((P.parked||[]).join('\n'))
+ +'<div class="mbtns"><button class="cancel" id="he_x">Annullér</button><button class="save" id="he_save">Gem</button></div></div></div>';
+ const tas=host.querySelectorAll('#heBg textarea');
+ const close=()=>host.innerHTML='';host.querySelector('#heBg').onclick=e=>{if(e.target.id==='heBg')close();};host.querySelector('#he_x').onclick=close;
+ host.querySelector('#he_save').onclick=()=>{const all=host.querySelectorAll('.modal > textarea');
+  // ordered textareas: 0 oneLiner, then day textareas handled separately, then the rest
+  const lines=v=>v.split('\n').map(x=>x.trim()).filter(Boolean);
+  const t=host.querySelectorAll('.modal textarea');
+  // map by position: build an ordered list excluding day textareas
+  const dayTas=host.querySelectorAll('#he_days textarea');
+  const nonDay=[];host.querySelectorAll('.modal textarea').forEach(x=>{if(!x.closest('#he_days'))nonDay.push(x);});
+  P.oneLiner=nonDay[0].value.trim()||P.oneLiner;
+  P.reminder=host.querySelector('#he_rem').value.trim()||P.reminder;
+  dayTas.forEach(dt=>{const di=+dt.dataset.day;const items=lines(dt.value).map((tx,idx)=>({id:'i'+idx,t:tx}));if(items.length)P.week[di].items=items;});
+  P.principles=lines(nonDay[1].value);P.strengthDo=lines(nonDay[2].value);P.strengthDont=lines(nonDay[3].value);P.pelvic=nonDay[4].value.trim();P.snackSweet=lines(nonDay[5].value);P.snackSalty=lines(nonDay[6].value);P.essentials=lines(nonDay[7].value);P.warnings=nonDay[8].value.trim();P.parked=lines(nonDay[9].value);
+  healthSet(h);close();toast('Plan gemt');render();};
+}
 function healthP(w){
- const H=HEALTH_DEFAULT;const st=healthGet();const wk=iso(weekStart(today));st.log[wk]=st.log[wk]||{done:{},note:{}};const L=st.log[wk];
- // header
+ const h=healthGet();const P=h.plan;ensureHealthHabits(h);const wk=iso(weekStart(today));h.log[wk]=h.log[wk]||{done:{},note:{}};const L=h.log[wk];
  const hd=document.createElement('div');hd.className='card';hd.style.cssText='background:linear-gradient(135deg,#eef7f2,#f3f7ff);border-color:#cfe8dd';
- hd.innerHTML='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="pill active">'+esc(H.phaseLabel)+'</span></div><p style="font-size:13.5px;margin:8px 0 6px">'+esc(H.oneLiner)+'</p><p style="font-size:12.5px;color:var(--muted);margin:0">🌱 '+esc(H.reminder)+'</p>';w.appendChild(hd);
- // this week
- const tickable=H.week.filter(s=>s.tick);const doneN=tickable.filter(s=>L.done[s.id]).length;
- const c1=card('🗓 Denne uge','Kryds af når du har gjort det — spring en dag over uden dårlig samvittighed. '+doneN+'/'+tickable.length+' sessioner.');
- H.week.forEach(s=>{const r=document.createElement('div');r.className='row';
-  if(s.tick){const cb=document.createElement('div');cb.className='chk sq'+(L.done[s.id]?' done':'');cb.onclick=()=>{L.done[s.id]=!L.done[s.id];healthSet(st);render();};r.appendChild(cb);}
-  else{const ic=document.createElement('div');ic.style.cssText='width:24px;text-align:center;flex:0 0 auto';ic.textContent='😴';r.appendChild(ic);}
-  const bd=document.createElement('div');bd.className='tbody';bd.innerHTML='<div class="ttl" style="cursor:default"><b style="color:var(--home)">'+s.day+'</b> · '+esc(s.title)+'</div>';
-  if(s.tick){const ni=document.createElement('input');ni.placeholder='Note (valgfrit) — fx "føltes godt", "let skambenstwinge"';ni.value=L.note[s.id]||'';ni.style.cssText='margin-top:5px;width:100%;border:1px solid var(--line);border-radius:7px;padding:6px 8px;font:inherit;font-size:12.5px';ni.onchange=()=>{L.note[s.id]=ni.value.trim();healthSet(st);};bd.appendChild(ni);}
-  r.appendChild(bd);c1.appendChild(r);});
+ hd.innerHTML='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="pill active">'+esc(P.phaseLabel)+'</span><button class="btn" id="he_open" style="margin-left:auto">✏️ Rediger plan</button></div><p style="font-size:13.5px;margin:8px 0 6px">'+esc(P.oneLiner)+'</p><p style="font-size:12.5px;color:var(--muted);margin:0">🌱 '+esc(P.reminder)+'</p>';w.appendChild(hd);hd.querySelector('#he_open').onclick=healthEditModal;
+ const cnt=healthCount(P,L);
+ const c1=card('🗓 Denne uge','Kryds af hvert punkt når du har gjort det — spring en dag over uden dårlig samvittighed. '+cnt.done+'/'+cnt.tot+' gjort.');
+ P.week.forEach(d=>{const hdr=document.createElement('div');hdr.style.cssText='font-weight:600;color:var(--home);margin:8px 0 2px;font-size:13.5px';hdr.textContent=(d.rest?'😴 ':'')+d.day;c1.appendChild(hdr);
+  d.items.forEach(it=>{const r=document.createElement('div');r.className='row';r.style.padding='4px 6px';
+   if(!d.rest){const cb=document.createElement('div');cb.className='chk sq'+(L.done[d.id+'.'+it.id]?' done':'');cb.onclick=()=>{L.done[d.id+'.'+it.id]=!L.done[d.id+'.'+it.id];healthSet(h);render();};r.appendChild(cb);}
+   else{const ic=document.createElement('div');ic.style.cssText='width:24px;flex:0 0 auto';r.appendChild(ic);}
+   const bd=document.createElement('div');bd.className='tbody';bd.innerHTML='<div class="ttl" style="cursor:default">'+esc(it.t)+'</div>';r.appendChild(bd);c1.appendChild(r);});
+  if(!d.rest){const ni=document.createElement('input');ni.placeholder='Note for '+d.day.toLowerCase()+' (valgfrit)';ni.value=(L.note[d.id]||'');ni.style.cssText='margin:2px 0 4px 30px;width:calc(100% - 34px);border:1px solid var(--line);border-radius:7px;padding:6px 8px;font:inherit;font-size:12.5px';ni.onchange=()=>{L.note[d.id]=ni.value.trim();healthSet(h);};c1.appendChild(ni);}});
  w.appendChild(c1);
- // quick ref
- const qr=document.createElement('div');qr.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px';
- const b1=document.createElement('button');b1.className='btn';b1.textContent='🍫 Snack-swaps';b1.onclick=snackModal;
- const b2=document.createElement('button');b2.className='btn';b2.textContent='🧘 Bækkenbund how-to';b2.onclick=pelvicModal;
- qr.appendChild(b1);qr.appendChild(b2);w.appendChild(qr);
- // scan card
- const sc=document.createElement('div');sc.className='card';sc.style.borderColor='#f2c9c6';
- const scanD=new Date(H.scan.date+'T00:00:00');const dleft=Math.round((scanD-today)/86400000);
- sc.innerHTML='<h2>🩺 Scanning · '+scanD.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'})+(dleft>=0?' <span style="color:var(--muted);font-weight:400;font-size:12px">(om '+dleft+' dage)</span>':'')+'</h2><p class="hint">Kryds af når du har spurgt klinikken:</p>';
- H.scan.questions.forEach((q,i)=>{const r=document.createElement('div');r.className='row';const cb=document.createElement('div');cb.className='chk sq'+(st.scanAsked[i]?' done':'');cb.onclick=()=>{st.scanAsked[i]=!st.scanAsked[i];healthSet(st);render();};const bd=document.createElement('div');bd.className='tbody';bd.innerHTML='<div class="ttl" style="cursor:default;font-size:13px'+(st.scanAsked[i]?';text-decoration:line-through;color:var(--muted)':'')+'">'+esc(q)+'</div>';r.appendChild(cb);r.appendChild(bd);sc.appendChild(r);});
- w.appendChild(sc);
- // full plan sections
- const banner=document.createElement('div');banner.className='banner';banner.innerHTML='📋 <b>Hele planen</b> — et levende dokument. Alt medicinsk afklares med din klinik; appen holder bare styr på planen.';w.appendChild(banner);
- w.appendChild(sectionCard('Principper i denne graviditet',b=>{b.appendChild(ulOf(H.principles));}));
- w.appendChild(sectionCard('Blid styrke — bækkenbunds-sikker',b=>{const p=document.createElement('p');p.style.cssText='font-size:13px;color:var(--muted)';p.textContent='Brug din 8 kg bell (ned til kropsvægt hvis noget føles anstrengt).';b.appendChild(p);const d1=document.createElement('div');d1.innerHTML='<b style="font-size:12.5px;color:#1a7f4b">Ja</b>';d1.appendChild(ulOf(H.strengthDo));const d2=document.createElement('div');d2.style.marginTop='6px';d2.innerHTML='<b style="font-size:12.5px;color:var(--over)">Nej</b>';d2.appendChild(ulOf(H.strengthDont));b.appendChild(d1);b.appendChild(d2);}));
- w.appendChild(sectionCard('Ernæring',b=>{const s1=document.createElement('div');s1.innerHTML='<b style="font-size:12.5px">Aften-snack byt (sødt)</b>';s1.appendChild(ulOf(H.snackSweet));const s2=document.createElement('div');s2.style.marginTop='6px';s2.innerHTML='<b style="font-size:12.5px">Salt / sprødt</b>';s2.appendChild(ulOf(H.snackSalty));const s3=document.createElement('div');s3.style.marginTop='6px';s3.innerHTML='<b style="font-size:12.5px">Graviditets-essentials</b>';s3.appendChild(ulOf(H.essentials));b.appendChild(s1);b.appendChild(s2);b.appendChild(s3);}));
- w.appendChild(sectionCard('🚩 Advarselstegn — stop & ring',b=>{const p=document.createElement('p');p.style.cssText='font-size:13.5px;line-height:1.5;color:#8a2a24';p.textContent=H.warnings;b.appendChild(p);}));
- w.appendChild(sectionCard('Efter fødslen (parkerede mål)',b=>{const p=document.createElement('p');p.style.cssText='font-size:13px;color:var(--muted)';p.textContent='Ikke væk — bare senere. Når du er kommet dig og er cleared postpartum, bygger vi gradvist mod:';b.appendChild(p);b.appendChild(ulOf(H.parked));}));
+ const qr=document.createElement('div');qr.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px';const b1=document.createElement('button');b1.className='btn';b1.textContent='🍫 Snack-swaps';b1.onclick=snackModal;const b2=document.createElement('button');b2.className='btn';b2.textContent='🧘 Bækkenbund how-to';b2.onclick=pelvicModal;qr.appendChild(b1);qr.appendChild(b2);w.appendChild(qr);
+ const sc=document.createElement('div');sc.className='card';sc.style.borderColor='#f2c9c6';const scanD=new Date(P.scan.date+'T00:00:00');const dleft=Math.round((scanD-today)/86400000);sc.innerHTML='<h2>🩺 Scanning · '+scanD.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'})+(dleft>=0?' <span style="color:var(--muted);font-weight:400;font-size:12px">(om '+dleft+' dage)</span>':'')+'</h2><p class="hint">Kryds af når du har spurgt klinikken:</p>';
+ P.scan.questions.forEach((q,i)=>{const r=document.createElement('div');r.className='row';const cb=document.createElement('div');cb.className='chk sq'+(h.scanAsked[i]?' done':'');cb.onclick=()=>{h.scanAsked[i]=!h.scanAsked[i];healthSet(h);render();};const bd=document.createElement('div');bd.className='tbody';bd.innerHTML='<div class="ttl" style="cursor:default;font-size:13px'+(h.scanAsked[i]?';text-decoration:line-through;color:var(--muted)':'')+'">'+esc(q)+'</div>';r.appendChild(cb);r.appendChild(bd);sc.appendChild(r);});w.appendChild(sc);
+ // history
+ const weeks=Object.keys(h.log).filter(k=>k!==wk).sort().reverse();
+ if(weeks.length){w.appendChild(sectionCard('📈 Historik (tidligere uger)',b=>{weeks.slice(0,12).forEach(k=>{const c=healthCount(P,h.log[k]);const notes=Object.values(h.log[k].note||{}).filter(Boolean);const r=document.createElement('div');r.className='row';r.innerHTML='<div class="tbody"><div class="ttl" style="cursor:default;font-size:13px">Uge fra '+new Date(k+'T00:00:00').toLocaleDateString('da-DK',{day:'numeric',month:'short'})+' — '+c.done+'/'+c.tot+' gjort</div>'+(notes.length?'<div class="meta"><span style="font-size:12px;color:var(--muted)">'+esc(notes.join(' · '))+'</span></div>':'')+'</div>';b.appendChild(r);});}));}
+ const banner=document.createElement('div');banner.className='banner';banner.innerHTML='📋 <b>Hele planen</b> — et levende dokument (tryk ✏️ for at redigere). Alt medicinsk afklares med din klinik; appen holder bare styr på planen.';w.appendChild(banner);
+ w.appendChild(sectionCard('Principper i denne graviditet',b=>{b.appendChild(ulOf(P.principles));}));
+ w.appendChild(sectionCard('Blid styrke — bækkenbunds-sikker',b=>{const p=document.createElement('p');p.style.cssText='font-size:13px;color:var(--muted)';p.textContent='Brug din 8 kg bell (ned til kropsvægt hvis noget føles anstrengt).';b.appendChild(p);const d1=document.createElement('div');d1.innerHTML='<b style="font-size:12.5px;color:#1a7f4b">Ja</b>';d1.appendChild(ulOf(P.strengthDo));const d2=document.createElement('div');d2.style.marginTop='6px';d2.innerHTML='<b style="font-size:12.5px;color:var(--over)">Nej</b>';d2.appendChild(ulOf(P.strengthDont));b.appendChild(d1);b.appendChild(d2);}));
+ w.appendChild(sectionCard('Ernæring',b=>{const s1=document.createElement('div');s1.innerHTML='<b style="font-size:12.5px">Aften-snack byt (sødt)</b>';s1.appendChild(ulOf(P.snackSweet));const s2=document.createElement('div');s2.style.marginTop='6px';s2.innerHTML='<b style="font-size:12.5px">Salt / sprødt</b>';s2.appendChild(ulOf(P.snackSalty));const s3=document.createElement('div');s3.style.marginTop='6px';s3.innerHTML='<b style="font-size:12.5px">Graviditets-essentials</b>';s3.appendChild(ulOf(P.essentials));b.appendChild(s1);b.appendChild(s2);b.appendChild(s3);}));
+ w.appendChild(sectionCard('🚩 Advarselstegn — stop & ring',b=>{const p=document.createElement('p');p.style.cssText='font-size:13.5px;line-height:1.5;color:#8a2a24';p.textContent=P.warnings;b.appendChild(p);}));
+ w.appendChild(sectionCard('Efter fødslen (parkerede mål)',b=>{const p=document.createElement('p');p.style.cssText='font-size:13px;color:var(--muted)';p.textContent='Ikke væk — bare senere. Når du er kommet dig og er cleared postpartum, bygger vi gradvist mod:';b.appendChild(p);b.appendChild(ulOf(P.parked));}));
 }
 
 const MONTHS=['Jan','Feb','Mar','Apr','Maj','Jun','Jul','Aug','Sep','Okt','Nov','Dec'];
