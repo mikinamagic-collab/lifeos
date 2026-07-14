@@ -438,18 +438,46 @@ function habitModal(t){
  host.querySelector('.save').onclick=()=>{t.content=document.getElementById('h_c').value.trim()||t.content;t.rec=sel.value==='__custom__'?(cust.value.trim()||t.rec):sel.value;save();close();toast('Gemt');render();};
 }
 // ---------- render ----------
+function secKey(t){return String(t).replace(/<[^>]*>/g,'').split('·')[0].split('—')[0].split('(')[0].replace(/\s+/g,' ').trim().toLowerCase();}
+let SECEDIT=false;
+function sectionReorder(w){
+ const tab=LS.g('tab','focus');
+ const kids=[...w.children];
+ const cards=kids.filter(el=>el.classList&&el.classList.contains('card')&&el.dataset&&el.dataset.skey);
+ if(cards.length<2)return;
+ const key='secord_'+tab;const saved=LS.g(key,[]);
+ const rank=c=>{const i=saved.indexOf(c.dataset.skey);return i<0?1000+cards.indexOf(c):i;};
+ const ordered=cards.slice().sort((a,b)=>rank(a)-rank(b));
+ const slots=[];kids.forEach((el,i)=>{if(cards.indexOf(el)>=0)slots.push(i);});
+ const arr=kids.slice();slots.forEach((s,n)=>{arr[s]=ordered[n];});
+ arr.forEach(el=>w.appendChild(el));
+ const tb=document.createElement('div');tb.style.cssText='display:flex;justify-content:flex-end;margin:0 0 8px';
+ const bt=document.createElement('button');bt.className='btn';bt.textContent=SECEDIT?'✓ Færdig':'⇅ Flyt sektioner';if(SECEDIT){bt.style.cssText='background:var(--accent);color:#fff;border-color:var(--accent)';}bt.onclick=()=>{SECEDIT=!SECEDIT;render();};tb.appendChild(bt);
+ w.insertBefore(tb,w.firstChild);
+ if(!SECEDIT)return;
+ const vis=new Set(cards.map(x=>x.dataset.skey));
+ const commit=list=>{const tail=saved.filter(k=>!vis.has(k));LS.s(key,list.map(x=>x.dataset.skey).concat(tail));render();};
+ ordered.forEach((c,n)=>{
+  c.style.position='relative';c.style.outline='2px dashed var(--accent)';c.style.outlineOffset='2px';
+  const ctl=document.createElement('div');ctl.style.cssText='position:absolute;top:6px;right:6px;display:flex;gap:4px;z-index:6';
+  const mk=(txt,dis,fn)=>{const b=document.createElement('button');b.textContent=txt;b.disabled=dis;b.style.cssText='width:30px;height:30px;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:'+(dis?'default':'pointer')+';font-size:15px;font-weight:700;line-height:1;opacity:'+(dis?'.35':'1')+';box-shadow:0 1px 3px rgba(0,0,0,.12)';if(!dis)b.onclick=e=>{e.stopPropagation();fn();};return b;};
+  ctl.appendChild(mk('↑',n===0,()=>{const a=ordered.slice();[a[n-1],a[n]]=[a[n],a[n-1]];commit(a);}));
+  ctl.appendChild(mk('↓',n===ordered.length-1,()=>{const a=ordered.slice();[a[n+1],a[n]]=[a[n],a[n+1]];commit(a);}));
+  c.appendChild(ctl);
+ });
+}
 function render(){
  const tab=LS.g('tab','focus');app.innerHTML='';
  if(['focus','all','timeline'].includes(tab))app.appendChild(statsBar());
  const w=document.createElement('div');
  ({focus:focusP,prio:prioP,all:allP,timeline:timelineP,dates:datesP,habits:habitsP,health:healthP,wheel:wheelP,projects:projP,goals:goalP}[tab])(w);
- app.appendChild(w);document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.p===tab));
+ app.appendChild(w);sectionReorder(w);document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.p===tab));
  if(tab==='wheel')drawWheel();
 }
 function statsBar(){const A=active(),over=A.filter(t=>dueBucket(t)==='over').length,tdy=A.filter(t=>dueBucket(t)==='today').length,nd=A.filter(t=>!t.due).length,uns=A.filter(t=>!t.q).length;
  const d=document.createElement('div');d.className='stats';const mk=(n,l,c)=>`<div class="stat"><b style="color:${c||'var(--ink)'}">${n}</b><span>${l}</span></div>`;
  d.innerHTML=mk(A.length,'åbne')+mk(over,'forfaldne','var(--over)')+mk(tdy,'i dag','var(--today)')+mk(nd,'uden dato','var(--muted)')+mk(uns,'usorteret','var(--deleg)');return d;}
-function card(t,h){const c=document.createElement('div');c.className='card';c.innerHTML=`<h2>${t}</h2>`+(h?`<p class="hint">${h}</p>`:'');return c;}
+function card(t,h){const c=document.createElement('div');c.className='card';c.dataset.skey=secKey(t);c.innerHTML=`<h2>${t}</h2>`+(h?`<p class="hint">${h}</p>`:'');return c;}
 function empty(m){const e=document.createElement('div');e.className='empty';e.textContent=m;return e;}
 function emptyCTA(msg,label,fn){const d=document.createElement('div');d.className='empty';d.style.cssText='padding:14px 4px;text-align:center';const p=document.createElement('div');p.style.marginBottom='9px';p.textContent=msg;d.appendChild(p);const b=document.createElement('button');b.textContent=label;b.style.cssText='border:none;background:var(--accent);color:#fff;border-radius:9px;padding:9px 15px;font-weight:600;cursor:pointer;min-height:40px';b.onclick=fn;d.appendChild(b);return d;}
 
@@ -670,7 +698,7 @@ function catCard(w,id,name,color,sel){const items=active().filter(t=>t.pid===id)
   const isOpen=catOpen.hasOwnProperty(id)?catOpen[id]:(items.length<=25);
   const body=document.createElement('div');body.className='area-body'+(isOpen?' open':'');items.forEach(t=>body.appendChild(taskRow(t,{sel})));
   h.querySelector('.selall').onclick=e=>{e.stopPropagation();if(allSel)items.forEach(t=>SEL.delete(t.id));else items.forEach(t=>SEL.add(t.id));render();};
-  h.onclick=()=>{catOpen[id]=body.classList.toggle('open');saveCatOpen();};c.appendChild(h);c.appendChild(body);w.appendChild(c);}
+  h.onclick=()=>{catOpen[id]=body.classList.toggle('open');saveCatOpen();};c.dataset.skey='cat:'+id;c.appendChild(h);c.appendChild(body);w.appendChild(c);}
 function bulkBar(){const c=document.createElement('div');c.className='card';c.style.cssText='position:sticky;top:44px;z-index:4;border-color:var(--accent);border-width:2px';
  c.innerHTML=`<b>${SEL.size} markeret</b>`;
  const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px';
@@ -867,7 +895,7 @@ function healthGet(){let h=LS.g('health',null);if(!h){h={plan:JSON.parse(JSON.st
 function healthSet(h){LS.s('health',h);}
 function ensureHealthHabits(h){if(h.habitsSeeded)return;let cat=PROJECTS.find(p=>p.name.toLowerCase()==='sundhed');if(!cat){cat={id:'c'+Date.now(),name:'Sundhed',color:'#2fa38a'};PROJECTS.push(cat);saveCats();}const mk=(txt)=>{if(!STORE.some(t=>t.rec&&t.content===txt))STORE.push({id:'t'+(UID++),content:txt,pid:cat.id,due:TODAY,rec:'hver dag',pri:null,q:null,imp:null,eff:null,done:false,star:false,src:'health'});};mk('Bækkenbundssæt (3 min)');mk('Sund aften-snack (byt slik ud)');h.habitsSeeded=true;healthSet(h);save();}
 function healthCount(P,log){let done=0,tot=0;P.week.forEach(d=>{if(d.rest)return;d.items.forEach(it=>{tot++;if(log&&log.done&&log.done[d.id+'.'+it.id])done++;});});return{done,tot};}
-function sectionCard(title,builder){const c=document.createElement('div');c.className='card';const h=document.createElement('div');h.className='area-h';h.innerHTML='<b>'+title+'</b><span class="ct">vis/skjul</span>';const b=document.createElement('div');b.className='area-body';builder(b);h.onclick=()=>b.classList.toggle('open');c.appendChild(h);c.appendChild(b);return c;}
+function sectionCard(title,builder){const c=document.createElement('div');c.className='card';c.dataset.skey=secKey(title);const h=document.createElement('div');h.className='area-h';h.innerHTML='<b>'+title+'</b><span class="ct">vis/skjul</span>';const b=document.createElement('div');b.className='area-body';builder(b);h.onclick=()=>b.classList.toggle('open');c.appendChild(h);c.appendChild(b);return c;}
 function ulOf(arr){const u=document.createElement('ul');u.style.cssText='margin:6px 0 0;padding-left:20px;font-size:13.5px;line-height:1.5';(arr||[]).forEach(x=>{const li=document.createElement('li');li.textContent=x;u.appendChild(li);});return u;}
 function snackModal(){const P=healthGet().plan;const host=document.getElementById('modalHost');host.innerHTML='<div class="mbg" id="hsBg"><div class="modal" style="max-width:420px;max-height:80vh;overflow:auto"><h3>🍫 Snack-swaps</h3><p class="hint">Byt aften-snacken ud med noget der stiller samme trang.</p><div id="hsC"></div><div class="mbtns"><button class="save" id="hsX">Luk</button></div></div></div>';const c=document.getElementById('hsC');const s1=document.createElement('div');s1.innerHTML='<b style="font-size:13px">Sødt</b>';s1.appendChild(ulOf(P.snackSweet));const s2=document.createElement('div');s2.style.marginTop='10px';s2.innerHTML='<b style="font-size:13px">Salt / sprødt</b>';s2.appendChild(ulOf(P.snackSalty));c.appendChild(s1);c.appendChild(s2);const close=()=>host.innerHTML='';document.getElementById('hsBg').onclick=e=>{if(e.target.id==='hsBg')close();};document.getElementById('hsX').onclick=close;}
 function pelvicModal(){const P=healthGet().plan;const host=document.getElementById('modalHost');host.innerHTML='<div class="mbg" id="hpBg"><div class="modal" style="max-width:440px;max-height:80vh;overflow:auto"><h3>🧘 Bækkenbund</h3><div id="hpC"></div><div class="mbtns"><button class="save" id="hpX">Luk</button></div></div></div>';const c=document.getElementById('hpC');const p=document.createElement('p');p.style.cssText='font-size:13.5px;line-height:1.5';p.textContent=P.pelvic;c.appendChild(p);const close=()=>host.innerHTML='';document.getElementById('hpBg').onclick=e=>{if(e.target.id==='hpBg')close();};document.getElementById('hpX').onclick=close;}
@@ -914,11 +942,11 @@ function healthP(w){
   d.items.forEach(it=>{const r=document.createElement('div');r.className='row';r.style.padding='4px 6px';
    if(!d.rest){const cb=document.createElement('div');cb.className='chk sq'+(L.done[d.id+'.'+it.id]?' done':'');cb.onclick=()=>{L.done[d.id+'.'+it.id]=!L.done[d.id+'.'+it.id];healthSet(h);render();};r.appendChild(cb);}
    else{const ic=document.createElement('div');ic.style.cssText='width:24px;flex:0 0 auto';r.appendChild(ic);}
-   const bd=document.createElement('div');bd.className='tbody';bd.innerHTML='<div class="ttl" style="cursor:default">'+esc(it.t)+'</div>';r.appendChild(bd);var _tp=/bækkenbund/i.test(it.t)?pelvicModal:(/styrke/i.test(it.t)?strengthModal:null);if(_tp){var _q=document.createElement('button');_q.textContent='?';_q.title='Sådan gør du';_q.style.cssText='flex:0 0 auto;width:22px;height:22px;border-radius:50%;border:1px solid var(--line);background:#fff;color:var(--home);font-weight:700;cursor:pointer;margin-left:6px';_q.onclick=function(e){e.stopPropagation();_tp();};r.appendChild(_q);}c1.appendChild(r);});
+   const bd=document.createElement('div');bd.className='tbody';bd.innerHTML='<div class="ttl" style="cursor:default">'+esc(it.t)+'</div>';r.appendChild(bd);var _tp=/bækkenbund/i.test(it.t)?pelvicModal:(/styrke/i.test(it.t)?strengthModal:null);if(_tp){var _q=document.createElement('button');_q.textContent='?';_q.title='Sådan gør du';_q.style.cssText='flex:0 0 auto;width:19px;height:19px;border-radius:50%;border:1px solid var(--line);background:#fff;color:var(--home);font-weight:700;font-size:12px;line-height:1;cursor:pointer;margin-left:6px;vertical-align:middle';_q.onclick=function(e){e.stopPropagation();_tp();};var _tt=bd.querySelector(".ttl");_tt.style.display="inline-flex";_tt.style.alignItems="center";_tt.appendChild(_q);}c1.appendChild(r);});
   if(!d.rest){const ni=document.createElement('input');ni.placeholder='Note for '+d.day.toLowerCase()+' (valgfrit)';ni.value=(L.note[d.id]||'');ni.style.cssText='margin:2px 0 4px 30px;width:calc(100% - 34px);border:1px solid var(--line);border-radius:7px;padding:6px 8px;font:inherit;font-size:12.5px';ni.onchange=()=>{L.note[d.id]=ni.value.trim();healthSet(h);};c1.appendChild(ni);}});
  w.appendChild(c1);
  const qr=document.createElement('div');qr.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px';const b1=document.createElement('button');b1.className='btn';b1.textContent='🍫 Snack-swaps';b1.onclick=snackModal;qr.appendChild(b1);w.appendChild(qr);
- const sc=document.createElement('div');sc.className='card';sc.style.borderColor='#f2c9c6';const scanD=new Date(P.scan.date+'T00:00:00');const dleft=Math.round((scanD-today)/86400000);sc.innerHTML='<h2>🩺 Scanning · '+scanD.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'})+(dleft>=0?' <span style="color:var(--muted);font-weight:400;font-size:12px">(om '+dleft+' dage)</span>':'')+'</h2><p class="hint">Kryds af når du har spurgt klinikken:</p>';
+ const sc=document.createElement('div');sc.className='card';sc.dataset.skey='scan';sc.style.borderColor='#f2c9c6';const scanD=new Date(P.scan.date+'T00:00:00');const dleft=Math.round((scanD-today)/86400000);sc.innerHTML='<h2>🩺 Scanning · '+scanD.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'})+(dleft>=0?' <span style="color:var(--muted);font-weight:400;font-size:12px">(om '+dleft+' dage)</span>':'')+'</h2><p class="hint">Kryds af når du har spurgt klinikken:</p>';
  P.scan.questions.forEach((q,i)=>{const r=document.createElement('div');r.className='row';const cb=document.createElement('div');cb.className='chk sq'+(h.scanAsked[i]?' done':'');cb.onclick=()=>{h.scanAsked[i]=!h.scanAsked[i];healthSet(h);render();};const bd=document.createElement('div');bd.className='tbody';bd.innerHTML='<div class="ttl" style="cursor:default;font-size:13px'+(h.scanAsked[i]?';text-decoration:line-through;color:var(--muted)':'')+'">'+esc(q)+'</div>';r.appendChild(cb);r.appendChild(bd);sc.appendChild(r);});w.appendChild(sc);
  // history
  const weeks=Object.keys(h.log).filter(k=>k!==wk).sort().reverse();
