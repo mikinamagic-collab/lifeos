@@ -329,7 +329,7 @@ function estPicker(t,anchor){const host=document.getElementById('modalHost');
 }
 function taskRow(t,opts){opts=opts||{};
  const p=catOf(t.pid);const b=dueBucket(t);
- const el=document.createElement('div');el.className='row';
+ const el=document.createElement('div');el.className='row';el.dataset.tid=t.id;
  const chk=document.createElement('div');chk.className='chk '+(t.pri||'');chk.onclick=()=>{t.done=true;t.doneAt=TODAY;t.star=false;save();toast('Færdig ✓');render();};
  const star=document.createElement('div');star.className='star'+(t.star?' on':'');star.textContent=t.star?'★':'☆';star.title='Top 3';star.onclick=()=>{if(!t.star&&STORE.filter(x=>x.star).length>=3){toast('Top 3 er fuld');return;}t.star=!t.star;save();render();};
  const body=document.createElement('div');body.className='tbody';
@@ -1242,6 +1242,58 @@ document.getElementById('ghBtn').onclick=()=>{
 updateChip();
 /* ===== end UI ===== */
 
+/* ===== v25: command palette + keyboard (desktop) ===== */
+let HOVERT=null;
+app.addEventListener('mouseover',e=>{const r=e.target.closest?e.target.closest('.row[data-tid]'):null;if(r)HOVERT=r.dataset.tid;});
+function hovTask(){return STORE.find(t=>t.id===HOVERT&&!t.done);}
+function paletteModal(){
+ const host=document.getElementById('modalHost');
+ host.innerHTML='<div class="mbg" id="cpalBg"><div class="modal" style="max-width:470px"><input id="cpalI" placeholder="Søg opgave eller skriv en kommando…" style="width:100%;font-size:15px;padding:10px"><div id="cpalL" style="max-height:320px;overflow:auto;margin-top:8px"></div><p class="hint" style="margin-top:8px">↑↓ vælg · Enter åbn · Esc luk — genveje på lister: c færdig · d +1 dag · u +1 uge · z backlog · s ⭐ · 1-3 prioritet · a ny opgave</p></div></div>';
+ const inp=document.getElementById('cpalI');const list=document.getElementById('cpalL');inp.focus();
+ const close=()=>host.innerHTML='';
+ document.getElementById('cpalBg').onclick=e=>{if(e.target.id==='cpalBg')close();};
+ const CMDS=[
+  {l:'📊 Gå til Overblik',f:()=>goto('dash')},{l:'🎯 Gå til Dagens plan',f:()=>goto('focus')},
+  {l:'📋 Gå til Opgaver',f:()=>goto('all')},{l:'🧭 Gå til Prioritér',f:()=>goto('prio')},
+  {l:'🗓 Gå til Kalender',f:()=>goto('timeline')},{l:'🎂 Gå til Datoer',f:()=>goto('dates')},
+  {l:'🔁 Gå til Vaner',f:()=>goto('habits')},{l:'🌱 Gå til Sundhed',f:()=>goto('health')},
+  {l:'🎡 Gå til Årshjul',f:()=>goto('wheel')},{l:'🚀 Gå til Projekter',f:()=>goto('projects')},{l:'🌟 Gå til Mål',f:()=>goto('goals')},
+  {l:'☀️ Planlæg dagen',f:morningModal},{l:'🌙 Luk dagen',f:shutdownModal},{l:'🧭 Ugentlig gennemgang',f:weeklyModal},
+  {l:'➕ Ny opgave',f:()=>{goto('all');setTimeout(()=>{const i=document.querySelector('.addbar .t');if(i)i.focus();},60);}},
+  {l:'🗑 Papirkurv',f:trashModal},{l:'🕘 Gendan tidligere version',f:()=>{if(GH.cfg)restoreModal();else toast('Sæt sync op først');}}
+ ];
+ let sel=0,items=[];
+ const highlight=()=>{[...list.children].forEach((d,i)=>d.classList.toggle('active',i===sel));};
+ const paint=()=>{const q=inp.value.trim().toLowerCase();items=[];
+  CMDS.forEach(c=>{if(!q||c.l.toLowerCase().includes(q))items.push(c);});
+  if(q.length>=2)STORE.filter(t=>!t.done&&t.content.toLowerCase().includes(q)).slice(0,8).forEach(t=>items.push({l:'✏️ '+t.content,f:()=>editModal(t)}));
+  if(sel>=items.length)sel=Math.max(0,items.length-1);
+  list.innerHTML='';items.forEach((it,i)=>{const d=document.createElement('div');d.className='snav'+(i===sel?' active':'');d.style.fontSize='14px';d.textContent=it.l;d.onmouseenter=()=>{sel=i;highlight();};d.onclick=()=>{close();it.f();};list.appendChild(d);});};
+ inp.oninput=()=>{sel=0;paint();};
+ inp.onkeydown=e=>{
+  if(e.key==='ArrowDown'){e.preventDefault();sel=Math.min(items.length-1,sel+1);highlight();}
+  else if(e.key==='ArrowUp'){e.preventDefault();sel=Math.max(0,sel-1);highlight();}
+  else if(e.key==='Enter'){e.preventDefault();const it=items[sel];if(it){close();it.f();}}
+  else if(e.key==='Escape'){close();}};
+ paint();
+}
+document.addEventListener('keydown',e=>{
+ if((e.metaKey||e.ctrlKey)&&String(e.key).toLowerCase()==='k'){e.preventDefault();paletteModal();return;}
+ const tag=(e.target.tagName||'').toLowerCase();
+ if(tag==='input'||tag==='textarea'||tag==='select'||e.target.isContentEditable)return;
+ if(document.getElementById('modalHost').innerHTML)return;
+ if(e.metaKey||e.ctrlKey||e.altKey)return;
+ const k=String(e.key).toLowerCase();
+ if(k==='a'){e.preventDefault();goto('all');setTimeout(()=>{const i=document.querySelector('.addbar .t');if(i)i.focus();},60);return;}
+ const t=hovTask();if(!t)return;
+ if(k==='c'){t.done=true;t.doneAt=TODAY;t.star=false;save();toast('Færdig ✓');render();}
+ else if(k==='d'){const b=(t.due&&t.due>TODAY)?new Date(t.due+'T12:00'):new Date(today);b.setDate(b.getDate()+1);t.due=iso(b);t.parked=false;save();toast('Udskudt til '+fmtDue(t.due));render();}
+ else if(k==='u'){const b=(t.due&&t.due>TODAY)?new Date(t.due+'T12:00'):new Date(today);b.setDate(b.getDate()+7);t.due=iso(b);t.parked=false;save();toast('Udskudt til '+fmtDue(t.due));render();}
+ else if(k==='z'){t.due=null;t.parked=true;t.star=false;save();toast('Backlog 💤');render();}
+ else if(k==='s'){if(!t.star&&STORE.filter(x=>x.star).length>=3){toast('Top 3 er fuld');}else{t.star=!t.star;save();render();}}
+ else if(k==='1'||k==='2'||k==='3'){t.pri=(t.pri==='p'+k)?null:'p'+k;save();render();}
+});
+/* ===== end v25 ===== */
 Object.keys(localStorage).forEach(k=>{if(k.startsWith('cc2_dayorder_')&&k!=='cc2_dayorder_'+TODAY)localStorage.removeItem(k);});
 if(LS.g('autoroll',false)&&LS.g('lastroll','')!==TODAY){
  const _roll=STORE.filter(t=>!t.done&&!t.rec&&!t.parked&&t.due&&t.due<TODAY);
