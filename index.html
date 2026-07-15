@@ -592,7 +592,7 @@ function morningModal(){
    const paint=()=>{
     const sum=planSum(pl);const cap=capacityGet();const over=sum>cap;
     let inner='<p style="font-size:13px">⏱ Hvor lang tid tager tingene? Tryk på en opgave for at sætte tid:</p><div id="mpE" style="max-height:230px;overflow:auto"></div>';
-    inner+='<p style="font-size:13px;margin-top:8px"><b>Planlagt: '+fmtEst(sum)+' af '+fmtEst(cap)+'</b>'+(over?' <span style="color:var(--over)">— det er mere end din dag ⚠️</span>':' <span style="color:#1a7f4b">✓</span>')+'</p>';
+    inner+='<p style="font-size:13px;margin-top:8px"><b>Planlagt: '+(fmtEst(sum)||'0m')+' af '+fmtEst(cap)+'</b>'+(over?' <span style="color:var(--over)">— det er mere end din dag ⚠️</span>':' <span style="color:#1a7f4b">✓</span>')+'</p>';
     shell(inner,'<button class="cancel" id="mpB3e">← Tilbage</button><button class="save" id="mpN3e">Videre →</button>');
     const ew=document.getElementById('mpE');
     pl.forEach(t=>{const r=document.createElement('div');r.className='row';
@@ -605,7 +605,7 @@ function morningModal(){
    paint();
   }else{
    const pl2=planTasks();const sum=planSum(pl2);const cap=capacityGet();const tc=active().filter(t=>!t.rec&&dueBucket(t)==='today').length;
-   let inner='<p style="font-size:13px">📋 Dagens plan: <b>'+sel.size+'</b> i Top 3 · <b>'+tc+'</b> med deadline i dag · planlagt <b>'+fmtEst(sum)+'</b> af '+fmtEst(cap)+'.</p>';
+   let inner='<p style="font-size:13px">📋 Dagens plan: <b>'+sel.size+'</b> i Top 3 · <b>'+tc+'</b> med deadline i dag · planlagt <b>'+(fmtEst(sum)||'0m')+'</b> af '+fmtEst(cap)+'.</p>';
    if(sum>cap)inner+='<p style="font-size:13px;color:var(--over)">⚠️ Planlagt '+fmtEst(sum)+' er mere end din dag ('+fmtEst(cap)+') — flyt noget, så dagen kan lykkes.</p>';
    else inner+='<p style="font-size:13px;color:#1a7f4b">✓ Det ser realistisk ud.</p>';
    inner+='<p style="font-size:12px;color:var(--muted)">Husk: blokér tid i kalenderen til dine Top 3.</p>';
@@ -726,7 +726,7 @@ function focusP(w){
  const c1=card('☀️ Dagens plan','⭐ Top 3 øverst · forfaldne og dagens opgaver i din rækkefølge. Flyt med ↑/↓, sæt tid med ⏱.');
  {const gh=document.createElement('div');gh.style.cssText='margin:2px 0 10px';
   const pct=Math.min(100,cap?Math.round(sum/cap*100):0);const over=sum>cap;
-  gh.innerHTML='<div style="display:flex;align-items:center;gap:8px;font-size:13px"><b>Planlagt: '+fmtEst(sum)+(cap?' af '+fmtEst(cap):'')+'</b>'+(noEst?'<span class="chip">'+noEst+' uden estimat</span>':'')+'<span style="flex:1"></span></div><div class="prog" style="margin:6px 0 0"><i style="width:'+pct+'%;background:'+(over?'var(--over)':'var(--home)')+'"></i></div>'+(over?'<div style="font-size:12.5px;color:var(--over);margin-top:5px">⚠️ Planen er større end din dag ('+fmtEst(cap)+'). Flyt noget til i morgen, så dagen kan lykkes.</div>':'');
+  gh.innerHTML='<div style="display:flex;align-items:center;gap:8px;font-size:13px"><b>Planlagt: '+(fmtEst(sum)||'0m')+(cap?' af '+fmtEst(cap):'')+'</b>'+(noEst?'<span class="chip">'+noEst+' uden estimat</span>':'')+'<span style="flex:1"></span></div><div class="prog" style="margin:6px 0 0"><i style="width:'+pct+'%;background:'+(over?'var(--over)':'var(--home)')+'"></i></div>'+(over?'<div style="font-size:12.5px;color:var(--over);margin-top:5px">⚠️ Planen er større end din dag ('+fmtEst(cap)+'). Flyt noget til i morgen, så dagen kan lykkes.</div>':'');
   const gear=document.createElement('button');gear.className='btn';gear.textContent='⚙️';gear.title='Dagskapacitet';gear.style.cssText='min-height:30px;padding:3px 8px';gear.onclick=capModal;
   gh.firstChild.appendChild(gear);c1.appendChild(gh);}
  if(plan.length){plan.forEach((t,i)=>{const r=taskRow(t);
