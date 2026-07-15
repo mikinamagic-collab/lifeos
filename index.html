@@ -170,7 +170,6 @@ h1{font-size:20px;margin:0;font-weight:700;letter-spacing:-.01em}
     <h1>Nina's LifeOS</h1><span class="date" id="dateStr"></span>
     <span id="syncChip" style="margin-left:auto;font-size:12px;color:var(--muted)">⚪ ikke sat op</span>
     <button class="imp" id="ghBtn" style="margin-left:0">⚙️ Sync</button>
-    <button class="imp" id="impBtn" style="margin-left:0;display:none">⟲ Importér fra Todoist</button>
   </header>
   <p class="sub">Dit opgavesystem — synkroniseret privat via GitHub. Virker på Mac og iPhone.</p>
   <div id="app"></div>
@@ -179,12 +178,9 @@ h1{font-size:20px;margin:0;font-weight:700;letter-spacing:-.01em}
 <div id="modalHost"></div>
 <nav id="botNav"></nav>
 <script>
-const TOOL="mcp__86af9915-d61e-4be4-a3fd-22834c55d373__";
-const LIVE=!!(window.cowork&&window.cowork.callMcpTool);
 let PROJECTS=[
  {id:"inbox",name:"Inbox",color:"#8a8f98"}
 ];
-const IMPORT_SRC=PROJECTS.map(p=>({id:p.id,name:p.name}));
 function catOf(id){return PROJECTS.find(p=>p.id===id)||{name:'Uden kategori',color:'#9aa0a6'};}
 function catByName(n){const lc=String(n).toLowerCase();const f=PROJECTS.find(p=>p.name.toLowerCase()===lc);return f?f.id:(PROJECTS[0]&&PROJECTS[0].id);}
 const T="2026-07-06";
@@ -270,13 +266,6 @@ function evByDate(ds){return EVENTS.filter(e=>{const n=evNext(e);return n&&iso(n
 function evIcon(e){return e.type==='bday'?'🎂':'📌';}
 function evUpcoming(days){return EVENTS.filter(e=>{const d=evDays(e);return d>=0&&d<=days;}).sort((a,b)=>evDays(a)-evDays(b));}
 
-// import from Todoist (merge new only)
-document.getElementById('impBtn').onclick=async()=>{
- if(!LIVE){toast('Åbn i Cowork-sidepanelet for at importere live');return;}
- toast('Importerer…');let added=0;
- for(const p of IMPORT_SRC){try{const r=await window.cowork.callMcpTool(TOOL+'find-tasks',{projectId:p.id,limit:100});const d=r.structuredContent??JSON.parse(r.content[0].text);(d.tasks||[]).forEach(tk=>{if(tk.checked)return;const dup=STORE.some(s=>s.content===tk.content&&s.pid===p.id);if(!dup){STORE.push({id:'t'+(UID++),content:tk.content,pid:p.id,due:tk.dueDate||null,rec:tk.recurring||null,pri:(tk.priority&&tk.priority!=='p4')?tk.priority:null,q:null,imp:null,eff:null,done:false,star:false,src:'todoist'});added++;}});}catch(e){}}
- save();toast(added?('Tilføjet '+added+' ny'+(added>1?'e':'')+' opgave'+(added>1?'r':'')):'Alt er allerede opdateret');render();
-};
 
 // ---------- task row ----------
 function chAllDone(t){return t.children&&t.children.length&&t.children.every(c=>c.done);}
@@ -339,6 +328,7 @@ function taskRow(t,opts){opts=opts||{};
  if(t.pri)m+=`<span class="chip" style="color:var(--${t.pri})">${t.pri.toUpperCase()}</span>`;
  if(t.time)m+=`<span class="chip">🕒 ${esc(t.time)}</span>`;
  if(t.est)m+=`<span class="chip" style="background:#eef2ff;color:#3949ab">⏱ ${fmtEst(t.est)}</span>`;
+ if(t.tdid)m+=`<span class="chip" style="background:#fdeceb;color:#b0362c" title="Synkroniseret med Todoist">✓ Todoist</span>`;
  if(t.parked)m+=`<span class="chip">💤 parkeret</span>`;
  if(t.children&&t.children.length){const _cd=t.children.filter(c=>c.done).length;m+='<span class="chip" style="background:#eef7f2;color:#1f6b52">☑ '+_cd+'/'+t.children.length+'</span>';}
  const ttl=document.createElement('div');ttl.className='ttl'+(t.done?' done':'');ttl.textContent=t.content;ttl.title='Tryk for at redigere';ttl.onclick=()=>editModal(t);
