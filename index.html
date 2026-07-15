@@ -695,6 +695,54 @@ function weeklyModal(){
  renderStep();
 }
 
+function projectDay(plan,now,endMin){
+ const DAYSTART=7*60;const busy=[];const placed=[];const overflow=[];
+ plan.forEach(t=>{if(t.done)return;if(t.time){const hm=t.time.split(':');const start=(+hm[0])*60+(+hm[1]);const dur=t.est||30;busy.push([start,start+dur]);placed.push({id:t.id,start,dur,fixed:true});}});
+ busy.sort((a,b)=>a[0]-b[0]);
+ let cur=Math.max(now,DAYSTART);
+ plan.forEach(t=>{if(t.time||t.done)return;const dur=t.est||30;
+  let st=cur,moved=true;
+  while(moved){moved=false;for(const b of busy){if(st<b[1]&&st+dur>b[0]){st=b[1];moved=true;}}}
+  if(st+dur<=endMin){placed.push({id:t.id,start:st,dur,fixed:false});busy.push([st,st+dur]);busy.sort((a,b)=>a[0]-b[0]);cur=st+dur;}
+  else overflow.push(t.id);});
+ return {placed,overflow};
+}
+function dayEndGet(){return LS.g('dayend','21:00');}
+function dayEndModal(){const host=document.getElementById('modalHost');
+ host.innerHTML='<div class="mbg" id="deBg"><div class="modal" style="max-width:300px"><h3>🌙 Hvornår slutter dagen?</h3><p class="hint">Tidslinjen viser ærligt, når planen løber forbi dette tidspunkt.</p><input id="deV" type="time" value="'+dayEndGet()+'" style="width:100%"><div class="mbtns"><button class="cancel" id="deX">Annullér</button><button class="save" id="deOk">Gem</button></div></div></div>';
+ const close=()=>host.innerHTML='';
+ document.getElementById('deBg').onclick=e=>{if(e.target.id==='deBg')close();};
+ document.getElementById('deX').onclick=close;
+ document.getElementById('deOk').onclick=()=>{const v=document.getElementById('deV').value;if(v)LS.s('dayend',v);close();render();};}
+function dayView(w){
+ const c=document.createElement('div');c.className='card';c.dataset.skey='dag';
+ const de=dayEndGet();const dep=de.split(':');const endMin=(+dep[0])*60+(+dep[1]);
+ const _n=new Date();const nowMin=_n.getHours()*60+_n.getMinutes();
+ const plan=planTasks().filter(t=>!t.done);
+ const res=projectDay(plan.map(t=>({id:t.id,time:t.time,est:t.est,done:t.done})),nowMin,endMin);
+ const byId={};plan.forEach(t=>byId[t.id]=t);
+ c.innerHTML='<h2>☀️ I dag, time for time</h2><p class="hint">Faste tider er hvide blokke; resten af Dagens plan lægges automatisk i hullerne (stiplet). Kun visning — rækkefølge og tider styres i Dagens plan.</p>';
+ const evs=evByDate(TODAY);
+ if(evs.length){const eb=document.createElement('div');eb.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px';evs.forEach(e=>{const sp=document.createElement('span');sp.className='chip';sp.style.cssText='background:#fdf1f6;color:#a03a6a;font-size:12px;padding:4px 9px;cursor:pointer';sp.textContent=evIcon(e)+' '+e.name;sp.onclick=()=>eventModal(e);eb.appendChild(sp);});c.appendChild(eb);}
+ const startH=7;const endH=Math.max(22,Math.ceil(endMin/60));const pxm=0.8;
+ const grid=document.createElement('div');grid.style.cssText='position:relative;margin-left:46px;border-left:1px solid var(--line);height:'+((endH-startH)*60*pxm)+'px';
+ for(let h=startH;h<=endH;h++){const y=(h-startH)*60*pxm;
+  const ln=document.createElement('div');ln.style.cssText='position:absolute;left:0;right:0;top:'+y+'px;border-top:1px solid #eef0f1';grid.appendChild(ln);
+  const lb=document.createElement('div');lb.style.cssText='position:absolute;left:-46px;top:'+(y-7)+'px;font-size:10.5px;color:var(--muted);width:38px;text-align:right';lb.textContent=String(h).padStart(2,'0')+':00';grid.appendChild(lb);}
+ if(nowMin>=startH*60&&nowMin<=endH*60){const y=(nowMin-startH*60)*pxm;const nl=document.createElement('div');nl.style.cssText='position:absolute;left:0;right:0;top:'+y+'px;border-top:2px solid var(--today);z-index:3';grid.appendChild(nl);}
+ {const y=(endMin-startH*60)*pxm;const dl=document.createElement('div');dl.style.cssText='position:absolute;left:0;right:0;top:'+y+'px;border-top:2px dashed var(--over);z-index:3';const tt=document.createElement('span');tt.style.cssText='position:absolute;right:0;top:-16px;font-size:10.5px;color:var(--over)';tt.textContent='🌙 Dagen slutter '+de;dl.appendChild(tt);grid.appendChild(dl);}
+ res.placed.forEach(pl=>{const t=byId[pl.id];if(!t)return;const y=(pl.start-startH*60)*pxm;const hgt=Math.max(18,pl.dur*pxm-2);
+  const b=document.createElement('div');const col=catOf(t.pid).color;
+  b.style.cssText='position:absolute;left:6px;right:6px;top:'+y+'px;height:'+hgt+'px;border-radius:7px;padding:2px 8px;font-size:11.5px;line-height:1.35;overflow:hidden;cursor:pointer;z-index:2;'+(pl.fixed?'background:#fff;border:1px solid var(--line);border-left:3px solid '+esc(col)+';':'background:#fbfbfa;border:1.5px dashed #c9cdd2;color:#555;');
+  b.innerHTML=(pl.fixed?'🕒 '+esc(t.time)+' ':'')+esc(t.content)+' <span style="color:var(--muted)">('+fmtEst(pl.dur)+(t.est?'':' · antaget')+')</span>';
+  b.title=t.content;b.onclick=()=>editModal(t);grid.appendChild(b);});
+ c.appendChild(grid);
+ const ctr=document.createElement('div');ctr.style.cssText='display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap';
+ const gear=document.createElement('button');gear.className='btn';gear.textContent='⚙️ Dagen slutter '+de;gear.onclick=dayEndModal;ctr.appendChild(gear);c.appendChild(ctr);
+ if(res.overflow.length){const ov=document.createElement('div');ov.className='banner';ov.style.marginTop='10px';ov.innerHTML='⚠️ <b>'+res.overflow.length+' opgave'+(res.overflow.length>1?'r':'')+' passer ikke før kl. '+de+':</b> '+res.overflow.map(id=>esc((byId[id]||{}).content||'')).join(' · ')+' — flyt til i morgen eller justér i Dagens plan.';c.appendChild(ov);}
+ if(!plan.length)c.appendChild(empty('Ingen opgaver i dagens plan endnu — planlæg dagen under Dagens plan ☀️'));
+ w.appendChild(c);
+}
 function planTasks(){const rotIds=new Set();
  const list=active().filter(t=>t.star||['over','today'].includes(dueBucket(t)));
  return planOrder(list);}
@@ -842,10 +890,10 @@ function shiftRef(n,step){if(step==='m')tlRef=new Date(tlRef.getFullYear(),tlRef
 function timelineP(w){
  const view=LS.g('tlview','agenda');
  const tog=document.createElement('div');tog.className='seg-toggle';
- tog.innerHTML=`<button class="${view==='agenda'?'on':''}" data-v="agenda">Agenda</button><button class="${view==='week'?'on':''}" data-v="week">Uge</button><button class="${view==='month'?'on':''}" data-v="month">Måned</button>`;
+ tog.innerHTML=`<button class="${view==='day'?'on':''}" data-v="day">Dag</button><button class="${view==='agenda'?'on':''}" data-v="agenda">Agenda</button><button class="${view==='week'?'on':''}" data-v="week">Uge</button><button class="${view==='month'?'on':''}" data-v="month">Måned</button>`;
  tog.querySelectorAll('button').forEach(b=>b.onclick=()=>{LS.s('tlview',b.dataset.v);tlRef=new Date(today);render();});
  w.appendChild(tog);
- if(view==='agenda')agendaView(w);else calView(w,view);
+ if(view==='day')dayView(w);else if(view==='agenda')agendaView(w);else calView(w,view);
 }
 function agendaView(w){
  const c=card('🗓 Næste 14 dage','Opgaver efter forfaldsdato. Opgaver uden dato nedenfor.');const tl=document.createElement('div');tl.className='tl';
