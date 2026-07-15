@@ -152,6 +152,10 @@ h1{font-size:19px;margin:0;font-weight:600;letter-spacing:0}
 .bnav .ic{filter:grayscale(1);opacity:.75}.bnav.active .ic{filter:none;opacity:1}
 .bnav .ic{font-size:20px;line-height:1}
 .bnav.active{color:var(--accent);font-weight:700}
+/* v29 planning page */
+.planwrap{display:grid;grid-template-columns:290px 1fr 320px;gap:16px;align-items:start}
+@media(max-width:960px){.planwrap{grid-template-columns:1fr}}
+.planh{font-size:19px;font-weight:600;margin:0 0 6px}
 /* modal */
 .mbg{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}
 .modal{background:#fff;border-radius:12px;padding:20px;width:100%;max-width:380px;box-shadow:0 10px 40px rgba(20,24,28,.16)}
@@ -488,11 +492,11 @@ const NAV_MAIN=[{id:'dash',ic:'📊',l:'Overblik'},{id:'focus',ic:'🎯',l:'Dage
 const NAV_MORE=[{id:'habits',ic:'🔁',l:'Vaner'},{id:'health',ic:'🌱',l:'Sundhed'},{id:'wheel',ic:'🎡',l:'Årshjul'},{id:'projects',ic:'🚀',l:'Projekter'},{id:'goals',ic:'🌟',l:'Mål'}];
 const GROUP_OF={all:'opgaver',prio:'opgaver',timeline:'kalender',dates:'kalender'};
 const NAV_RIT=[
- {ic:'☀️',l:'Planlæg dagen',done:()=>LS.g('lastplan','')===TODAY,run:()=>morningModal()},
+ {ic:'☀️',l:'Planlæg dagen',id:'planlaeg',done:()=>LS.g('lastplan','')===TODAY,run:()=>openPlanning()},
  {ic:'🌙',l:'Luk dagen',done:()=>LS.g('dayclosed','')===TODAY,run:()=>shutdownModal()},
  {ic:'🧭',l:'Ugentlig gennemgang',done:()=>{const m=new Date(today);m.setDate(today.getDate()-((today.getDay()+6)%7));return LS.g('lastreview','')>=iso(m);},run:()=>weeklyModal()}
 ];
-function ritItem(it){const d=document.createElement('div');d.className='snav';d.innerHTML='<span class="ic">'+it.ic+'</span>'+it.l+(it.done()?'<span class="ritdone">✓</span>':'');d.onclick=()=>{document.getElementById('modalHost').innerHTML='';it.run();};return d;}
+function ritItem(it){const d=document.createElement('div');d.className='snav'+(it.id&&LS.g('tab','dash')===it.id?' active':'');d.innerHTML='<span class="ic">'+it.ic+'</span>'+it.l+(it.done()?'<span class="ritdone">✓</span>':'');d.onclick=()=>{document.getElementById('modalHost').innerHTML='';it.run();};return d;}
 function goto(t){LS.s('tab',t);const g=GROUP_OF[t];if(g){const nl=LS.g('navlast',{});nl[g]=t;LS.s('navlast',nl);}render();}
 function navTarget(it){if(!it.subs)return it.id;const nl=LS.g('navlast',{});return nl[it.id]||it.subs[0];}
 function navItem(it,act,big){const d=document.createElement('div');d.className=(big?'snav':'bnav')+((it.id===act)?' active':'');d.innerHTML='<span class="ic">'+it.ic+'</span>'+(big?it.l:(it.sl||it.l));d.onclick=()=>goto(navTarget(it));return d;}
@@ -526,12 +530,12 @@ function dashP(w){
  const hero=document.createElement('div');hero.className='card';hero.dataset.skey='hej';
  hero.innerHTML='<h2>'+greet+', Nina 🌸</h2><p class="hint">'+(planned?'Dagen er planlagt ✓':'Dagen er ikke planlagt endnu')+(closed?' · Dagen er lukket 🌙':'')+'</p>';
  const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;flex-wrap:wrap';
- if(!planned&&!closed){const b=document.createElement('button');b.className='btn';b.textContent='☀️ Planlæg dagen';b.onclick=morningModal;row.appendChild(b);}
+ if(!planned&&!closed){const b=document.createElement('button');b.className='btn';b.textContent='☀️ Planlæg dagen';b.onclick=openPlanning;row.appendChild(b);}
  if(!closed){const b2=document.createElement('button');b2.className='btn';b2.textContent='🌙 Luk dagen';b2.onclick=shutdownModal;row.appendChild(b2);}
  const b3=document.createElement('button');b3.className='btn';b3.textContent='🧭 Ugentlig gennemgang';b3.onclick=weeklyModal;row.appendChild(b3);
  hero.appendChild(row);w.appendChild(hero);
  const top=active().filter(t=>t.star);
- const c1=card('⭐ Top 3 i dag','');if(top.length)top.forEach(t=>c1.appendChild(taskRow(t)));else c1.appendChild(emptyCTA('Ingen Top 3 endnu. Vælg de 3 vigtigste for i dag.','☀️ Vælg dagens Top 3',morningModal));w.appendChild(c1);
+ const c1=card('⭐ Top 3 i dag','');if(top.length)top.forEach(t=>c1.appendChild(taskRow(t)));else c1.appendChild(emptyCTA('Ingen Top 3 endnu. Vælg de 3 vigtigste for i dag.','☀️ Vælg dagens Top 3',openPlanning));w.appendChild(c1);
  const urg=active().filter(t=>['over','today'].includes(dueBucket(t))).sort((a,b)=>score(b)-score(a));
  const c2=card('🔥 Forfaldne & i dag — '+urg.length,'');
  if(urg.length){urg.slice(0,5).forEach(t=>c2.appendChild(taskRow(t)));if(urg.length>5){const m=document.createElement('button');m.className='btn';m.style.marginTop='8px';m.textContent='Se alle i Dagens plan →';m.onclick=()=>goto('focus');c2.appendChild(m);}}
@@ -547,12 +551,96 @@ function dashP(w){
   const r=document.createElement('div');r.style.cssText='padding:6px 2px';r.innerHTML='<div style="display:flex;font-size:13px;gap:8px"><span style="flex:1">'+esc(x.n)+'</span><span style="color:var(--muted)">'+done+'/'+x.ms.length+'</span></div><div class="prog"><i style="width:'+pct+'%"></i></div>';c5.appendChild(r);});
   const gb=document.createElement('button');gb.className='btn';gb.style.marginTop='6px';gb.textContent='Åbn Mål →';gb.onclick=()=>goto('goals');c5.appendChild(gb);w.appendChild(c5);}
 }
+let planStep=1;
+function openPlanning(){planStep=1;goto('planlaeg');}
+function planP(w){
+ const wrap=document.createElement('div');wrap.className='planwrap';
+ const plan=planTasks();const sum=planSum(plan);const cap=capacityGet();const noEst=plan.filter(t=>!t.est).length;const stars=plan.filter(t=>t.star).length;
+ /* LEFT: wizard rail */
+ const L=document.createElement('div');L.className='card';
+ const steps=['Vælg opgaver','Estimér tiden','Vælg Top 3','Bekræft'];
+ let lh='<div class="hint" style="margin-bottom:6px">Trin '+planStep+' af 4 · '+steps[planStep-1]+'</div><div style="display:flex;gap:5px;margin-bottom:14px">'+steps.map((x,i)=>'<span style="flex:1;height:3px;border-radius:2px;background:'+(i<planStep?'var(--home)':'#e8eaec')+'"></span>').join('')+'</div>';
+ if(planStep===1){
+  lh+='<h2 class="planh">Hvad vil du nå i dag?</h2><p class="hint">Forfaldne og dagens opgaver er allerede med i midten. Hent flere fra panelet til højre, eller skriv nye.</p>';
+  L.innerHTML=lh;
+  const sd=document.createElement('div');sd.style.cssText='border:1px solid var(--line);border-radius:9px;padding:12px;margin-top:8px';
+  sd.innerHTML='<b style="font-size:13.5px">🌙 Hvornår slutter dagen?</b><p class="hint" style="margin:4px 0 8px">Tidslinjen og planen måles ærligt mod dette tidspunkt.</p>';
+  const ti=document.createElement('input');ti.type='time';ti.value=dayEndGet();ti.style.cssText='width:100%;border:1px solid var(--line);border-radius:7px;padding:8px;font:inherit';ti.onchange=()=>{if(ti.value){LS.s('dayend',ti.value);toast('Gemt 🌙');}};
+  sd.appendChild(ti);L.appendChild(sd);
+  const nt=document.createElement('p');nt.className='hint';nt.style.marginTop='12px';nt.textContent='✓ Todoist synkroniseres automatisk hver morgen kl. 08:45 — opgaverne ligger klar i panelet til højre.';L.appendChild(nt);
+ }else if(planStep===2){
+  const pct=Math.min(100,cap?Math.round(sum/cap*100):0);const over=sum>cap;
+  lh+='<h2 class="planh">Hvor lang tid tager tingene?</h2><p class="hint">Tryk ⏱ på opgaverne i midten. Målet er en dag der kan lykkes — ikke en ønskeliste.</p>';
+  lh+='<div style="margin-top:12px"><b style="font-size:13px">Planlagt: '+(fmtEst(sum)||'0m')+' af '+fmtEst(cap)+'</b>'+(noEst?' <span class="chip">'+noEst+' uden estimat</span>':'')+'<div class="prog" style="margin-top:6px"><i style="width:'+pct+'%;background:'+(over?'var(--over)':'var(--home)')+'"></i></div>'+(over?'<p style="font-size:12.5px;color:var(--over)">⚠️ Mere end din dag — flyt noget til i morgen.</p>':'')+'</div>';
+  L.innerHTML=lh;
+ }else if(planStep===3){
+  lh+='<h2 class="planh">Vælg dagens Top 3</h2><p class="hint">De vigtigste — ikke de letteste. Tryk ☆ på opgaverne i midten.</p><p style="font-size:13.5px;margin-top:10px"><b>'+stars+'/3 valgt</b></p>';
+  L.innerHTML=lh;
+ }else{
+  const over=sum>cap;
+  lh+='<h2 class="planh">Planen er klar?</h2><p style="font-size:13.5px">📋 <b>'+plan.length+'</b> opgaver · ⏱ <b>'+(fmtEst(sum)||'0m')+'</b> af '+fmtEst(cap)+' · ⭐ '+stars+'/3</p>';
+  lh+=over?'<p style="font-size:13px;color:var(--over)">⚠️ Planlagt mere end din dag ('+fmtEst(cap)+') — overvej at flytte noget.</p>':'<p style="font-size:13px;color:#1a7f4b">✓ Det ser realistisk ud.</p>';
+  lh+='<p class="hint">Husk: blokér tid i kalenderen til dine Top 3.</p>';
+  L.innerHTML=lh;
+  const go=document.createElement('button');go.style.cssText='width:100%;margin-top:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:12px;font:inherit;font-weight:600;cursor:pointer';go.textContent='Planen er klar ☀️';go.onclick=()=>{LS.s('lastplan',TODAY);toast('Planen er klar ☀️ God dag!');goto('focus');};L.appendChild(go);
+ }
+ const nv=document.createElement('div');nv.style.cssText='display:flex;gap:8px;margin-top:14px';
+ if(planStep>1){const b=document.createElement('button');b.className='btn';b.textContent='← Tilbage';b.onclick=()=>{planStep--;render();};nv.appendChild(b);}
+ if(planStep<4){const n=document.createElement('button');n.className='btn';n.style.flex='1';n.style.justifyContent='center';n.style.background='var(--accent)';n.style.color='#fff';n.style.borderColor='var(--accent)';n.textContent='Næste →';n.onclick=()=>{planStep++;render();};nv.appendChild(n);}
+ L.appendChild(nv);wrap.appendChild(L);
+ /* MIDDLE: today list */
+ const M=document.createElement('div');const mc=document.createElement('div');mc.className='card';
+ mc.innerHTML='<h2 class="planh">I dag</h2><p class="hint">'+today.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'})+' · Arbejde: <b>'+(fmtEst(sum)||'0m')+'</b></p>';
+ const ab=document.createElement('div');ab.className='addbar';ab.innerHTML='<input class="t" placeholder="＋ Tilføj opgave til i dag… (~30m · !p1 · #kategori)"><button class="go">Tilføj</button>';
+ const inp=ab.querySelector('.t');
+ const addT=()=>{const v=inp.value.trim();if(!v)return;const r=parseQuickAdd(v,true);STORE.unshift({id:'t'+(UID++),content:r.content||v,pid:r.pid||(PROJECTS[0]&&PROJECTS[0].id),due:r.due||TODAY,time:r.time||null,rec:null,pri:r.pri||null,q:null,imp:null,eff:null,est:r.est||null,done:false,star:false,src:'me'});save();inp.value='';toast('Tilføjet ✓');render();};
+ ab.querySelector('.go').onclick=addT;inp.onkeydown=e=>{if(e.key==='Enter')addT();};
+ mc.appendChild(ab);
+ if(plan.length)plan.forEach((t,i)=>{const r=taskRow(t);
+  const mv=document.createElement('div');mv.style.cssText='display:flex;flex-direction:column;gap:2px;flex:0 0 auto';
+  const mk=(txt,dis,fn)=>{const b=document.createElement('button');b.textContent=txt;b.disabled=dis;b.style.cssText='width:26px;height:22px;border:1px solid var(--line);border-radius:6px;background:#fff;cursor:'+(dis?'default':'pointer')+';font-size:11px;opacity:'+(dis?'.3':'1')+';padding:0';if(!dis)b.onclick=e=>{e.stopPropagation();fn();};return b;};
+  mv.appendChild(mk('↑',i===0,()=>planMove(plan,i,-1)));mv.appendChild(mk('↓',i===plan.length-1,()=>planMove(plan,i,1)));
+  r.insertBefore(mv,r.firstChild);mc.appendChild(r);});
+ else mc.appendChild(empty('Ingen opgaver endnu — hent fra panelet til højre, eller tilføj ovenfor.'));
+ M.appendChild(mc);wrap.appendChild(M);
+ /* RIGHT: pull panel */
+ const R=document.createElement('div');const rc=document.createElement('div');rc.className='card';
+ rc.innerHTML='<h2 style="font-size:15px;font-weight:600;margin:0 0 4px">Hent opgaver</h2>';
+ const sel=document.createElement('select');sel.style.cssText='width:100%;font:inherit;border:1px solid var(--line);border-radius:7px;padding:8px;margin:6px 0';
+ const srcs=[['backlog','💤 Backlog'],['nodate','🗃 Uden dato'],['later','📆 Planlagt senere'],['todoist','✓ Todoist-synkede']].concat(PROJECTS.map(p=>['cat:'+p.id,'# '+p.name]));
+ const cur=LS.g('plansrc','nodate');
+ sel.innerHTML=srcs.map(x=>'<option value="'+esc(x[0])+'"'+(x[0]===cur?' selected':'')+'>'+esc(x[1])+'</option>').join('');
+ sel.onchange=()=>{LS.s('plansrc',sel.value);render();};rc.appendChild(sel);
+ const q=document.createElement('input');q.placeholder='🔍 Søg…';q.style.cssText='width:100%;border:1px solid var(--line);border-radius:7px;padding:8px;font:inherit;margin-bottom:8px';rc.appendChild(q);
+ const listEl=document.createElement('div');listEl.style.cssText='max-height:56vh;overflow:auto';rc.appendChild(listEl);
+ const inPlan=new Set(plan.map(t=>t.id));
+ const pool=active().filter(t=>!t.rec&&!inPlan.has(t.id));
+ const srcFilter=t=>{const v=LS.g('plansrc','nodate');
+  if(v==='backlog')return t.parked;
+  if(v==='nodate')return !t.due&&!t.parked;
+  if(v==='later')return !!t.due&&t.due>TODAY;
+  if(v==='todoist')return !!t.tdid;
+  if(v.startsWith('cat:'))return t.pid===v.slice(4);
+  return true;};
+ const paint=()=>{const term=q.value.trim().toLowerCase();listEl.innerHTML='';
+  const items=pool.filter(srcFilter).filter(t=>!term||t.content.toLowerCase().includes(term)).slice(0,60);
+  if(!items.length){listEl.appendChild(empty('Ingen opgaver her.'));return;}
+  items.forEach(t=>{const r=document.createElement('div');r.className='row';
+   const bd=document.createElement('div');bd.className='tbody';
+   bd.innerHTML='<div class="ttl" style="font-size:13px">'+esc(t.content)+'</div><div class="meta"><span class="chip area" style="background:transparent;padding-left:0;color:'+esc(catOf(t.pid).color)+';font-weight:600"># '+esc(catOf(t.pid).name)+'</span>'+(t.tdid?'<span class="chip" style="background:#fdeceb;color:#b0362c">✓ Todoist</span>':'')+(t.due?'<span class="chip">'+esc(t.due)+'</span>':'')+'</div>';
+   bd.querySelector('.ttl').onclick=()=>editModal(t);
+   const b=document.createElement('button');b.className='btn';b.style.flex='0 0 auto';b.textContent='＋ I dag';b.onclick=()=>{t.due=TODAY;t.parked=false;save();render();};
+   r.appendChild(bd);r.appendChild(b);listEl.appendChild(r);});};
+ q.oninput=paint;paint();
+ R.appendChild(rc);wrap.appendChild(R);
+ w.appendChild(wrap);
+}
 function render(){
  const tab=LS.g('tab','dash');app.innerHTML='';buildNav(tab);
  if(['dash','focus','all','timeline'].includes(tab))app.appendChild(statsBar());
  const p=navPills(tab);if(p)app.appendChild(p);
  const w=document.createElement('div');
- (({dash:dashP,focus:focusP,prio:prioP,all:allP,timeline:timelineP,dates:datesP,habits:habitsP,health:healthP,wheel:wheelP,projects:projP,goals:goalP})[tab]||dashP)(w);
+ (({dash:dashP,planlaeg:planP,focus:focusP,prio:prioP,all:allP,timeline:timelineP,dates:datesP,habits:habitsP,health:healthP,wheel:wheelP,projects:projP,goals:goalP})[tab]||dashP)(w);
  app.appendChild(w);sectionReorder(w);
  if(tab==='wheel')drawWheel();
 }
@@ -786,7 +874,7 @@ function focusP(w){
  const rv=document.createElement('button');rv.className='imp';rv.style.marginLeft='0';rv.textContent='🧭 Ugentlig gennemgang';rv.onclick=weeklyModal;bar.appendChild(rv);
  w.appendChild(bar);
  if(LS.g('lastplan','')!==TODAY&&LS.g('dayclosed','')!==TODAY){const pb=document.createElement('div');pb.className='banner';pb.style.cssText='display:flex;align-items:center;gap:10px;flex-wrap:wrap';pb.innerHTML='☀️ <b>Dagen er ikke planlagt endnu</b> — 2 minutter, så er du klar.';
-  const go=document.createElement('button');go.className='save';go.style.cssText='padding:7px 14px;border:none;border-radius:9px;background:var(--accent);color:#fff;cursor:pointer;font-weight:600';go.textContent='☀️ Planlæg dagen';go.onclick=morningModal;
+  const go=document.createElement('button');go.className='save';go.style.cssText='padding:7px 14px;border:none;border-radius:9px;background:var(--accent);color:#fff;cursor:pointer;font-weight:600';go.textContent='☀️ Planlæg dagen';go.onclick=openPlanning;
   const sk=document.createElement('button');sk.className='cancel';sk.style.cssText='padding:7px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;cursor:pointer';sk.textContent='Spring over';sk.onclick=()=>{LS.s('lastplan',TODAY);render();};
   pb.appendChild(go);pb.appendChild(sk);w.appendChild(pb);}
  {const _mon=new Date(today);_mon.setDate(today.getDate()-((today.getDay()+6)%7));const _monISO=iso(_mon);const _lr=LS.g('lastreview','');if(today.getDay()===0&&_lr<_monISO&&LS.g('dayclosed','')!==TODAY){const rb=document.createElement('div');rb.className='banner';rb.style.cssText='display:flex;align-items:center;gap:10px;flex-wrap:wrap';rb.innerHTML='🧭 <b>Søndag — tid til ugentlig gennemgang</b> — ryd bunken og sæt ugen.';const g=document.createElement('button');g.className='save';g.style.cssText='padding:7px 14px;border:none;border-radius:9px;background:var(--accent);color:#fff;cursor:pointer;font-weight:600';g.textContent='🧭 Start gennemgang';g.onclick=weeklyModal;const s=document.createElement('button');s.className='cancel';s.style.cssText='padding:7px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;cursor:pointer';s.textContent='Ikke nu';s.onclick=()=>{LS.s('lastreview',TODAY);render();};rb.appendChild(g);rb.appendChild(s);w.appendChild(rb);}}
@@ -802,7 +890,7 @@ function focusP(w){
    const mk=(txt,dis,fn)=>{const b=document.createElement('button');b.textContent=txt;b.disabled=dis;b.style.cssText='width:26px;height:22px;border:1px solid var(--line);border-radius:6px;background:#fff;cursor:'+(dis?'default':'pointer')+';font-size:11px;opacity:'+(dis?'.3':'1')+';padding:0';if(!dis)b.onclick=e=>{e.stopPropagation();fn();};return b;};
    mv.appendChild(mk('↑',i===0,()=>planMove(plan,i,-1)));mv.appendChild(mk('↓',i===plan.length-1,()=>planMove(plan,i,1)));
    r.insertBefore(mv,r.firstChild);c1.appendChild(r);});}
- else c1.appendChild(emptyCTA('Ingen plan endnu. Vælg Top 3 og giv dagens opgaver en dato — så samles de her. ⭐','☀️ Planlæg dagen',morningModal));
+ else c1.appendChild(emptyCTA('Ingen plan endnu. Vælg Top 3 og giv dagens opgaver en dato — så samles de her. ⭐','☀️ Planlæg dagen',openPlanning));
  const doneToday=STORE.filter(t=>t.done&&t.doneAt===TODAY&&!t.rec);
  if(doneToday.length){const dv=document.createElement('div');dv.style.cssText='margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)';dv.textContent='✅ Færdig i dag: '+doneToday.length;c1.appendChild(dv);}
  w.appendChild(c1);
@@ -1268,7 +1356,7 @@ function paletteModal(){
   {l:'🗓 Gå til Kalender',f:()=>goto('timeline')},{l:'🎂 Gå til Datoer',f:()=>goto('dates')},
   {l:'🔁 Gå til Vaner',f:()=>goto('habits')},{l:'🌱 Gå til Sundhed',f:()=>goto('health')},
   {l:'🎡 Gå til Årshjul',f:()=>goto('wheel')},{l:'🚀 Gå til Projekter',f:()=>goto('projects')},{l:'🌟 Gå til Mål',f:()=>goto('goals')},
-  {l:'☀️ Planlæg dagen',f:morningModal},{l:'🌙 Luk dagen',f:shutdownModal},{l:'🧭 Ugentlig gennemgang',f:weeklyModal},
+  {l:'☀️ Planlæg dagen',f:()=>openPlanning()},{l:'🌙 Luk dagen',f:shutdownModal},{l:'🧭 Ugentlig gennemgang',f:weeklyModal},
   {l:'➕ Ny opgave',f:()=>{goto('all');setTimeout(()=>{const i=document.querySelector('.addbar .t');if(i)i.focus();},60);}},
   {l:'🗑 Papirkurv',f:trashModal},{l:'🕘 Gendan tidligere version',f:()=>{if(GH.cfg)restoreModal();else toast('Sæt sync op først');}}
  ];
