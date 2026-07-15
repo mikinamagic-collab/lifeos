@@ -347,6 +347,8 @@ function taskRow(t,opts){opts=opts||{};
  ['p1','p2','p3'].forEach(pv=>{const bb=document.createElement('button');bb.className='btn '+pv+(t.pri===pv?' on':'');bb.textContent=pv.toUpperCase();bb.onclick=()=>{t.pri=t.pri===pv?null:pv;save();render();};acts.appendChild(bb);});
  const bt=document.createElement('button');bt.className='btn';bt.textContent='📅 I dag';bt.onclick=()=>{t.due=TODAY;save();render();};acts.appendChild(bt);
  const bm=document.createElement('button');bm.className='btn';bm.textContent='I morgen';bm.onclick=()=>{const d=new Date(today);d.setDate(d.getDate()+1);t.due=iso(d);save();render();};acts.appendChild(bm);
+ const bw=document.createElement('button');bw.className='btn';bw.textContent='+1 uge';bw.title='Udskyd en uge';bw.onclick=()=>{const base=(t.due&&t.due>TODAY)?new Date(t.due+'T12:00'):new Date(today);base.setDate(base.getDate()+7);t.due=iso(base);t.parked=false;save();toast('Udskudt til '+fmtDue(t.due));render();};acts.appendChild(bw);
+ const bp=document.createElement('button');bp.className='btn';bp.textContent='💤';bp.title='Backlog — bevidst uden dato, dukker op ved ugentlig gennemgang';bp.onclick=()=>{t.due=null;t.parked=true;t.star=false;save();toast('Lagt i backlog 💤');render();};acts.appendChild(bp);
  const be=document.createElement('button');be.className='btn';be.textContent='⏱ '+(t.est?fmtEst(t.est):'tid');be.onclick=()=>estPicker(t);acts.appendChild(be);
  const bd=document.createElement('button');bd.className='btn';bd.textContent='🗑';bd.title='Slet';bd.style.color='var(--over)';bd.onclick=()=>{delTasks([t]);};acts.appendChild(bd);
  body.appendChild(acts);
@@ -571,6 +573,11 @@ function morningModal(){
     const a=document.createElement('div');a.className='acts';
     [['I dag',()=>{t.due=TODAY;}],['I morgen',()=>{t.due=tom;}],['💤',()=>{t.due=null;t.parked=true;}]].forEach(([txt,fn])=>{const b=document.createElement('button');b.className='btn';b.textContent=txt;b.onclick=()=>{fn();save();renderStep();};a.appendChild(b);});
     bd.appendChild(a);r.appendChild(bd);lw.appendChild(r);});
+   {const _old=L.filter(t=>Math.round((today-new Date(t.due+'T12:00'))/864e5)>14);
+    if(_old.length){const bar=document.createElement('div');bar.style.cssText='margin-top:8px';
+     const bb=document.createElement('button');bb.className='btn';bb.textContent='💤 Backlog alle ældre end 14 dage ('+_old.length+')';bb.title='Fjerner datoen — de dukker op ved ugentlig gennemgang';
+     bb.onclick=()=>{_old.forEach(t=>{t.due=null;t.parked=true;t.star=false;});save();toast(_old.length+' lagt i backlog 💤');renderStep();};
+     bar.appendChild(bb);lw.parentElement.insertBefore(bar,lw.nextSibling);}}
    document.getElementById('mpAllTom').onclick=()=>{leftovers().forEach(t=>{t.due=tom;});save();step=2;renderStep();};
    document.getElementById('mpN1').onclick=()=>{step=2;renderStep();};
   }else if(step===2){
@@ -849,7 +856,7 @@ function ieBoard(w){
  w.appendChild(tc);
 }
 
-function catCard(w,id,name,color,sel){const items=active().filter(t=>t.pid===id).sort((a,b)=>score(b)-score(a));if(!items.length)return;
+function catCard(w,id,name,color,sel){const items=active().filter(t=>t.pid===id&&!t.parked).sort((a,b)=>score(b)-score(a));if(!items.length)return;
   const c=document.createElement('div');c.className='card';const h=document.createElement('div');h.className='area-h';
   const allSel=items.every(t=>SEL.has(t.id));
   h.innerHTML=`<span style="width:10px;height:10px;border-radius:50%;background:${color};display:inline-block"></span><b>${esc(name)}</b><span class="ct">${items.length} opgaver · <span class="selall" style="cursor:pointer;color:var(--accent)">${allSel?'ryd':'vælg alle'}</span></span>`;
@@ -880,6 +887,10 @@ function allP(w){
  // orphaned tasks whose category was deleted
  const known=new Set(PROJECTS.map(p=>p.id));const orphIds=[...new Set(active().filter(t=>!known.has(t.pid)).map(t=>t.pid))];
  orphIds.forEach(id=>catCard(w,id,'Uden kategori','#9aa0a6',true));
+ const bl=active().filter(t=>t.parked);
+ if(bl.length){const c=card('💤 Backlog — '+bl.length,'Bevidst uden dato — ingen dårlig samvittighed her. Dukker op i den ugentlige gennemgang, eller genaktivér direkte.');
+  bl.forEach(t=>{const r=taskRow(t);const ra=document.createElement('button');ra.className='btn';ra.textContent='⚡ Genaktivér i dag';ra.onclick=()=>{t.due=TODAY;t.parked=false;save();toast('Genaktiveret ⚡');render();};const ac=r.querySelector('.acts');if(ac)ac.appendChild(ra);c.appendChild(r);});
+  w.appendChild(c);}
  const done=STORE.filter(t=>t.done);
  if(done.length){const c=card('✅ Fuldført — '+done.length,'');const body=document.createElement('div');body.className='area-body';done.slice(0,50).forEach(t=>{const r=document.createElement('div');r.className='row';r.innerHTML=`<div class="chk sq done"></div><div class="tbody"><div class="ttl done">${esc(t.content)}</div></div>`;r.querySelector('.chk').onclick=()=>{t.done=false;delete t.doneAt;save();render();};body.appendChild(r);});const h=c.querySelector('h2');h.style.cursor='pointer';h.onclick=()=>body.classList.toggle('open');c.appendChild(body);w.appendChild(c);}
 }
