@@ -144,6 +144,8 @@ h1{font-size:19px;margin:0;font-weight:600;letter-spacing:0}
 .snav:hover{background:#f0f1f3}.snav.active{background:#eceef1;color:var(--ink);font-weight:600}
 .snav .ic{font-size:16px;width:20px;text-align:center}
 #sideNav hr{border:none;border-top:1px solid var(--line);margin:10px 6px}
+.navlab{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);padding:8px 11px 4px;font-weight:600}
+.ritdone{margin-left:auto;color:var(--home);font-weight:700;font-size:13px}
 @media(min-width:561px){.wrap{margin-left:216px;margin-right:16px;max-width:1000px}}
 #botNav{display:none;position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);z-index:30;padding:6px 4px calc(6px + env(safe-area-inset-bottom));justify-content:space-around}
 .bnav{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:#9aa1a9;padding:4px 8px;border-radius:8px;cursor:pointer;min-width:54px}
@@ -485,18 +487,32 @@ function sectionReorder(w){
 const NAV_MAIN=[{id:'dash',ic:'📊',l:'Overblik'},{id:'focus',ic:'🎯',l:'Dagens plan',sl:'Dagen'},{id:'opgaver',ic:'📋',l:'Opgaver',subs:['all','prio']},{id:'kalender',ic:'🗓',l:'Kalender',subs:['timeline','dates']}];
 const NAV_MORE=[{id:'habits',ic:'🔁',l:'Vaner'},{id:'health',ic:'🌱',l:'Sundhed'},{id:'wheel',ic:'🎡',l:'Årshjul'},{id:'projects',ic:'🚀',l:'Projekter'},{id:'goals',ic:'🌟',l:'Mål'}];
 const GROUP_OF={all:'opgaver',prio:'opgaver',timeline:'kalender',dates:'kalender'};
+const NAV_RIT=[
+ {ic:'☀️',l:'Planlæg dagen',done:()=>LS.g('lastplan','')===TODAY,run:()=>morningModal()},
+ {ic:'🌙',l:'Luk dagen',done:()=>LS.g('dayclosed','')===TODAY,run:()=>shutdownModal()},
+ {ic:'🧭',l:'Ugentlig gennemgang',done:()=>{const m=new Date(today);m.setDate(today.getDate()-((today.getDay()+6)%7));return LS.g('lastreview','')>=iso(m);},run:()=>weeklyModal()}
+];
+function ritItem(it){const d=document.createElement('div');d.className='snav';d.innerHTML='<span class="ic">'+it.ic+'</span>'+it.l+(it.done()?'<span class="ritdone">✓</span>':'');d.onclick=()=>{document.getElementById('modalHost').innerHTML='';it.run();};return d;}
 function goto(t){LS.s('tab',t);const g=GROUP_OF[t];if(g){const nl=LS.g('navlast',{});nl[g]=t;LS.s('navlast',nl);}render();}
 function navTarget(it){if(!it.subs)return it.id;const nl=LS.g('navlast',{});return nl[it.id]||it.subs[0];}
 function navItem(it,act,big){const d=document.createElement('div');d.className=(big?'snav':'bnav')+((it.id===act)?' active':'');d.innerHTML='<span class="ic">'+it.ic+'</span>'+(big?it.l:(it.sl||it.l));d.onclick=()=>goto(navTarget(it));return d;}
 function buildNav(tab){const act=GROUP_OF[tab]||tab;
  const sn=document.getElementById('sideNav');
- if(sn){sn.innerHTML='<div class="brand">🌸 LifeOS</div>';NAV_MAIN.forEach(it=>sn.appendChild(navItem(it,act,true)));sn.appendChild(document.createElement('hr'));NAV_MORE.forEach(it=>sn.appendChild(navItem(it,act,true)));}
+ if(sn){sn.innerHTML='<div class="brand">🌸 LifeOS</div>';NAV_MAIN.forEach(it=>sn.appendChild(navItem(it,act,true)));
+  sn.appendChild(document.createElement('hr'));
+  const lab=document.createElement('div');lab.className='navlab';lab.textContent='Ritualer';sn.appendChild(lab);
+  NAV_RIT.forEach(it=>sn.appendChild(ritItem(it)));
+  sn.appendChild(document.createElement('hr'));
+  NAV_MORE.forEach(it=>sn.appendChild(navItem(it,act,true)));}
  const bn=document.getElementById('botNav');
  if(bn){bn.innerHTML='';NAV_MAIN.forEach(it=>bn.appendChild(navItem(it,act,false)));
   const more=document.createElement('div');more.className='bnav'+(NAV_MORE.some(x=>x.id===act)?' active':'');more.innerHTML='<span class="ic">⋯</span>Mere';more.onclick=moreSheet;bn.appendChild(more);}}
 function moreSheet(){const host=document.getElementById('modalHost');const tab=LS.g('tab','dash');
  host.innerHTML='<div class="mbg" id="moreBg"><div class="modal" style="max-width:340px"><h3>Mere</h3><div id="moreL"></div><div class="mbtns"><button class="cancel" id="moreX">Luk</button></div></div></div>';
  const l=document.getElementById('moreL');
+ const rlab=document.createElement('div');rlab.className='navlab';rlab.textContent='Ritualer';l.appendChild(rlab);
+ NAV_RIT.forEach(it=>{const d=ritItem(it);d.style.fontSize='15px';l.appendChild(d);});
+ const vlab=document.createElement('div');vlab.className='navlab';vlab.textContent='Visninger';l.appendChild(vlab);
  NAV_MORE.forEach(it=>{const d=document.createElement('div');d.className='snav'+(it.id===tab?' active':'');d.style.fontSize='15px';d.innerHTML='<span class="ic">'+it.ic+'</span>'+it.l;d.onclick=()=>{host.innerHTML='';goto(it.id);};l.appendChild(d);});
  document.getElementById('moreBg').onclick=e=>{if(e.target.id==='moreBg')host.innerHTML='';};
  document.getElementById('moreX').onclick=()=>host.innerHTML='';}
