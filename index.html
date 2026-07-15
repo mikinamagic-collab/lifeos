@@ -761,11 +761,14 @@ function planSum(list){return list.reduce((s,t)=>s+(t.est||0),0);}
 function capacityGet(){return LS.g('capacity',300);}
 function planMove(list,i,dir){const a=list.map(t=>t.id);const j=i+dir;if(j<0||j>=a.length)return;[a[i],a[j]]=[a[j],a[i]];LS.s('dayorder_'+TODAY,a);render();}
 function capModal(){const host=document.getElementById('modalHost');const cur=capacityGet();
- host.innerHTML='<div class="mbg" id="cpBg"><div class="modal" style="max-width:300px"><h3>⚙️ Dagskapacitet</h3><p class="hint">Hvor meget planlagt tid kan en normal dag rumme?</p><div class="mrow"><input id="cpV" type="number" min="1" max="16" step="0.5" value="'+(cur/60)+'" style="flex:2"><span style="align-self:center;font-size:13px;color:var(--muted)">timer</span></div><div class="mbtns"><button class="cancel" id="cpX">Annullér</button><button class="save" id="cpOk">Gem</button></div></div></div>';
+ host.innerHTML='<div class="mbg" id="cpBg"><div class="modal" style="max-width:340px"><h3>⚙️ Indstillinger for dagen</h3><label>Dagskapacitet — hvor meget planlagt tid kan en normal dag rumme?</label><div class="mrow"><input id="cpV" type="number" min="1" max="16" step="0.5" value="'+(cur/60)+'" style="flex:2"><span style="align-self:center;font-size:13px;color:var(--muted)">timer</span></div>'
+ +'<label style="display:flex;gap:8px;align-items:flex-start;margin-top:14px;font-size:13px;color:var(--ink)"><input type="checkbox" id="cpAuto"'+(LS.g('autoroll',false)?' checked':'')+' style="width:auto;margin-top:2px"> Ryk automatisk uafsluttede opgaver til i dag hver morgen</label>'
+ +'<p class="hint" style="margin-top:4px">Når den er slået til, ser du aldrig "Forfaldt" — gårsdagens rester flytter selv (med Fortryd). 🍂-kortet får dermed intet at vise.</p>'
+ +'<div class="mbtns"><button class="cancel" id="cpX">Annullér</button><button class="save" id="cpOk">Gem</button></div></div></div>';
  const close=()=>host.innerHTML='';
  document.getElementById('cpBg').onclick=e=>{if(e.target.id==='cpBg')close();};
  document.getElementById('cpX').onclick=close;
- document.getElementById('cpOk').onclick=()=>{const v=parseFloat(document.getElementById('cpV').value);if(v>0){LS.s('capacity',Math.round(v*60));}close();render();};}
+ document.getElementById('cpOk').onclick=()=>{const v=parseFloat(document.getElementById('cpV').value);if(v>0){LS.s('capacity',Math.round(v*60));}LS.s('autoroll',document.getElementById('cpAuto').checked);close();render();};}
 function focusP(w){
  const bar=document.createElement('div');bar.style.cssText='display:flex;justify-content:flex-end;margin:0 0 10px;gap:8px;align-items:center';
  if(LS.g('dayclosed','')===TODAY){bar.innerHTML='<span class="chip" style="background:#e8f5ee;color:#1a7f4b;padding:6px 12px;font-size:12px">🌙 Dagen er lukket ✓</span>';}
@@ -1240,6 +1243,12 @@ updateChip();
 /* ===== end UI ===== */
 
 Object.keys(localStorage).forEach(k=>{if(k.startsWith('cc2_dayorder_')&&k!=='cc2_dayorder_'+TODAY)localStorage.removeItem(k);});
+if(LS.g('autoroll',false)&&LS.g('lastroll','')!==TODAY){
+ const _roll=STORE.filter(t=>!t.done&&!t.rec&&!t.parked&&t.due&&t.due<TODAY);
+ LS.s('lastroll',TODAY);
+ if(_roll.length){const _prev=_roll.map(t=>({id:t.id,due:t.due}));_roll.forEach(t=>{t.due=TODAY;});save();
+  setTimeout(()=>toastUndo(_roll.length+(_roll.length>1?' opgaver':' opgave')+' rykket til i dag ↷',()=>{_prev.forEach(p=>{const t=STORE.find(x=>x.id===p.id);if(t)t.due=p.due;});save();render();}),600);}
+}
 pruneTrash();render();
 } /* end initApp */
 (function boot(){
