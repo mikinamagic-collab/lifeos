@@ -990,6 +990,41 @@ function doImport(txt){let d;try{d=JSON.parse(txt);}catch(e){toast('⚠️ Ikke 
  applyKeys(keys);toast('Importeret ✓ — synkroniserer & genindlæser…');
  if(GH.cfg){GH.status='pend';updateChip();ghPush(false);const t0=Date.now();const iv=setInterval(()=>{if(GH.status==='ok'){clearInterval(iv);location.reload();}else if(GH.status==='err'||Date.now()-t0>25000){clearInterval(iv);toast('⚠️ Cloud sync failed — data kept in this browser. Open ⚙️ and try again.');updateChip();}},300);}
  else setTimeout(()=>location.reload(),800);}
+function restoreModal(){
+ const host=document.getElementById('modalHost');
+ host.innerHTML='<div class="mbg" id="rsBg"><div class="modal" style="max-width:460px;max-height:80vh;overflow:auto"><h3>🕘 Gendan tidligere version</h3><p class="hint">Dine seneste synkroniseringer, gemt automatisk i GitHub. At gendanne lægger en valgt version tilbage som nyeste — intet slettes fra historikken.</p><div id="rsList" class="empty">Henter versioner…</div><div class="mbtns"><button class="save" id="rsX">Luk</button></div></div></div>';
+ const close=()=>host.innerHTML='';
+ document.getElementById('rsBg').onclick=e=>{if(e.target.id==='rsBg')close();};
+ document.getElementById('rsX').onclick=close;
+ fetch('https://api.github.com/repos/'+GH.cfg.owner+'/'+GH.cfg.repo+'/commits?path=data.json&per_page=15',{headers:ghHdr()})
+ .then(r=>{if(!r.ok)throw 0;return r.json();})
+ .then(list=>{const lw=document.getElementById('rsList');if(!lw)return;lw.classList.remove('empty');lw.innerHTML='';
+  if(!list.length){lw.textContent='Ingen tidligere versioner fundet.';return;}
+  list.forEach((cm,i)=>{const d=new Date(cm.commit.committer.date);
+   const r=document.createElement('div');r.className='row';
+   const bd=document.createElement('div');bd.className='tbody';
+   bd.innerHTML='<div class="ttl" style="cursor:default;font-size:13px">'+d.toLocaleDateString('da-DK',{weekday:'short',day:'numeric',month:'short'})+' kl. '+d.toLocaleTimeString('da-DK',{hour:'2-digit',minute:'2-digit'})+(i===0?' <span class="chip" style="background:#e8f5ee;color:#1a7f4b">nyeste</span>':'')+'</div>';
+   const b=document.createElement('button');b.className='btn';b.textContent='Gendan';if(i===0){b.disabled=true;b.style.opacity='.4';}
+   b.onclick=()=>restorePreview(cm.sha,d);
+   r.appendChild(bd);r.appendChild(b);lw.appendChild(r);});})
+ .catch(()=>{const lw=document.getElementById('rsList');if(lw)lw.textContent='⚠️ Kunne ikke hente versioner — tjek forbindelsen og prøv igen.';});
+}
+function restorePreview(sha,d){
+ const host=document.getElementById('modalHost');
+ fetch(ghUrl()+'?ref='+sha,{headers:ghHdr()})
+ .then(r=>{if(!r.ok)throw 0;return r.json();})
+ .then(j=>{const data=JSON.parse(b64d(j.content));const keys=data&&data.keys;if(!keys)throw 0;
+  const nT=(keys.cc2_tasks||[]).length,curT=(LS.g('tasks',[])||[]).length;
+  const warn=(!nT&&curT)?'<p style="font-size:13px;color:var(--over)">⚠️ Denne version er TOM — dine nuværende '+curT+' opgaver ville blive erstattet af ingenting. Er du helt sikker?</p>':'';
+  host.innerHTML='<div class="mbg" id="rpBg"><div class="modal"><h3>Gendan denne version?</h3><p style="font-size:13px">Fra <b>'+d.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'})+' kl. '+d.toLocaleTimeString('da-DK',{hour:'2-digit',minute:'2-digit'})+'</b><br>Indeholder <b>'+nT+'</b> opgaver (lige nu: '+curT+').</p>'+warn+'<p class="hint">Den nuværende version slettes ikke — den bliver liggende i historikken, så du kan altid fortryde.</p><div class="mbtns"><button class="cancel" id="rpX">Annullér</button><button class="save" id="rpGo">Gendan ✓</button></div></div></div>';
+  document.getElementById('rpBg').onclick=e=>{if(e.target.id==='rpBg')restoreModal();};
+  document.getElementById('rpX').onclick=restoreModal;
+  document.getElementById('rpGo').onclick=()=>{
+   applyKeys(keys);toast('Gendannet ✓ — synkroniserer & genindlæser…');
+   GH.status='pend';updateChip();ghPush(false);
+   const t0=Date.now();const iv=setInterval(()=>{if(GH.status==='ok'){clearInterval(iv);location.reload();}else if(GH.status==='err'||Date.now()-t0>25000){clearInterval(iv);toast('⚠️ Synk fejlede — versionen er gendannet i denne browser. Åbn ⚙️ og prøv igen.');updateChip();}},300);};})
+ .catch(()=>{toast('⚠️ Kunne ikke hente den version');restoreModal();});
+}
 document.getElementById('ghBtn').onclick=()=>{
  const cfg=GH.cfg||{owner:'',repo:'',token:''};
  const host=document.getElementById('modalHost');
@@ -1003,7 +1038,8 @@ document.getElementById('ghBtn').onclick=()=>{
   '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
   '<button class="cancel" id="ghExp">⬇ Export data</button>'+
   '<button class="cancel" id="ghImpF">⬆ Importér fil…</button>'+
-  '<button class="cancel" id="ghPull">⟳ Reload from cloud</button></div>'+
+  '<button class="cancel" id="ghPull">⟳ Reload from cloud</button>'+
+  '<button class="cancel" id="ghHist">🕘 Gendan tidligere version</button></div>'+
   '<input type="file" id="ghFile" accept=".json,application/json" style="display:none">'+
   '<label style="margin-top:10px">…or paste an export here</label><textarea id="ghPaste" style="width:100%;height:60px;font-size:10px" placeholder="{&quot;exported&quot;:…}"></textarea>'+
   '<div class="mbtns"><button class="cancel" id="ghImpP">Importér indsat tekst</button></div>'+
@@ -1031,6 +1067,7 @@ document.getElementById('ghBtn').onclick=()=>{
  document.getElementById('ghFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>doImport(rd.result);rd.readAsText(f);};
  document.getElementById('ghImpP').onclick=()=>doImport(document.getElementById('ghPaste').value);
  document.getElementById('ghPull').onclick=()=>location.reload();
+ document.getElementById('ghHist').onclick=()=>{if(!GH.cfg){document.getElementById('ghMsg').textContent='Sæt sync op først (gem & test ovenfor).';return;}restoreModal();};
 };
 updateChip();
 /* ===== end UI ===== */
