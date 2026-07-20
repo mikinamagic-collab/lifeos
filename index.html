@@ -284,7 +284,15 @@ function evUpcoming(days){return EVENTS.filter(e=>{const d=evDays(e);return d>=0
 // ---------- task row ----------
 function chAllDone(t){return t.children&&t.children.length&&t.children.every(c=>c.done);}
 function newSid(){return 's'+Date.now().toString(36)+Math.floor(Math.random()*10000);}
-function chToggle(t,c){c.done=!c.done;if(chAllDone(t)){t.done=true;t.doneAt=TODAY;t.star=false;toast('Alle deltrin fuldført ✓');}save();}
+function completeTask(t){t.done=true;t.doneAt=TODAY;t.star=false;
+ if(!t.rep)return null;
+ const nd=repNext(t.due,t.rep,TODAY);if(!nd)return null;
+ const cp={id:'t'+(UID++),content:t.content,pid:t.pid,due:nd,time:t.time||null,rec:null,rep:t.rep,pri:t.pri||null,q:null,imp:null,eff:null,est:t.est||null,note:t.note||null,done:false,star:false,src:'me'};
+ if(t.children&&t.children.length)cp.children=t.children.map(c=>({id:newSid(),txt:c.txt,done:false}));
+ STORE.unshift(cp);t.repNext=cp.id;return nd;}
+function uncompleteTask(t){t.done=false;delete t.doneAt;
+ if(t.repNext){const i=STORE.findIndex(x=>x.id===t.repNext&&!x.done);if(i>=0)STORE.splice(i,1);delete t.repNext;}}
+function chToggle(t,c){c.done=!c.done;if(chAllDone(t)){const nd=completeTask(t);toast('Alle deltrin fuldført ✓'+(nd?' — næste: '+fmtDue(nd):''));}save();}
 function chAdd(t,txt){if(!t.children)t.children=[];t.children.push({id:newSid(),txt:txt,done:false});save();}
 function chDel(t,c){t.children=(t.children||[]).filter(x=>x!==c);save();}
 function buildChecklist(t,onChange){
@@ -333,7 +341,7 @@ function estPicker(t,anchor){const host=document.getElementById('modalHost');
 function taskRow(t,opts){opts=opts||{};
  const p=catOf(t.pid);const b=dueBucket(t);
  const el=document.createElement('div');el.className='row';el.dataset.tid=t.id;
- const chk=document.createElement('div');chk.className='chk '+(t.pri||'');chk.onclick=()=>{t.done=true;t.doneAt=TODAY;t.star=false;save();toast('Færdig ✓');render();};
+ const chk=document.createElement('div');chk.className='chk '+(t.pri||'');chk.onclick=()=>{const nd=completeTask(t);save();toast(nd?'Færdig ✓ — næste: '+fmtDue(nd):'Færdig ✓');render();};
  const star=document.createElement('div');star.className='star'+(t.star?' on':'');star.textContent=t.star?'★':'☆';star.title='Top 3';star.onclick=()=>{if(!t.star&&STORE.filter(x=>x.star).length>=3){toast('Top 3 er fuld');return;}t.star=!t.star;save();render();};
  const body=document.createElement('div');body.className='tbody';
  let m=`<span class="chip area" style="background:transparent;padding-left:0;color:${esc(p.color)};font-weight:600"># ${esc(p.name||'')}</span>`;
@@ -343,6 +351,7 @@ function taskRow(t,opts){opts=opts||{};
  if(t.time)m+=`<span class="chip">🕒 ${esc(t.time)}</span>`;
  if(t.est)m+=`<span class="chip" style="background:#eef2ff;color:#3949ab">⏱ ${fmtEst(t.est)}</span>`;
  if(t.tdid)m+=`<span class="chip" style="background:#fdeceb;color:#b0362c" title="Synkroniseret med Todoist">✓ Todoist</span>`;
+ if(t.rep)m+=`<span class="chip rec" title="Gentages — næste oprettes ved fuldførelse">🔁 ${repLabel(t.rep)}</span>`;
  if(t.note)m+=`<span class="chip" title="${esc(t.note).slice(0,300)}">📝</span>`;
  {const _h=LS.g('highlight',null);if(_h&&_h.date===TODAY&&_h.id===t.id)m+=`<span class="chip" style="background:#fdf3e7;color:#b8860b">🌟 Højdepunkt</span>`;}
  if(t.parked)m+=`<span class="chip">💤 parkeret</span>`;
@@ -413,7 +422,16 @@ function editModal(t){
    <label>Opgave</label><input id="e_c" value="${esc(t.content).replace(/"/g,'&quot;')}">
    <label>Livsområde</label>${areaSelect(t.pid).replace('<select','<select id="e_a"')}
    <div class="mrow"><div><label>Forfaldsdato</label><input id="e_d" type="date" value="${t.due||''}"></div><div><label>Tidspunkt</label><input id="e_t" type="time" value="${t.time||''}"></div></div><div class="mrow"><div><label>Prioritet</label><select id="e_p"><option value="">Ingen</option><option value="p1"${t.pri==='p1'?' selected':''}>P1</option><option value="p2"${t.pri==='p2'?' selected':''}>P2</option><option value="p3"${t.pri==='p3'?' selected':''}>P3</option></select></div><div><label>Planlagt tid (min)</label><input id="e_e" type="number" min="0" max="600" value="${t.est||''}" placeholder="f.eks. 30"></div></div>
-   <label>Gentagelse (tom = engangs)</label><input id="e_r" value="${esc(t.rec||'')}" placeholder="e.g. hver dag">
+   <label>🔁 Gentagelse (næste oprettes når du fuldfører)</label><select id="e_rep">
+     <option value="">Ingen (engangs)</option>
+     <option value="1d"${t.rep==='1d'?' selected':''}>Hver dag</option>
+     <option value="1w"${t.rep==='1w'?' selected':''}>Hver uge</option>
+     <option value="2w"${t.rep==='2w'?' selected':''}>Hver 14. dag</option>
+     <option value="1m"${t.rep==='1m'?' selected':''}>Hver måned</option>
+     <option value="3m"${t.rep==='3m'?' selected':''}>Hver 3. måned</option>
+     <option value="6m"${t.rep==='6m'?' selected':''}>Hvert halve år</option>
+     <option value="1y"${t.rep==='1y'?' selected':''}>Hvert år</option>
+   </select>
    <label>Noter</label><textarea id="e_n" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;font-size:13px;min-height:56px" placeholder="Telefonnummer, link, husk at…">${esc(t.note||'')}</textarea>
    <label>Deltrin (tjekliste)</label><div id="e_ch"></div>
    <div class="mbtns"><button class="del">Slet</button><button class="cancel">Annullér</button><button class="save">Gem</button></div>
@@ -423,7 +441,7 @@ function editModal(t){
  host.querySelector('.cancel').onclick=close;
  host.querySelector('.del').onclick=()=>{close();delTasks([t]);};
  (function(){const c=document.getElementById('e_ch');const rf=()=>{c.innerHTML='';c.appendChild(buildChecklist(t,rf));};rf();})();
- host.querySelector('.save').onclick=()=>{t.content=document.getElementById('e_c').value.trim()||t.content;t.pid=document.getElementById('e_a').value;t.due=document.getElementById('e_d').value||null;if(t.due)t.parked=false;t.time=document.getElementById('e_t').value||null;t.pri=document.getElementById('e_p').value||null;const _ev=+document.getElementById('e_e').value;t.est=_ev>0?Math.round(_ev):null;const _nv=document.getElementById('e_n').value.trim();t.note=_nv||null;t.rec=document.getElementById('e_r').value.trim()||null;save();close();toast('Gemt');render();};
+ host.querySelector('.save').onclick=()=>{t.content=document.getElementById('e_c').value.trim()||t.content;t.pid=document.getElementById('e_a').value;t.due=document.getElementById('e_d').value||null;if(t.due)t.parked=false;t.time=document.getElementById('e_t').value||null;t.pri=document.getElementById('e_p').value||null;const _ev=+document.getElementById('e_e').value;t.est=_ev>0?Math.round(_ev):null;const _nv=document.getElementById('e_n').value.trim();t.note=_nv||null;t.rep=document.getElementById('e_rep').value||null;save();close();toast('Gemt');render();};
 }
 
 function catsModal(){
@@ -902,6 +920,23 @@ function planOrder(list){const key='dayorder_'+TODAY;const saved=LS.g(key,[]);
 function planSum(list){return list.reduce((s,t)=>s+(t.est||0),0);}
 function capacityGet(){return LS.g('capacity',300);}
 function weekMonday(ds){const d=new Date(ds+'T12:00');const m=new Date(d);m.setDate(d.getDate()-((d.getDay()+6)%7));return m.getFullYear()+'-'+String(m.getMonth()+1).padStart(2,'0')+'-'+String(m.getDate()).padStart(2,'0');}
+// ---------- N3: ægte gentagne opgaver (rep = deadline-gentagelse, ≠ vaner/rec) ----------
+function repParse(rule){const m=/^(\d+)([dwmy])$/.exec(rule||'');const n=m?+m[1]:0;return (m&&n>0)?{n:n,u:m[2]}:null;}
+function repNext(due,rule,todayIso){const p=repParse(rule);if(!p)return null;
+ let d=new Date((due||todayIso)+'T12:00');if(isNaN(d.getTime()))d=new Date(todayIso+'T12:00');
+ const dom=d.getDate();
+ const step=()=>{if(p.u==='d')d.setDate(d.getDate()+p.n);
+  else if(p.u==='w')d.setDate(d.getDate()+7*p.n);
+  else if(p.u==='m'){d.setDate(1);d.setMonth(d.getMonth()+p.n);d.setDate(Math.min(dom,new Date(d.getFullYear(),d.getMonth()+1,0).getDate()));}
+  else{d.setDate(1);d.setFullYear(d.getFullYear()+p.n);d.setDate(Math.min(dom,new Date(d.getFullYear(),d.getMonth()+1,0).getDate()));}};
+ const fmt=x=>x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');
+ let guard=0;do{step();guard++;}while(fmt(d)<=todayIso&&guard<1000);
+ return fmt(d);}
+function repLabel(rule){const p=repParse(rule);if(!p)return '';
+ if(p.n===1)return {d:'hver dag',w:'hver uge',m:'hver måned',y:'hvert år'}[p.u];
+ if(p.u==='w'&&p.n===2)return 'hver 14. dag';
+ if(p.u==='m'&&p.n===6)return 'hvert halve år';
+ return 'hver '+p.n+'. '+{d:'dag',w:'uge',m:'måned',y:'år'}[p.u];}
 function weekGoalsGet(){const wg=LS.g('weekgoals',null);return (wg&&wg.week===weekMonday(TODAY)&&wg.goals&&wg.goals.length)?wg:null;}
 function weekPlanModal(){const host=document.getElementById('modalHost');const wg=LS.g('weekgoals',null);const cur=(wg&&wg.week===weekMonday(TODAY))?wg.goals:[];
  host.innerHTML='<div class="mbg" id="wpBg"><div class="modal" style="max-width:440px"><h3>📌 Planlæg ugen</h3><p class="hint">Vælg 2–3 fokuspunkter for ugen — det, der skal være sandt på søndag, for at ugen var god. Morgenplanlægningen viser dem hver dag.</p>'
@@ -1031,7 +1066,7 @@ function bulkBar(){const c=document.createElement('div');c.className='card';c.st
  const lbl=document.createElement('span');lbl.textContent='Flyt til:';lbl.style.fontSize='12.5px';
  const sel=document.createElement('select');sel.style.cssText='font:inherit;border:1px solid var(--line);border-radius:8px;padding:6px 8px';sel.innerHTML=PROJECTS.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
  const mv=document.createElement('button');mv.className='btn';mv.textContent='Flyt';mv.onclick=()=>{const n=SEL.size;STORE.forEach(t=>{if(SEL.has(t.id))t.pid=sel.value;});SEL.clear();save();toast('Flyttet '+n+' opgave'+(n>1?'r':''));render();};
- const cp=document.createElement('button');cp.className='btn';cp.textContent='✓ Fuldfør';cp.onclick=()=>{STORE.forEach(t=>{if(SEL.has(t.id)){t.done=true;t.doneAt=TODAY;t.star=false;}});SEL.clear();save();toast('Fuldført');render();};
+ const cp=document.createElement('button');cp.className='btn';cp.textContent='✓ Fuldfør';cp.onclick=()=>{const list=STORE.filter(t=>SEL.has(t.id));list.forEach(t=>completeTask(t));SEL.clear();save();toast('Fuldført');render();};
  const dl=document.createElement('button');dl.className='btn';dl.style.color='var(--over)';dl.textContent='🗑 Slet';dl.onclick=()=>{delTasks(STORE.filter(t=>SEL.has(t.id)));};
  const cl=document.createElement('button');cl.className='btn';cl.textContent='Ryd';cl.onclick=()=>{SEL.clear();render();};
  [lbl,sel,mv,cp,dl,cl].forEach(x=>row.appendChild(x));c.appendChild(row);return c;}
@@ -1062,7 +1097,7 @@ function allP(w){
   bl.forEach(t=>{const r=taskRow(t);const ra=document.createElement('button');ra.className='btn';ra.textContent='⚡ Genaktivér i dag';ra.onclick=()=>{t.due=TODAY;t.parked=false;save();toast('Genaktiveret ⚡');render();};const ac=r.querySelector('.acts');if(ac)ac.appendChild(ra);c.appendChild(r);});
   w.appendChild(c);}
  const done=STORE.filter(t=>t.done);
- if(done.length){const c=card('✅ Fuldført — '+done.length,'');const body=document.createElement('div');body.className='area-body';done.slice(0,50).forEach(t=>{const r=document.createElement('div');r.className='row';r.innerHTML=`<div class="chk sq done"></div><div class="tbody"><div class="ttl done">${esc(t.content)}</div></div>`;r.querySelector('.chk').onclick=()=>{t.done=false;delete t.doneAt;save();render();};body.appendChild(r);});const h=c.querySelector('h2');h.style.cursor='pointer';h.onclick=()=>body.classList.toggle('open');c.appendChild(body);w.appendChild(c);}
+ if(done.length){const c=card('✅ Fuldført — '+done.length,'');const body=document.createElement('div');body.className='area-body';done.slice(0,50).forEach(t=>{const r=document.createElement('div');r.className='row';r.innerHTML=`<div class="chk sq done"></div><div class="tbody"><div class="ttl done">${esc(t.content)}</div></div>`;r.querySelector('.chk').onclick=()=>{uncompleteTask(t);save();render();};body.appendChild(r);});const h=c.querySelector('h2');h.style.cursor='pointer';h.onclick=()=>body.classList.toggle('open');c.appendChild(body);w.appendChild(c);}
 }
 let tlRef=new Date(today);
 function weekStart(d){const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return x;}
@@ -1453,7 +1488,7 @@ document.addEventListener('keydown',e=>{
  const k=String(e.key).toLowerCase();
  if(k==='a'){e.preventDefault();goto('all');setTimeout(()=>{const i=document.querySelector('.addbar .t');if(i)i.focus();},60);return;}
  const t=hovTask();if(!t)return;
- if(k==='c'){t.done=true;t.doneAt=TODAY;t.star=false;save();toast('Færdig ✓');render();}
+ if(k==='c'){const nd=completeTask(t);save();toast(nd?'Færdig ✓ — næste: '+fmtDue(nd):'Færdig ✓');render();}
  else if(k==='d'){const b=(t.due&&t.due>TODAY)?new Date(t.due+'T12:00'):new Date(today);b.setDate(b.getDate()+1);t.due=iso(b);t.parked=false;save();toast('Udskudt til '+fmtDue(t.due));render();}
  else if(k==='u'){const b=(t.due&&t.due>TODAY)?new Date(t.due+'T12:00'):new Date(today);b.setDate(b.getDate()+7);t.due=iso(b);t.parked=false;save();toast('Udskudt til '+fmtDue(t.due));render();}
  else if(k==='z'){t.due=null;t.parked=true;t.star=false;save();toast('Backlog 💤');render();}
