@@ -937,6 +937,27 @@ function repLabel(rule){const p=repParse(rule);if(!p)return '';
  if(p.u==='w'&&p.n===2)return 'hver 14. dag';
  if(p.u==='m'&&p.n===6)return 'hvert halve år';
  return 'hver '+p.n+'. '+{d:'dag',w:'uge',m:'måned',y:'år'}[p.u];}
+// ---------- F11.2: søge-tokens + gemte filtre ----------
+function parseSearch(raw,projects){
+ let s=' '+(raw||'')+' ';const f={text:'',pid:null,pri:null,when:null};
+ s=s.replace(/\s!p([123])\b/i,(m,n)=>{f.pri='p'+n;return ' ';});
+ s=s.replace(/\s@(idag|uge|forfaldt|udendato|backlog|gentagne)\b/i,(m,w)=>{f.when=w.toLowerCase();return ' ';});
+ s=s.replace(/\s#([\p{L}\d_-]+)/u,(m,name)=>{const lc=name.toLowerCase();
+  const found=projects.find(p=>p.name.toLowerCase()===lc)||projects.find(p=>p.name.toLowerCase().startsWith(lc))||projects.find(p=>p.name.toLowerCase().includes(lc));
+  if(found)f.pid=found.id;return ' ';});
+ f.text=s.replace(/\s+/g,' ').trim().toLowerCase();
+ return f;}
+function searchHit(t,f,todayIso){
+ if(f.text&&!(t.content.toLowerCase().includes(f.text)||(t.note||'').toLowerCase().includes(f.text)))return false;
+ if(f.pid&&t.pid!==f.pid)return false;
+ if(f.pri&&t.pri!==f.pri)return false;
+ if(f.when==='idag'&&t.due!==todayIso)return false;
+ if(f.when==='uge'){if(!t.due)return false;const mon=weekMonday(todayIso);const d=new Date(mon+'T12:00');d.setDate(d.getDate()+6);const sun=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');if(t.due<mon||t.due>sun)return false;}
+ if(f.when==='forfaldt'&&(!t.due||t.due>=todayIso))return false;
+ if(f.when==='udendato'&&t.due)return false;
+ if(f.when==='backlog'&&!t.parked)return false;
+ if(f.when==='gentagne'&&!t.rep)return false;
+ return true;}
 function weekGoalsGet(){const wg=LS.g('weekgoals',null);return (wg&&wg.week===weekMonday(TODAY)&&wg.goals&&wg.goals.length)?wg:null;}
 function weekPlanModal(){const host=document.getElementById('modalHost');const wg=LS.g('weekgoals',null);const cur=(wg&&wg.week===weekMonday(TODAY))?wg.goals:[];
  host.innerHTML='<div class="mbg" id="wpBg"><div class="modal" style="max-width:440px"><h3>📌 Planlæg ugen</h3><p class="hint">Vælg 2–3 fokuspunkter for ugen — det, der skal være sandt på søndag, for at ugen var god. Morgenplanlægningen viser dem hver dag.</p>'
@@ -1076,13 +1097,27 @@ function allP(w){
  const mgb=document.createElement('button');mgb.className='btn';mgb.textContent='⚙️ Rediger kategorier';mgb.onclick=catsModal;mb.appendChild(mgb);
  const sall=document.createElement('button');sall.className='btn';sall.textContent='☑︎ Vælg alle';sall.onclick=()=>{active().forEach(t=>SEL.add(t.id));render();};mb.appendChild(sall);
  const trb=document.createElement('button');trb.className='btn';trb.textContent='🗑 Papirkurv';trb.onclick=trashModal;mb.appendChild(trb);
- const sbar=document.createElement('div');sbar.className='addbar';sbar.innerHTML='<input class="t" type="search" placeholder="🔍 Søg i alle opgaver…">';
+ const sbar=document.createElement('div');sbar.className='addbar';sbar.innerHTML='<input class="t" type="search" placeholder="🔍 Søg… (fx job @uge · #hjem !p1 · @gentagne)">';
  const _si=sbar.querySelector('.t');_si.value=ALLQ;
  _si.oninput=()=>{ALLQ=_si.value;render();const el=document.querySelector('#app input[type=search]');if(el){el.focus();try{el.setSelectionRange(el.value.length,el.value.length);}catch(e){}}};
  w.appendChild(sbar);
- if(ALLQ.trim()){const _q=ALLQ.trim().toLowerCase();
-  const _res=active().filter(t=>t.content.toLowerCase().includes(_q)||(t.note||'').toLowerCase().includes(_q));
-  const _c=card('🔍 Søgeresultater — '+_res.length,'Titler og noter gennemsøges. Ryd feltet for at se kategorierne igen.');
+ // F11.2: gemte filtre som chips
+ const _flt=LS.g('filters',[]);
+ if(_flt.length){const fr=document.createElement('div');fr.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px';
+  _flt.forEach((sf,i)=>{const ch=document.createElement('button');ch.className='btn'+(ALLQ.trim()===sf.q?' on':'');
+   ch.innerHTML='🔎 '+esc(sf.n)+' <span class="fx" title="Slet filter" style="opacity:.55;margin-left:4px">✕</span>';
+   ch.onclick=e=>{if(e.target.classList&&e.target.classList.contains('fx')){const nf=_flt.filter((_,j)=>j!==i);LS.s('filters',nf);toast('Filter slettet');render();return;}ALLQ=ALLQ.trim()===sf.q?'':sf.q;render();};
+   fr.appendChild(ch);});
+  w.appendChild(fr);}
+ if(ALLQ.trim()){
+  const _f=parseSearch(ALLQ,PROJECTS);
+  const _res=active().filter(t=>searchHit(t,_f,TODAY));
+  const _c=card('🔍 Søgeresultater — '+_res.length,'Titler + noter. Tokens: #kategori · !p1–p3 · @idag · @uge · @forfaldt · @udendato · @backlog · @gentagne. Ryd feltet for kategorierne igen.');
+  const _known=_flt.some(sf=>sf.q===ALLQ.trim());
+  if(!_known){const sv=document.createElement('button');sv.className='btn';sv.textContent='💾 Gem som filter';sv.style.margin='0 0 8px';
+   sv.onclick=()=>{let n=null;try{n=prompt('Navn på filteret:',ALLQ.trim());}catch(e){}
+    if(n&&n.trim()){const fl=LS.g('filters',[]);fl.push({n:n.trim().slice(0,40),q:ALLQ.trim()});LS.s('filters',fl);toast('Filter gemt 💾');render();}};
+   _c.appendChild(sv);}
   if(_res.length)_res.slice(0,60).forEach(t=>_c.appendChild(taskRow(t)));else _c.appendChild(empty('Ingen match.'));
   w.appendChild(_c);return;}
  w.appendChild(mb);
@@ -1464,6 +1499,7 @@ function paletteModal(){
   {l:'➕ Ny opgave',f:()=>{goto('all');setTimeout(()=>{const i=document.querySelector('.addbar .t');if(i)i.focus();},60);}},
   {l:'🗑 Papirkurv',f:trashModal},{l:'🕘 Gendan tidligere version',f:()=>{if(GH.cfg)restoreModal();else toast('Sæt sync op først');}}
  ];
+ LS.g('filters',[]).forEach(sf=>CMDS.push({l:'🔎 Filter: '+sf.n,f:()=>{ALLQ=sf.q;goto('all');}}));
  let sel=0,items=[];
  const highlight=()=>{[...list.children].forEach((d,i)=>d.classList.toggle('active',i===sel));};
  const paint=()=>{const q=inp.value.trim().toLowerCase();items=[];
