@@ -86,7 +86,9 @@ h1{font-size:19px;margin:0;font-weight:600;letter-spacing:0}
 .tcard .subadd{display:none}
 .drag{cursor:grab;touch-action:none;color:#c7c9cd;font-size:15px;line-height:1;padding:2px 6px 2px 0;flex:0 0 auto;user-select:none;-webkit-user-select:none;align-self:center}
 .drag:active{cursor:grabbing}
-.tcard.dragging{opacity:.65;box-shadow:0 8px 20px rgba(0,0,0,.18);position:relative;z-index:5}
+.tcard.dragghost{position:fixed;z-index:99;pointer-events:none;opacity:.92;box-shadow:0 12px 28px rgba(0,0,0,.22);margin:0;background:#fff}
+.tcard.dragsrc{opacity:.35}
+.dropmark{height:0;border-top:2px solid var(--accent);border-radius:1px;margin:2px 6px}
 .focuswrap{display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:start}
 @media(max-width:980px){.focuswrap{grid-template-columns:1fr}}
 .sdrow{display:flex;gap:8px;align-items:center;padding:7px 2px}
@@ -1087,26 +1089,34 @@ function planMove(list,i,dir){const a=list.map(t=>t.id);const j=i+dir;if(j<0||j>
 function makeDraggable(container,onDrop,opts){opts=opts||{};
  container.querySelectorAll('.drag').forEach(h=>{
   h.onpointerdown=e=>{e.preventDefault();const row=h.closest('.tcard');if(!row)return;
-   row.classList.add('dragging');h.setPointerCapture(e.pointerId);
-   let overCal=null,ind=null;
+   const rect=row.getBoundingClientRect();
+   const ghost=row.cloneNode(true);ghost.classList.add('dragghost');ghost.style.width=rect.width+'px';ghost.style.left=rect.left+'px';ghost.style.top=rect.top+'px';document.body.appendChild(ghost);
+   row.classList.add('dragsrc');
    const grid=opts.calDrop?document.querySelector('.sidecalgrid'):null;
-   h.onpointermove=ev=>{
+   let overCal=null,ind=null,moved=false;
+   const mark=document.createElement('div');mark.className='dropmark';
+   const offX=e.clientX-rect.left,offY=e.clientY-rect.top;
+   const mv=ev=>{ev.preventDefault();moved=true;
+    ghost.style.left=(ev.clientX-offX)+'px';ghost.style.top=(ev.clientY-offY)+'px';
     if(grid){const gr=grid.getBoundingClientRect();
-     if(ev.clientX>=gr.left-40&&ev.clientX<=gr.right&&ev.clientY>=gr.top&&ev.clientY<=gr.bottom){
+     if(ev.clientX>=gr.left-40&&ev.clientX<=gr.right+10&&ev.clientY>=gr.top&&ev.clientY<=gr.bottom){
       const pxm=+grid.dataset.pxm;const startH=+grid.dataset.starth;
       let mins=startH*60+(ev.clientY-gr.top)/pxm;mins=Math.round(mins/15)*15;
       overCal=mins;
       if(!ind){ind=document.createElement('div');ind.className='calindic';grid.appendChild(ind);}
       ind.style.top=((mins-startH*60)*pxm)+'px';ind.textContent=String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0');
+      if(mark.parentNode)mark.remove();
       return;}
      else{overCal=null;if(ind){ind.remove();ind=null;}}}
-    const rows=[...container.querySelectorAll('.tcard:not(.dragging)')];
+    const rows=[...container.querySelectorAll('.tcard')].filter(r=>r!==row);
     const after=rows.find(r=>{const rc=r.getBoundingClientRect();return ev.clientY<rc.top+rc.height/2;});
-    if(after)container.insertBefore(row,after);else container.appendChild(row);};
-   const done=()=>{row.classList.remove('dragging');h.onpointermove=null;h.onpointerup=null;h.onpointercancel=null;if(ind)ind.remove();
-    if(overCal!=null&&opts.calDrop){opts.calDrop(row.dataset.tid,overCal);return;}
-    onDrop([...container.querySelectorAll('.tcard')].map(r=>r.dataset.tid));};
-   h.onpointerup=done;h.onpointercancel=done;};
+    if(after)container.insertBefore(mark,after);else container.appendChild(mark);};
+   const up=()=>{document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);document.removeEventListener('pointercancel',up);
+    ghost.remove();row.classList.remove('dragsrc');if(ind)ind.remove();
+    if(overCal!=null&&opts.calDrop){if(mark.parentNode)mark.remove();opts.calDrop(row.dataset.tid,overCal);return;}
+    if(mark.parentNode){container.insertBefore(row,mark);mark.remove();}
+    if(moved)onDrop([...container.querySelectorAll('.tcard')].map(r=>r.dataset.tid));};
+   document.addEventListener('pointermove',mv);document.addEventListener('pointerup',up);document.addEventListener('pointercancel',up);};
  });}
 function catMenu(t,ev){popMenu(ev.clientX,ev.clientY,(box,close)=>{
  const hd=document.createElement('div');hd.className='pophd';hd.textContent='Kategori:';box.appendChild(hd);
@@ -1202,7 +1212,10 @@ function focusP(w){
    const h=document.createElement('div');h.className='drag';h.textContent='⠿';h.title='Træk for at flytte';
    r.insertBefore(h,r.firstChild);pw.appendChild(r);});
   c1.appendChild(pw);
-  makeDraggable(pw,ids=>{LS.s('dayorder_'+TODAY,ids);render();});}
+  makeDraggable(pw,ids=>{LS.s('dayorder_'+TODAY,ids);render();},{calDrop:(tid,mins)=>{
+   const t=STORE.find(x=>x.id===tid);if(!t)return;
+   t.time=String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0');save();
+   toast('🕒 '+t.time+' — '+t.content.slice(0,24));render();}});}
  else c1.appendChild(emptyCTA('Ingen plan endnu. Vælg Top 3 og giv dagens opgaver en dato — så samles de her. ⭐','☀️ Planlæg dagen',openPlanning));
  const doneToday=STORE.filter(t=>t.done&&t.doneAt===TODAY&&!t.rec);
  if(doneToday.length){const dv=document.createElement('div');dv.style.cssText='margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)';dv.textContent='✅ Færdig i dag: '+doneToday.length;c1.appendChild(dv);}
