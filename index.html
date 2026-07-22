@@ -48,10 +48,24 @@ h1{font-size:19px;margin:0;font-weight:600;letter-spacing:0}
 .chip.area{color:#fff}.chip.over{background:#fdf0ef;color:#d14343}.chip.today{background:#fdf3e7;color:#cf7a1d}
 .chip.soon{background:#eef5fd;color:#4a86c9}.chip.rec{background:#edf7f1;color:#3a9268}
 .chip.q{color:#fff}.q-do{background:var(--do)}.q-plan{background:var(--plan)}.q-deleg{background:var(--deleg)}.q-drop{background:var(--drop)}
-.cardhd{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px}
-.hdtime{font-weight:700;font-size:13px}
-.hdest{font-size:11.5px;background:#f2f3f5;color:#5f6670;border-radius:6px;padding:2px 8px;cursor:pointer}
-.hdest:hover{background:#e8eaec}
+.tcard{background:#fff;border:1px solid #f0f0f0;border-radius:4px;padding:12px;margin:2px 2px 8px;box-shadow:0 1px 1px rgba(0,0,0,.1)}
+.tcard:hover{background:#fff}
+.tcard+.tcard{border-top:1px solid #f0f0f0}
+.tcard .ttl{font-weight:500;color:#413f39}
+.hdtime{font-size:10px;font-weight:600;color:#787878;margin-bottom:2px}
+.trow{display:flex;gap:6px;align-items:flex-start}
+.trow .ttl{flex:1;min-width:0}
+.hdest{font-size:10px;font-weight:600;color:#787878;padding:2px 0 0;cursor:pointer;white-space:nowrap}
+.hdest:hover{color:#413f39}
+.duesub{font-size:11px;color:#787878;margin-top:2px}
+.symrow{display:flex;gap:9px;align-items:center;margin-top:9px}
+.cchk{flex:0 0 auto;width:17px;height:17px;border:1.5px solid #c8ccd1;border-radius:50%;cursor:pointer;transition:border-color .15s}
+.cchk:hover{border-color:var(--home);background:#eef7f2}
+.cchk.p1{border-color:var(--p1)}.cchk.p2{border-color:var(--p2)}
+.sym{font-size:13px;line-height:1;color:#b4b4b4;cursor:pointer}
+.symtxt{font-size:10px;font-weight:600;color:#b4b4b4}
+.streamlbl{margin-left:auto;font-size:12px;font-weight:500;color:#787878;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:48%}
+.tcard .subsinline{display:block;margin-top:6px}
 .acts{display:none;gap:6px;flex-wrap:wrap;margin-top:8px}
 .row:hover .acts,.row.exp .acts{display:flex}
 .rowtog{cursor:pointer;color:#c7c9cd;font-size:19px;line-height:1;flex:0 0 auto;margin-top:1px;padding:4px 6px}
@@ -177,7 +191,7 @@ h1{font-size:19px;margin:0;font-weight:600;letter-spacing:0}
 .modal .del{background:#fff;color:var(--over);border:1px solid #f2c9c6;border-radius:9px;padding:9px 12px;cursor:pointer}
 .modal .cancel{background:#fff;border:1px solid var(--line);border-radius:9px;padding:9px 12px;cursor:pointer}
 @media(max-width:560px){.board{grid-template-columns:1fr}
-.btn{min-height:44px;padding:10px 12px}.qbtn{min-height:44px}.chk{width:26px;height:26px}.star{font-size:21px}
+.btn{min-height:44px;padding:10px 12px}.qbtn{min-height:44px}.chk{width:26px;height:26px}.cchk{width:22px;height:22px}.sym{font-size:16px}.star{font-size:21px}
 .row:hover .acts{display:none}.row.exp .acts{display:flex}
 #sideNav{display:none}#botNav{display:flex}.wrap{margin-left:0;padding:12px 12px 92px}}
 </style>
@@ -375,28 +389,33 @@ function estPicker(t,anchor){const host=document.getElementById('modalHost');
 }
 function taskRow(t,opts){opts=opts||{};
  const p=catOf(t.pid);const b=dueBucket(t);
- const el=document.createElement('div');el.className='row';el.dataset.tid=t.id;
- const chk=document.createElement('div');chk.className='chk '+(t.pri||'');chk.onclick=()=>{const nd=completeTask(t);save();toast(nd?'Færdig ✓ — næste: '+fmtDue(nd):'Færdig ✓');render();};
+ const el=document.createElement('div');el.className='row tcard';el.dataset.tid=t.id;
  const star=document.createElement('div');star.className='star'+(t.star?' on':'');star.textContent=t.star?'★':'☆';star.title='Top 3';star.onclick=()=>{if(!t.star&&STORE.filter(x=>x.star).length>=3){toast('Top 3 er fuld');return;}t.star=!t.star;save();render();};
  const body=document.createElement('div');body.className='tbody';
- let m=`<span class="chip area" style="background:transparent;padding-left:0;color:${esc(p.color)};font-weight:600"># ${esc(p.name||'')}</span>`;
- if(t.q)m+=`<span class="chip q q-${t.q}">${{do:'Gør nu',plan:'Planlæg',deleg:'Delegér',drop:'Drop'}[t.q]}</span>`;
- if(b==='over')m+=`<span class="chip over">Forfaldt ${esc(t.due)}</span>`;else if(b==='today')m+=`<span class="chip today">I dag</span>`;else if(b==='soon')m+=`<span class="chip soon">${esc(t.due)}</span>`;else if(b==='later')m+=`<span class="chip">${esc(t.due)}</span>`;
- if(t.pri)m+=`<span class="chip" style="color:var(--${t.pri});font-weight:600">${t.pri==='p3'?'⚑':'🚩'} ${priLabel(t.pri)}</span>`;
- if(t.tdid)m+=`<span class="chip" style="background:#fdeceb;color:#b0362c" title="Synkroniseret med Todoist">✓ Todoist</span>`;
- if(t.rep)m+=`<span class="chip rec" title="Gentages — næste oprettes ved fuldførelse">🔁 ${repLabel(t.rep)}</span>`;
- if(t.note)m+=`<span class="chip" title="${esc(t.note).slice(0,300)}">📝</span>`;
- {const _h=LS.g('highlight',null);if(_h&&_h.date===TODAY&&_h.id===t.id)m+=`<span class="chip" style="background:#fdf3e7;color:#b8860b">🌟 Højdepunkt</span>`;}
- if(t.parked)m+=`<span class="chip">💤 parkeret</span>`;
- if(t.children&&t.children.length){const _cd=t.children.filter(c=>c.done).length;m+='<span class="chip" style="background:#eef7f2;color:#1f6b52">☑ '+_cd+'/'+t.children.length+'</span>';}
+ if(t.time){const tm=document.createElement('div');tm.className='hdtime';tm.textContent=t.time;body.appendChild(tm);}
+ const tr=document.createElement('div');tr.className='trow';
  const ttl=document.createElement('div');ttl.className='ttl'+(t.done?' done':'');ttl.textContent=t.content;ttl.title='Tryk for at redigere';ttl.onclick=()=>editModal(t);
- if(t.time||t.est){const hd=document.createElement('div');hd.className='cardhd';
-  hd.innerHTML=(t.time?`<span class="hdtime">${esc(t.time)}</span>`:'<span></span>')+(t.est?`<span class="hdest" title="Planlagt tid — tryk for at ændre">${fmtEst(t.est)}</span>`:'');
-  const _he=hd.querySelector('.hdest');if(_he)_he.onclick=e=>{e.stopPropagation();estPicker(t);};
-  body.appendChild(hd);}
- body.appendChild(ttl);const mt=document.createElement('div');mt.className='meta';mt.innerHTML=m;body.appendChild(mt);
+ tr.appendChild(ttl);
+ if(t.est){const de=document.createElement('div');de.className='hdest';de.title='Planlagt tid — tryk for at ændre';de.textContent=fmtEst(t.est);de.onclick=e=>{e.stopPropagation();estPicker(t);};tr.appendChild(de);}
+ body.appendChild(tr);
+ let dl='';
+ if(b==='over')dl='<span style="color:var(--over)">Forfaldt '+esc(fmtDue(t.due))+'</span>';
+ else if(b==='today')dl='I dag';
+ else if(b==='soon'||b==='later')dl=esc(fmtDue(t.due));
+ if(t.parked)dl+=(dl?' · ':'')+'💤 backlog';
+ if(dl){const dv=document.createElement('div');dv.className='duesub';dv.innerHTML=dl;body.appendChild(dv);}
+ if(t.children&&t.children.length){const _cl=buildChecklist(t,render);_cl.classList.add('subsinline');body.appendChild(_cl);}
+ if(t.note){const nn=document.createElement('div');nn.className='notetext';nn.textContent=t.note;body.appendChild(nn);}
+ const sy=document.createElement('div');sy.className='symrow';
+ const chk=document.createElement('div');chk.className='cchk'+(t.pri?' '+t.pri:'');chk.title='Fuldfør opgave';chk.onclick=()=>{const nd=completeTask(t);save();toast(nd?'Færdig ✓ — næste: '+fmtDue(nd):'Færdig ✓');render();};sy.appendChild(chk);
+ {const f=document.createElement('span');f.className='sym';f.title='Prioritet: '+priLabel(t.pri);f.textContent='⚑';f.style.color=t.pri?('var(--'+t.pri+')'):'#b4b4b4';f.onclick=()=>priPicker(t);sy.appendChild(f);}
+ if(t.rep){const s=document.createElement('span');s.className='sym';s.style.cursor='default';s.title='Gentages — '+repLabel(t.rep);s.textContent='🔁';sy.appendChild(s);}
+ if(t.tdid){const s=document.createElement('span');s.className='symtxt';s.title='Synkroniseret med Todoist';s.textContent='✓ Todoist';sy.appendChild(s);}
+ {const _h=LS.g('highlight',null);if(_h&&_h.date===TODAY&&_h.id===t.id){const s=document.createElement('span');s.className='sym';s.style.cursor='default';s.title='Dagens højdepunkt';s.textContent='🌟';sy.appendChild(s);}}
+ {const sl=document.createElement('div');sl.className='streamlbl';sl.innerHTML='<span style="color:'+esc(p.color)+';font-weight:700"># </span>'+esc(p.name||'');sy.appendChild(sl);}
+ body.appendChild(sy);
  const acts=document.createElement('div');acts.className='acts';
- {const bb=document.createElement('button');bb.className='btn'+(t.pri?' '+t.pri:'');bb.textContent=(t.pri==='p3'?'⚑ ':t.pri?'🚩 ':'⚑ ')+priLabel(t.pri);bb.title='Prioritet';bb.onclick=()=>priPicker(t);acts.appendChild(bb);}
+ {const bb=document.createElement('button');bb.className='btn'+(t.pri?' '+t.pri:'');bb.textContent='⚑ '+priLabel(t.pri);bb.title='Prioritet';bb.onclick=()=>priPicker(t);acts.appendChild(bb);}
  const bt=document.createElement('button');bt.className='btn';bt.textContent='📅 I dag';bt.onclick=()=>{t.due=TODAY;save();render();};acts.appendChild(bt);
  const bm=document.createElement('button');bm.className='btn';bm.textContent='I morgen';bm.onclick=()=>{const d=new Date(today);d.setDate(d.getDate()+1);t.due=iso(d);save();render();};acts.appendChild(bm);
  const bw=document.createElement('button');bw.className='btn';bw.textContent='+1 uge';bw.title='Udskyd en uge';bw.onclick=()=>{const base=(t.due&&t.due>TODAY)?new Date(t.due+'T12:00'):new Date(today);base.setDate(base.getDate()+7);t.due=iso(base);t.parked=false;save();toast('Udskudt til '+fmtDue(t.due));render();};acts.appendChild(bw);
@@ -404,11 +423,9 @@ function taskRow(t,opts){opts=opts||{};
  const be=document.createElement('button');be.className='btn';be.textContent='⏱ '+(t.est?fmtEst(t.est):'tid');be.onclick=()=>estPicker(t);acts.appendChild(be);
  const bd=document.createElement('button');bd.className='btn';bd.textContent='🗑';bd.title='Slet';bd.style.color='var(--over)';bd.onclick=()=>{delTasks([t]);};acts.appendChild(bd);
  body.appendChild(acts);
- if(t.children&&t.children.length){const _cl=buildChecklist(t,render);_cl.classList.add('subsinline');body.appendChild(_cl);}
- if(t.note){const nn=document.createElement('div');nn.className='notetext';nn.textContent=t.note;body.appendChild(nn);}
  if(opts.sel){const sb=document.createElement('div');sb.className='chk sq'+(SEL.has(t.id)?' done':'');sb.title='Vælg';sb.style.marginTop='1px';sb.onclick=()=>{if(SEL.has(t.id))SEL.delete(t.id);else SEL.add(t.id);render();};el.appendChild(sb);}
  const tog=document.createElement('div');tog.className='rowtog';tog.textContent='⋯';tog.title='Vis handlinger';tog.onclick=e=>{e.stopPropagation();el.classList.toggle('exp');};
- el.appendChild(chk);el.appendChild(body);el.appendChild(star);el.appendChild(tog);return el;
+ el.appendChild(body);el.appendChild(star);el.appendChild(tog);return el;
 }
 
 // ---------- add + edit ----------
