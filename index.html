@@ -62,8 +62,28 @@ h1{font-size:19px;margin:0;font-weight:600;letter-spacing:0}
 .cchk{flex:0 0 auto;width:17px;height:17px;border:1.5px solid #c8ccd1;border-radius:50%;cursor:pointer;transition:border-color .15s}
 .cchk:hover{border-color:var(--home);background:#eef7f2}
 .cchk.p1{border-color:var(--p1)}.cchk.p2{border-color:var(--p2)}
-.sym{font-size:13px;line-height:1;color:#b4b4b4;cursor:pointer}
+.sym{font-size:13px;line-height:1;color:#b4b4b4;cursor:pointer;filter:grayscale(1);opacity:.55}
+.sym:hover{opacity:1}
+.sym.symc{filter:none;opacity:1}
 .symtxt{font-size:10px;font-weight:600;color:#b4b4b4}
+.popbg{position:fixed;inset:0;z-index:59}
+.pop{position:fixed;background:#fff;border:1px solid #e6e6e6;border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.14);padding:6px;z-index:60;min-width:200px;max-height:70vh;overflow:auto}
+.pop .mi{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:8px 10px;border:none;background:none;font:inherit;font-size:13px;border-radius:6px;cursor:pointer;text-align:left}
+.pop .mi:hover{background:#f5f6f7}
+.pophd{font-size:11px;color:#9aa1a9;padding:6px 10px 2px}
+.tview{max-width:640px}
+.tvbar{display:flex;gap:2px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.tvbtn{border:none;background:none;font:inherit;font-size:12.5px;color:#787878;cursor:pointer;padding:4px 6px;border-radius:6px}
+.tvbtn:hover{background:#f5f6f7}
+.modal .tvsel{width:auto;border:none;background:none;font-size:12.5px;color:#787878;padding:4px 2px;cursor:pointer;border-radius:6px}
+.modal .tvsel:hover{background:#f5f6f7}
+.modal .tvdate{width:auto;border:none;background:none;font-size:12.5px;color:#787878;padding:4px 2px;cursor:pointer;border-radius:6px}
+.modal .tvdate:hover{background:#f5f6f7}
+.modal .tvtitle{flex:1;min-width:0;border:none;font-size:19px;font-weight:600;color:#413f39;padding:2px 0;border-radius:0}
+.modal .tvtitle:focus{outline:none}
+.modal .tvnotes{width:100%;border:none;resize:vertical;min-height:64px;font:inherit;font-size:13.5px;color:#5f6670;margin-top:8px;padding:0}
+.modal .tvnotes:focus{outline:none}
+.tcard .subadd{display:none}
 .streamlbl{margin-left:auto;font-size:12px;font-weight:500;color:#787878;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:48%}
 .tcard .subsinline{display:block;margin-top:6px}
 .acts{display:none;gap:6px;flex-wrap:wrap;margin-top:8px}
@@ -209,6 +229,7 @@ h1{font-size:19px;margin:0;font-weight:600;letter-spacing:0}
 </div>
 <div class="toast" id="toast"></div>
 <div id="modalHost"></div>
+<div id="popHost"></div>
 <nav id="botNav"></nav>
 <script>
 let PROJECTS=[
@@ -369,24 +390,43 @@ function trashModal(){pruneTrash();const host=document.getElementById('modalHost
 }
 
 function fmtEst(m){if(!m)return '';return Math.floor(m/60)+':'+String(m%60).padStart(2,'0');}
-const EST_CHOICES=[5,10,15,30,45,60,90,120];
+const EST_CHOICES=[5,10,15,20,25,30,45,60,90,120];
 function priLabel(p){return ({p1:'Haster',p2:'Prioritet',p3:'Lav'})[p]||'Normal';}
-function priPicker(t){const host=document.getElementById('modalHost');
- host.innerHTML='<div class="mbg" id="ppBg"><div class="modal" style="max-width:300px"><h3>⚑ Prioritet</h3><div id="ppL"></div><div class="mbtns"><button class="cancel" id="ppX">Luk</button></div></div></div>';
- const lw=document.getElementById('ppL');const close=()=>host.innerHTML='';
- [['p1','🚩 Haster'],['p2','🚩 Prioritet'],[null,'⚑ Normal'],['p3','⚑ Lav']].forEach(([v,l])=>{const on=(t.pri||null)===v;const b=document.createElement('button');b.className='btn'+(v?' '+v:'');b.style.cssText='display:flex;width:100%;justify-content:space-between;margin-bottom:6px';b.innerHTML='<span>'+l+'</span>'+(on?'<span>✓</span>':'');b.onclick=()=>{t.pri=v;save();close();render();};lw.appendChild(b);});
- document.getElementById('ppBg').onclick=e=>{if(e.target.id==='ppBg')close();};
- document.getElementById('ppX').onclick=close;}
-function estPicker(t,anchor){const host=document.getElementById('modalHost');
- host.innerHTML='<div class="mbg" id="epBg"><div class="modal" style="max-width:300px"><h3>⏱ Planlagt tid</h3><div id="epC" style="display:flex;gap:6px;flex-wrap:wrap"></div><div class="mrow" style="margin-top:10px"><input id="epV" type="number" min="1" max="600" placeholder="minutter…" style="flex:2"><button class="save" id="epOk" style="flex:1">Gem</button></div><div class="mbtns"><button class="cancel" id="epClear">Ryd</button><button class="cancel" id="epX">Luk</button></div></div></div>';
- const c=document.getElementById('epC');
- EST_CHOICES.forEach(m=>{const b=document.createElement('button');b.className='btn'+(t.est===m?' on':'');b.textContent=fmtEst(m);b.onclick=()=>{t.est=m;save();host.innerHTML='';render();};c.appendChild(b);});
- const close=()=>host.innerHTML='';
- document.getElementById('epBg').onclick=e=>{if(e.target.id==='epBg')close();};
- document.getElementById('epX').onclick=close;
- document.getElementById('epClear').onclick=()=>{t.est=null;save();close();render();};
- document.getElementById('epOk').onclick=()=>{const v=+document.getElementById('epV').value;if(v>0){t.est=Math.round(v);save();close();render();}};
-}
+function priPicker(t,ev,cb){cb=cb||render;popMenu(ev?ev.clientX:innerWidth/2-110,ev?ev.clientY:120,(box,close)=>{
+ const hd=document.createElement('div');hd.className='pophd';hd.textContent='Prioritet:';box.appendChild(hd);
+ [['p1','🚩 Haster'],['p2','🚩 Prioritet'],[null,'⚑ Normal'],['p3','⚑ Lav']].forEach(([v,l])=>{
+  const on=(t.pri||null)===v;
+  mItem(box,'<span'+(v?' style="color:var(--'+v+')"':'')+'>'+l+'</span>'+(on?'<span>✓</span>':''),()=>{t.pri=v;save();close();cb();});});
+})}
+function popMenu(x,y,build){const host=document.getElementById('popHost');
+ host.innerHTML='<div class="popbg" id="pmBg"></div><div class="pop" id="pmBox" style="left:-9999px;top:-9999px"></div>';
+ const box=document.getElementById('pmBox');const close=()=>{host.innerHTML='';};
+ build(box,close);
+ const r=box.getBoundingClientRect();
+ box.style.left=Math.max(8,Math.min(x,innerWidth-r.width-10))+'px';
+ box.style.top=Math.max(8,Math.min(y,innerHeight-r.height-10))+'px';
+ document.getElementById('pmBg').onclick=close;}
+function mItem(box,html,fn){const b=document.createElement('button');b.className='mi';b.innerHTML=html;b.onclick=fn;box.appendChild(b);return b;}
+function moveMenu(t,ev){popMenu(ev.clientX,ev.clientY,(box,close)=>{
+ const hd=document.createElement('div');hd.className='pophd';hd.textContent='Flyt:';box.appendChild(hd);
+ mItem(box,'I dag',()=>{t.due=TODAY;t.parked=false;save();close();render();});
+ mItem(box,'Udsæt til i morgen',()=>{const d=new Date(today);d.setDate(d.getDate()+1);t.due=iso(d);t.parked=false;save();close();render();});
+ mItem(box,'Udsæt én uge',()=>{const base=(t.due&&t.due>TODAY)?new Date(t.due+'T12:00'):new Date(today);base.setDate(base.getDate()+7);t.due=iso(base);t.parked=false;save();close();toast('Udskudt til '+fmtDue(t.due));render();});
+ mItem(box,'💤 Til backlog',()=>{t.due=null;t.parked=true;t.star=false;save();close();toast('Lagt i backlog 💤');render();});
+ mItem(box,'<span style="color:var(--over)">🗑 Slet</span>',()=>{close();delTasks([t]);});
+ const dh=document.createElement('div');dh.className='pophd';dh.textContent='Vælg dato:';box.appendChild(dh);
+ const di=document.createElement('input');di.type='date';di.value=t.due||'';di.style.cssText='width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:7px;padding:6px 8px;font:inherit;font-size:13px;margin:2px 0 4px';
+ di.onchange=()=>{if(di.value){t.due=di.value;t.parked=false;save();close();render();}};box.appendChild(di);
+})}
+function estPicker(t,ev,cb){cb=cb||render;popMenu(ev?ev.clientX:innerWidth/2-110,ev?ev.clientY:120,(box,close)=>{
+ const hd=document.createElement('div');hd.className='pophd';hd.textContent='Planlagt: '+(t.est?fmtEst(t.est):'—');box.appendChild(hd);
+ EST_CHOICES.forEach(m=>{mItem(box,'<span>'+fmtEst(m)+'</span>'+(t.est===m?'<span>✓</span>':''),()=>{t.est=m;save();close();cb();});});
+ const row=document.createElement('div');row.style.cssText='padding:2px 6px';
+ const inp=document.createElement('input');inp.type='number';inp.min='1';inp.max='600';inp.placeholder='minutter…';inp.style.cssText='width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:7px;padding:5px 8px;font:inherit;font-size:13px';
+ inp.onkeydown=e=>{if(e.key==='Enter'&&+inp.value>0){t.est=Math.round(+inp.value);save();close();cb();}};
+ row.appendChild(inp);box.appendChild(row);
+ mItem(box,'<span style="color:#4a86c9">Ryd planlagt</span>',()=>{t.est=null;save();close();cb();});
+})}
 function taskRow(t,opts){opts=opts||{};
  const p=catOf(t.pid);const b=dueBucket(t);
  const el=document.createElement('div');el.className='row tcard';el.dataset.tid=t.id;
@@ -394,9 +434,9 @@ function taskRow(t,opts){opts=opts||{};
  const body=document.createElement('div');body.className='tbody';
  if(t.time){const tm=document.createElement('div');tm.className='hdtime';tm.textContent=t.time;body.appendChild(tm);}
  const tr=document.createElement('div');tr.className='trow';
- const ttl=document.createElement('div');ttl.className='ttl'+(t.done?' done':'');ttl.textContent=t.content;ttl.title='Tryk for at redigere';ttl.onclick=()=>editModal(t);
+ const ttl=document.createElement('div');ttl.className='ttl'+(t.done?' done':'');ttl.textContent=t.content;ttl.title='Tryk for at åbne';ttl.onclick=()=>editModal(t);
  tr.appendChild(ttl);
- if(t.est){const de=document.createElement('div');de.className='hdest';de.title='Planlagt tid — tryk for at ændre';de.textContent=fmtEst(t.est);de.onclick=e=>{e.stopPropagation();estPicker(t);};tr.appendChild(de);}
+ if(t.est){const de=document.createElement('div');de.className='hdest';de.title='Planlagt tid — tryk for at ændre';de.textContent=fmtEst(t.est);de.onclick=e=>{e.stopPropagation();estPicker(t,e);};tr.appendChild(de);}
  body.appendChild(tr);
  let dl='';
  if(b==='over')dl='<span style="color:var(--over)">Forfaldt '+esc(fmtDue(t.due))+'</span>';
@@ -408,24 +448,16 @@ function taskRow(t,opts){opts=opts||{};
  if(t.note){const nn=document.createElement('div');nn.className='notetext';nn.textContent=t.note;body.appendChild(nn);}
  const sy=document.createElement('div');sy.className='symrow';
  const chk=document.createElement('div');chk.className='cchk'+(t.pri?' '+t.pri:'');chk.title='Fuldfør opgave';chk.onclick=()=>{const nd=completeTask(t);save();toast(nd?'Færdig ✓ — næste: '+fmtDue(nd):'Færdig ✓');render();};sy.appendChild(chk);
- {const f=document.createElement('span');f.className='sym';f.title='Prioritet: '+priLabel(t.pri);f.textContent='⚑';f.style.color=t.pri?('var(--'+t.pri+')'):'#b4b4b4';f.onclick=()=>priPicker(t);sy.appendChild(f);}
+ {const s=document.createElement('span');s.className='sym';s.title='Flyt / udsæt';s.textContent='📅';s.onclick=e=>{e.stopPropagation();moveMenu(t,e);};sy.appendChild(s);}
+ {const s=document.createElement('span');s.className='sym';s.title='Planlagt tid';s.textContent='🕒';s.onclick=e=>{e.stopPropagation();estPicker(t,e);};sy.appendChild(s);}
+ {const f=document.createElement('span');f.className='sym'+(t.pri?' symc':'');f.title='Prioritet: '+priLabel(t.pri);f.textContent='⚑';f.style.color=t.pri?('var(--'+t.pri+')'):'';f.onclick=e=>{e.stopPropagation();priPicker(t,e);};sy.appendChild(f);}
  if(t.rep){const s=document.createElement('span');s.className='sym';s.style.cursor='default';s.title='Gentages — '+repLabel(t.rep);s.textContent='🔁';sy.appendChild(s);}
  if(t.tdid){const s=document.createElement('span');s.className='symtxt';s.title='Synkroniseret med Todoist';s.textContent='✓ Todoist';sy.appendChild(s);}
- {const _h=LS.g('highlight',null);if(_h&&_h.date===TODAY&&_h.id===t.id){const s=document.createElement('span');s.className='sym';s.style.cursor='default';s.title='Dagens højdepunkt';s.textContent='🌟';sy.appendChild(s);}}
+ {const _h=LS.g('highlight',null);if(_h&&_h.date===TODAY&&_h.id===t.id){const s=document.createElement('span');s.className='sym symc';s.style.cursor='default';s.title='Dagens højdepunkt';s.textContent='🌟';sy.appendChild(s);}}
  {const sl=document.createElement('div');sl.className='streamlbl';sl.innerHTML='<span style="color:'+esc(p.color)+';font-weight:700"># </span>'+esc(p.name||'');sy.appendChild(sl);}
  body.appendChild(sy);
- const acts=document.createElement('div');acts.className='acts';
- {const bb=document.createElement('button');bb.className='btn'+(t.pri?' '+t.pri:'');bb.textContent='⚑ '+priLabel(t.pri);bb.title='Prioritet';bb.onclick=()=>priPicker(t);acts.appendChild(bb);}
- const bt=document.createElement('button');bt.className='btn';bt.textContent='📅 I dag';bt.onclick=()=>{t.due=TODAY;save();render();};acts.appendChild(bt);
- const bm=document.createElement('button');bm.className='btn';bm.textContent='I morgen';bm.onclick=()=>{const d=new Date(today);d.setDate(d.getDate()+1);t.due=iso(d);save();render();};acts.appendChild(bm);
- const bw=document.createElement('button');bw.className='btn';bw.textContent='+1 uge';bw.title='Udskyd en uge';bw.onclick=()=>{const base=(t.due&&t.due>TODAY)?new Date(t.due+'T12:00'):new Date(today);base.setDate(base.getDate()+7);t.due=iso(base);t.parked=false;save();toast('Udskudt til '+fmtDue(t.due));render();};acts.appendChild(bw);
- const bp=document.createElement('button');bp.className='btn';bp.textContent='💤';bp.title='Backlog — bevidst uden dato, dukker op ved ugentlig gennemgang';bp.onclick=()=>{t.due=null;t.parked=true;t.star=false;save();toast('Lagt i backlog 💤');render();};acts.appendChild(bp);
- const be=document.createElement('button');be.className='btn';be.textContent='⏱ '+(t.est?fmtEst(t.est):'tid');be.onclick=()=>estPicker(t);acts.appendChild(be);
- const bd=document.createElement('button');bd.className='btn';bd.textContent='🗑';bd.title='Slet';bd.style.color='var(--over)';bd.onclick=()=>{delTasks([t]);};acts.appendChild(bd);
- body.appendChild(acts);
  if(opts.sel){const sb=document.createElement('div');sb.className='chk sq'+(SEL.has(t.id)?' done':'');sb.title='Vælg';sb.style.marginTop='1px';sb.onclick=()=>{if(SEL.has(t.id))SEL.delete(t.id);else SEL.add(t.id);render();};el.appendChild(sb);}
- const tog=document.createElement('div');tog.className='rowtog';tog.textContent='⋯';tog.title='Vis handlinger';tog.onclick=e=>{e.stopPropagation();el.classList.toggle('exp');};
- el.appendChild(body);el.appendChild(star);el.appendChild(tog);return el;
+ el.appendChild(body);el.appendChild(star);return el;
 }
 
 // ---------- add + edit ----------
@@ -471,31 +503,43 @@ function addBar(defPid){
 }
 function editModal(t){
  const host=document.getElementById('modalHost');
- host.innerHTML=`<div class="mbg"><div class="modal">
-   <h3>Rediger opgave</h3>
-   <label>Opgave</label><input id="e_c" value="${esc(t.content).replace(/"/g,'&quot;')}">
-   <label>Livsområde</label>${areaSelect(t.pid).replace('<select','<select id="e_a"')}
-   <div class="mrow"><div><label>Forfaldsdato</label><input id="e_d" type="date" value="${t.due||''}"></div><div><label>Tidspunkt</label><input id="e_t" type="time" value="${t.time||''}"></div></div><div class="mrow"><div><label>Prioritet</label><select id="e_p"><option value="">⚑ Normal</option><option value="p1"${t.pri==='p1'?' selected':''}>🚩 Haster</option><option value="p2"${t.pri==='p2'?' selected':''}>🚩 Prioritet</option><option value="p3"${t.pri==='p3'?' selected':''}>⚑ Lav</option></select></div><div><label>Planlagt tid (min)</label><input id="e_e" type="number" min="0" max="600" value="${t.est||''}" placeholder="f.eks. 30"></div></div>
-   <label>🔁 Gentagelse (næste oprettes når du fuldfører)</label><select id="e_rep">
-     <option value="">Ingen (engangs)</option>
-     <option value="1d"${t.rep==='1d'?' selected':''}>Hver dag</option>
-     <option value="1w"${t.rep==='1w'?' selected':''}>Hver uge</option>
-     <option value="2w"${t.rep==='2w'?' selected':''}>Hver 14. dag</option>
-     <option value="1m"${t.rep==='1m'?' selected':''}>Hver måned</option>
-     <option value="3m"${t.rep==='3m'?' selected':''}>Hver 3. måned</option>
-     <option value="6m"${t.rep==='6m'?' selected':''}>Hvert halve år</option>
-     <option value="1y"${t.rep==='1y'?' selected':''}>Hvert år</option>
-   </select>
-   <label>Noter</label><textarea id="e_n" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;font-size:13px;min-height:56px" placeholder="Telefonnummer, link, husk at…">${esc(t.note||'')}</textarea>
-   <label>Deltrin (tjekliste)</label><div id="e_ch"></div>
-   <div class="mbtns"><button class="del">Slet</button><button class="cancel">Annullér</button><button class="save">Gem</button></div>
- </div></div>`;
- const close=()=>host.innerHTML='';
- host.querySelector('.mbg').onclick=e=>{if(e.target===host.querySelector('.mbg'))close();};
- host.querySelector('.cancel').onclick=close;
- host.querySelector('.del').onclick=()=>{close();delTasks([t]);};
+ const catOpts=PROJECTS.map(p=>'<option value="'+p.id+'"'+(p.id===t.pid?' selected':'')+'>'+esc(p.name)+'</option>').join('');
+ const repOpts=[['',"Gentag: nej"],['1d','Hver dag'],['1w','Hver uge'],['2w','Hver 14. dag'],['1m','Hver måned'],['3m','Hver 3. måned'],['6m','Hvert halve år'],['1y','Hvert år']].map(([v,l])=>'<option value="'+v+'"'+(String(t.rep||'')===v?' selected':'')+'>'+(v?'🔁 '+l:l)+'</option>').join('');
+ host.innerHTML='<div class="mbg" id="tvBg"><div class="modal tview">'
+ +'<div class="tvbar">'
+ +'<span id="tv_dot" style="width:9px;height:9px;border-radius:50%;flex:0 0 auto"></span>'
+ +'<select id="tv_cat" class="tvsel" title="Kategori">'+catOpts+'</select>'
+ +'<span style="flex:1"></span>'
+ +'<button class="tvbtn" id="tv_flag" title="Prioritet"></button>'
+ +'<input id="tv_d" type="date" class="tvdate" value="'+(t.due||'')+'" title="Forfaldsdato">'
+ +'<input id="tv_t" type="time" class="tvdate" value="'+(t.time||'')+'" title="Tidspunkt">'
+ +'<select id="tv_rep" class="tvsel" title="Gentagelse — næste oprettes når du fuldfører">'+repOpts+'</select>'
+ +'<button class="tvbtn" id="tv_del" title="Slet" style="color:var(--over)">🗑</button>'
+ +'<button class="tvbtn" id="tv_x" title="Luk (gemmer)" style="font-size:15px">✕</button>'
+ +'</div>'
+ +'<div style="display:flex;gap:10px;align-items:flex-start">'
+ +'<div class="cchk'+(t.pri?' '+t.pri:'')+'" id="tv_done" style="margin-top:8px" title="Fuldfør opgave"></div>'
+ +'<input id="tv_c" class="tvtitle" value="'+esc(t.content).replace(/"/g,'&quot;')+'">'
+ +'<div style="text-align:right;flex:0 0 auto"><div style="font-size:9px;font-weight:700;color:#b4b4b4;letter-spacing:.5px">PLANLAGT</div><button class="tvbtn" id="tv_est" style="font-size:13px;font-weight:600;padding:2px 4px"></button></div>'
+ +'</div>'
+ +'<textarea id="tv_n" class="tvnotes" placeholder="Noter…">'+esc(t.note||'')+'</textarea>'
+ +'<div style="font-size:10px;font-weight:700;color:#b4b4b4;letter-spacing:.5px;margin:12px 0 4px">DELTRIN</div><div id="e_ch"></div>'
+ +'</div></div>';
+ const dot=document.getElementById('tv_dot');const paintDot=()=>{dot.style.background=catOf(document.getElementById('tv_cat').value).color;};paintDot();
+ document.getElementById('tv_cat').onchange=paintDot;
+ const flagBtn=document.getElementById('tv_flag');
+ const paintFlag=()=>{flagBtn.textContent='⚑ '+priLabel(t.pri);flagBtn.style.color=t.pri?('var(--'+t.pri+')'):'#787878';};paintFlag();
+ flagBtn.onclick=e=>priPicker(t,e,()=>{paintFlag();render();});
+ const estBtn=document.getElementById('tv_est');
+ const paintEst=()=>{estBtn.textContent=t.est?fmtEst(t.est):'—';};paintEst();
+ estBtn.onclick=e=>estPicker(t,e,()=>{paintEst();render();});
+ const applyFields=()=>{t.content=document.getElementById('tv_c').value.trim()||t.content;t.pid=document.getElementById('tv_cat').value;t.due=document.getElementById('tv_d').value||null;if(t.due)t.parked=false;t.time=document.getElementById('tv_t').value||null;const _nv=document.getElementById('tv_n').value.trim();t.note=_nv||null;t.rep=document.getElementById('tv_rep').value||null;};
+ const close=()=>{applyFields();save();host.innerHTML='';render();};
+ document.getElementById('tv_x').onclick=close;
+ document.getElementById('tvBg').onclick=e=>{if(e.target.id==='tvBg')close();};
+ document.getElementById('tv_del').onclick=()=>{host.innerHTML='';delTasks([t]);};
+ document.getElementById('tv_done').onclick=()=>{applyFields();const nd=completeTask(t);save();host.innerHTML='';toast(nd?'Færdig ✓ — næste: '+fmtDue(nd):'Færdig ✓');render();};
  (function(){const c=document.getElementById('e_ch');const rf=()=>{c.innerHTML='';c.appendChild(buildChecklist(t,rf));};rf();})();
- host.querySelector('.save').onclick=()=>{t.content=document.getElementById('e_c').value.trim()||t.content;t.pid=document.getElementById('e_a').value;t.due=document.getElementById('e_d').value||null;if(t.due)t.parked=false;t.time=document.getElementById('e_t').value||null;t.pri=document.getElementById('e_p').value||null;const _ev=+document.getElementById('e_e').value;t.est=_ev>0?Math.round(_ev):null;const _nv=document.getElementById('e_n').value.trim();t.note=_nv||null;t.rep=document.getElementById('e_rep').value||null;save();close();toast('Gemt');render();};
 }
 
 function catsModal(){
