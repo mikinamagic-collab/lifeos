@@ -93,6 +93,10 @@ h1{font-size:19px;margin:0;font-weight:600;letter-spacing:0}
 #fbBtn:hover{transform:scale(1.06)}
 #fbBadge{position:absolute;top:-4px;right:-4px;background:#dd4b4b;color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;padding:0 4px}
 @media(max-width:560px){#fbBtn{bottom:76px;right:12px}}
+.fbpanel{position:fixed;right:18px;bottom:76px;z-index:45;background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;width:min(430px,92vw);box-shadow:0 14px 44px rgba(20,24,28,.28);max-height:82vh;overflow:auto}
+.fbhead{display:flex;align-items:center;gap:8px;cursor:grab;margin:0 0 6px;user-select:none;-webkit-user-select:none;touch-action:none}
+.fbhead h3{margin:0;font-size:15px;flex:1}
+.fbhead:active{cursor:grabbing}
 .focuswrap{display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:start}
 @media(max-width:980px){.focuswrap{grid-template-columns:1fr}}
 .sdrow{display:flex;gap:8px;align-items:center;padding:7px 2px}
@@ -1140,26 +1144,36 @@ function feedbackModal(){
  const tab=LS.g('tab','dash');
  const recent=fbList().slice(-5).reverse();
  let fbImg=null;
- host.innerHTML='<div class="mbg" id="fbBg"><div class="modal" style="max-width:430px"><h3>💬 Feedback til Claude</h3>'
- +'<p class="hint" style="margin:0 0 8px">Gemmes i backloggen med fane og dato — vi gennemgår den sammen hver søndag.</p>'
+ host.innerHTML='<div class="fbpanel" id="fbPanel">'
+ +'<div class="fbhead" id="fbHead"><h3>💬 Feedback til Claude</h3><span style="font-size:11px;color:var(--muted)">⠿ træk for at flytte</span><button class="tvbtn" id="fbX" title="Luk" style="font-size:15px">✕</button></div>'
+ +'<p class="hint" style="margin:0 0 8px">Gemmes i backloggen med fane og dato — vi gennemgår den sammen hver søndag. Appen kan bruges bagved.</p>'
  +'<span class="chip" style="margin-bottom:8px;display:inline-block">Fane: '+esc(tabLabel(tab))+'</span>'
  +'<textarea id="fbTxt" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit;font-size:13.5px;min-height:90px" placeholder="Hvad virker ikke, hvad mangler, hvad kunne være bedre? Jo mere konkret, jo bedre."></textarea>'
  +'<div style="display:flex;gap:8px;align-items:center;margin-top:8px"><button class="btn" id="fbPick">📷 Vedhæft skærmbillede</button><span class="hint" style="margin:0">…eller indsæt med ⌘V</span><input id="fbFile" type="file" accept="image/*" style="display:none"></div>'
  +'<div id="fbPrev" style="display:none;position:relative;margin-top:8px;width:fit-content"><img id="fbPrevImg" style="max-width:180px;max-height:120px;border-radius:8px;border:1px solid var(--line)"><span id="fbPrevX" title="Fjern" style="position:absolute;top:-7px;right:-7px;background:#dd4b4b;color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;cursor:pointer">✕</span></div>'
- +'<div class="mbtns"><button class="cancel" id="fbX">Annullér</button><button class="save" id="fbSend">Send 💬</button></div>'
+ +'<div class="mbtns"><button class="cancel" id="fbCancel">Annullér</button><button class="save" id="fbSend">Send 💬</button></div>'
  +(recent.length?'<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:8px"><b style="font-size:12px">Seneste</b><div id="fbRecent"></div></div>':'')
- +'</div></div>';
- const close=()=>host.innerHTML='';
+ +'</div>';
  const setImg=url=>{fbImg=url;const p=document.getElementById('fbPrev');if(url){document.getElementById('fbPrevImg').src=url;p.style.display='block';}else p.style.display='none';};
- document.getElementById('fbBg').onclick=e=>{if(e.target.id==='fbBg')close();};
+ const onPaste=e=>{if(!document.getElementById('fbPanel'))return;const it=[...((e.clipboardData&&e.clipboardData.items)||[])].find(i=>i.type&&i.type.startsWith('image/'));if(it){e.preventDefault();const f=it.getAsFile();if(f)fbCompress(f,setImg);}};
+ document.addEventListener('paste',onPaste);
+ const close=()=>{document.removeEventListener('paste',onPaste);host.innerHTML='';};
  document.getElementById('fbX').onclick=close;
+ document.getElementById('fbCancel').onclick=close;
  document.getElementById('fbPick').onclick=()=>document.getElementById('fbFile').click();
  document.getElementById('fbFile').onchange=e=>{const f=e.target.files[0];if(f)fbCompress(f,setImg);};
  document.getElementById('fbPrevX').onclick=()=>setImg(null);
- host.querySelector('.modal').addEventListener('paste',e=>{const it=[...(e.clipboardData||{}).items||[]].find(i=>i.type&&i.type.startsWith('image/'));if(it){e.preventDefault();const f=it.getAsFile();if(f)fbCompress(f,setImg);}});
+ {const panel=document.getElementById('fbPanel');const head=document.getElementById('fbHead');
+  head.onpointerdown=e=>{if(e.target.id==='fbX')return;e.preventDefault();
+   const r=panel.getBoundingClientRect();panel.style.left=r.left+'px';panel.style.top=r.top+'px';panel.style.right='auto';panel.style.bottom='auto';
+   const ox=e.clientX-r.left,oy=e.clientY-r.top;
+   const mv=ev=>{panel.style.left=Math.max(4,Math.min(ev.clientX-ox,innerWidth-80))+'px';panel.style.top=Math.max(4,Math.min(ev.clientY-oy,innerHeight-50))+'px';};
+   const up=()=>{document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);document.removeEventListener('pointercancel',up);};
+   document.addEventListener('pointermove',mv);document.addEventListener('pointerup',up);document.addEventListener('pointercancel',up);};}
+ setTimeout(()=>{const t=document.getElementById('fbTxt');if(t)t.focus();},50);
+ const rw=document.getElementById('fbRecent');
  document.getElementById('fbSend').onclick=()=>{const v=document.getElementById('fbTxt').value.trim();if(!v&&!fbImg){toast('Skriv lidt eller vedhæft et billede først 🙂');return;}
   const list=fbList();list.push({id:newSid(),text:v||'(kun skærmbillede)',tab:tab,tabLabel:tabLabel(tab),at:new Date().toISOString(),status:'ny',img:fbImg||null});LS.s('feedback',list);close();fbBadge();toast('Tak! Gemt i backloggen 💬');};
- const rw=document.getElementById('fbRecent');
  if(rw)recent.forEach(f=>{const r=document.createElement('div');r.style.cssText='display:flex;gap:6px;align-items:center;font-size:12px;padding:4px 0;border-bottom:1px solid var(--line)';
   r.innerHTML='<span class="chip" style="font-size:10px">'+esc(f.tabLabel||f.tab)+'</span><span style="flex:1">'+esc(f.text.slice(0,52))+(f.text.length>52?'…':'')+'</span><span style="color:var(--muted)" title="'+(f.status==='ny'?'Venter på gennemgang':'Behandlet')+'">'+(f.status==='ny'?'ny':'✓')+'</span>';
   if(f.img){const th=document.createElement('img');th.src=f.img;th.style.cssText='width:30px;height:22px;object-fit:cover;border-radius:4px;border:1px solid var(--line);cursor:pointer';th.title='Se skærmbillede';th.onclick=()=>fbViewImg(f.img);r.appendChild(th);}
