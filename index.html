@@ -89,6 +89,10 @@ h1{font-size:19px;margin:0;font-weight:600;letter-spacing:0}
 .tcard.dragghost{position:fixed;z-index:99;pointer-events:none;opacity:.92;box-shadow:0 12px 28px rgba(0,0,0,.22);margin:0;background:#fff}
 .tcard.dragsrc{opacity:.35}
 .dropmark{height:0;border-top:2px solid var(--accent);border-radius:1px;margin:2px 6px}
+#fbBtn{position:fixed;right:18px;bottom:18px;z-index:40;width:46px;height:46px;border-radius:50%;border:none;background:var(--accent);color:#fff;font-size:19px;cursor:pointer;box-shadow:0 4px 14px rgba(20,24,28,.28)}
+#fbBtn:hover{transform:scale(1.06)}
+#fbBadge{position:absolute;top:-4px;right:-4px;background:#dd4b4b;color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;padding:0 4px}
+@media(max-width:560px){#fbBtn{bottom:76px;right:12px}}
 .focuswrap{display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:start}
 @media(max-width:980px){.focuswrap{grid-template-columns:1fr}}
 .sdrow{display:flex;gap:8px;align-items:center;padding:7px 2px}
@@ -240,6 +244,7 @@ h1{font-size:19px;margin:0;font-weight:600;letter-spacing:0}
 <div class="toast" id="toast"></div>
 <div id="modalHost"></div>
 <div id="popHost"></div>
+<button id="fbBtn" title="Send feedback til Claude — gemmes i backloggen">💬<span id="fbBadge"></span></button>
 <nav id="botNav"></nav>
 <script>
 let PROJECTS=[
@@ -1118,6 +1123,31 @@ function makeDraggable(container,onDrop,opts){opts=opts||{};
     if(moved)onDrop([...container.querySelectorAll('.tcard')].map(r=>r.dataset.tid));};
    document.addEventListener('pointermove',mv);document.addEventListener('pointerup',up);document.addEventListener('pointercancel',up);};
  });}
+function tabLabel(t){return ({dash:'Overblik',focus:'Dagens plan',all:'Opgaver · Liste',prio:'Opgaver · Prioritér',timeline:'Kalender · Tidslinje',dates:'Kalender · Datoer',planlaeg:'Planlæg dagen',habits:'Vaner',health:'Sundhed',wheel:'Årshjul',projects:'Projekter',goals:'Mål'})[t]||t;}
+function fbList(){return LS.g('feedback',[]);}
+function fbBadge(){const b=document.getElementById('fbBadge');if(!b)return;const n=fbList().filter(f=>f.status==='ny').length;b.style.display=n?'flex':'none';b.textContent=n;}
+function feedbackModal(){
+ const host=document.getElementById('modalHost');
+ const tab=LS.g('tab','dash');
+ const recent=fbList().slice(-5).reverse();
+ host.innerHTML='<div class="mbg" id="fbBg"><div class="modal" style="max-width:430px"><h3>💬 Feedback til Claude</h3>'
+ +'<p class="hint" style="margin:0 0 8px">Gemmes i backloggen med fane og dato — vi gennemgår den sammen hver søndag.</p>'
+ +'<span class="chip" style="margin-bottom:8px;display:inline-block">Fane: '+esc(tabLabel(tab))+'</span>'
+ +'<textarea id="fbTxt" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit;font-size:13.5px;min-height:90px" placeholder="Hvad virker ikke, hvad mangler, hvad kunne være bedre? Jo mere konkret, jo bedre."></textarea>'
+ +'<div class="mbtns"><button class="cancel" id="fbX">Annullér</button><button class="save" id="fbSend">Send 💬</button></div>'
+ +(recent.length?'<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:8px"><b style="font-size:12px">Seneste</b><div id="fbRecent"></div></div>':'')
+ +'</div></div>';
+ const close=()=>host.innerHTML='';
+ document.getElementById('fbBg').onclick=e=>{if(e.target.id==='fbBg')close();};
+ document.getElementById('fbX').onclick=close;
+ document.getElementById('fbSend').onclick=()=>{const v=document.getElementById('fbTxt').value.trim();if(!v){toast('Skriv lidt først 🙂');return;}
+  const list=fbList();list.push({id:newSid(),text:v,tab:tab,tabLabel:tabLabel(tab),at:new Date().toISOString(),status:'ny'});LS.s('feedback',list);close();fbBadge();toast('Tak! Gemt i backloggen 💬');};
+ const rw=document.getElementById('fbRecent');
+ if(rw)recent.forEach(f=>{const r=document.createElement('div');r.style.cssText='display:flex;gap:6px;align-items:baseline;font-size:12px;padding:4px 0;border-bottom:1px solid var(--line)';
+  r.innerHTML='<span class="chip" style="font-size:10px">'+esc(f.tabLabel||f.tab)+'</span><span style="flex:1">'+esc(f.text.slice(0,60))+(f.text.length>60?'…':'')+'</span><span style="color:var(--muted)" title="'+(f.status==='ny'?'Venter på gennemgang':'Behandlet')+'">'+(f.status==='ny'?'ny':'✓')+'</span>';
+  const del=document.createElement('span');del.textContent='🗑';del.style.cssText='cursor:pointer;color:#c7c9cd';del.onclick=()=>{LS.s('feedback',fbList().filter(x=>x.id!==f.id));feedbackModal();fbBadge();};
+  r.appendChild(del);rw.appendChild(r);});
+}
 function catMenu(t,ev){popMenu(ev.clientX,ev.clientY,(box,close)=>{
  const hd=document.createElement('div');hd.className='pophd';hd.textContent='Kategori:';box.appendChild(hd);
  PROJECTS.forEach(p=>{mItem(box,'<span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+esc(p.color)+';margin-right:7px"></span>'+esc(p.name)+'</span>'+(t.pid===p.id?'<span>✓</span>':''),()=>{t.pid=p.id;save();close();render();});});
@@ -1761,6 +1791,7 @@ if(LS.g('autoroll',false)&&LS.g('lastroll','')!==TODAY){
   setTimeout(()=>toastUndo(_roll.length+(_roll.length>1?' opgaver':' opgave')+' rykket til i dag ↷',()=>{_prev.forEach(p=>{const t=STORE.find(x=>x.id===p.id);if(t)t.due=p.due;});save();render();}),600);}
 }
 pruneTrash();render();
+{const _fb=document.getElementById('fbBtn');if(_fb)_fb.onclick=feedbackModal;fbBadge();}
 } /* end initApp */
 (function boot(){
  const appEl=document.getElementById('app');
