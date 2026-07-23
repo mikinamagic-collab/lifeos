@@ -247,6 +247,7 @@ h1{font-size:19px;margin:0;font-weight:600;letter-spacing:0}
 </div>
 <div class="toast" id="toast"></div>
 <div id="modalHost"></div>
+<div id="fbHost"></div>
 <div id="popHost"></div>
 <button id="fbBtn" title="Send feedback til Claude — gemmes i backloggen">💬<span id="fbBadge"></span></button>
 <nav id="botNav"></nav>
@@ -317,6 +318,7 @@ function wakeCheck(){
  if(!GH.cfg||!wakeNeedsCheck(GH.lastSync||0,Date.now(),GH.status))return;
  const ae=document.activeElement;if(ae&&['INPUT','TEXTAREA','SELECT'].includes(ae.tagName))return;
  const mh=document.getElementById('modalHost');if(mh&&mh.innerHTML)return;
+ const fh=document.getElementById('fbHost');if(fh&&fh.innerHTML)return;
  GH.lastSync=Date.now();
  fetch(ghUrl(),{headers:ghHdr()}).then(r=>r.ok?r.json():null)
  .then(j=>{if(j&&j.sha&&GH.sha&&j.sha!==GH.sha)location.reload();}).catch(()=>{});}
@@ -1140,13 +1142,14 @@ function fbViewImg(src){const host=document.getElementById('popHost');
  host.innerHTML='<div class="mbg" id="fvBg" style="z-index:70"><img src="'+src+'" style="max-width:92vw;max-height:88vh;border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.4)"></div>';
  document.getElementById('fvBg').onclick=()=>host.innerHTML='';}
 function feedbackModal(){
- const host=document.getElementById('modalHost');
+ const host=document.getElementById('fbHost'); // v47: eget host — andre modals rydder ikke længere panelet
  const tab=LS.g('tab','dash');
  const recent=fbList().slice(-5).reverse();
+ let draft=null;try{draft=JSON.parse(localStorage.getItem('fb_draft')||'null');}catch(e){}
  let fbImg=null;
  host.innerHTML='<div class="fbpanel" id="fbPanel">'
  +'<div class="fbhead" id="fbHead"><h3>💬 Feedback til Claude</h3><span style="font-size:11px;color:var(--muted)">⠿ træk for at flytte</span><button class="tvbtn" id="fbX" title="Luk" style="font-size:15px">✕</button></div>'
- +'<p class="hint" style="margin:0 0 8px">Gemmes i backloggen med fane og dato — vi gennemgår den sammen hver søndag. Appen kan bruges bagved.</p>'
+ +'<p class="hint" style="margin:0 0 8px">Gemmes i backloggen med fane og dato — vi gennemgår den sammen hver søndag. Appen kan bruges bagved, og kladden gemmes automatisk.</p>'
  +'<span class="chip" style="margin-bottom:8px;display:inline-block">Fane: '+esc(tabLabel(tab))+'</span>'
  +'<textarea id="fbTxt" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit;font-size:13.5px;min-height:90px" placeholder="Hvad virker ikke, hvad mangler, hvad kunne være bedre? Jo mere konkret, jo bedre."></textarea>'
  +'<div style="display:flex;gap:8px;align-items:center;margin-top:8px"><button class="btn" id="fbPick">📷 Vedhæft skærmbillede</button><span class="hint" style="margin:0">…eller indsæt med ⌘V</span><input id="fbFile" type="file" accept="image/*" style="display:none"></div>'
@@ -1154,12 +1157,16 @@ function feedbackModal(){
  +'<div class="mbtns"><button class="cancel" id="fbCancel">Annullér</button><button class="save" id="fbSend">Send 💬</button></div>'
  +(recent.length?'<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:8px"><b style="font-size:12px">Seneste</b><div id="fbRecent"></div></div>':'')
  +'</div>';
- const setImg=url=>{fbImg=url;const p=document.getElementById('fbPrev');if(url){document.getElementById('fbPrevImg').src=url;p.style.display='block';}else p.style.display='none';};
+ const saveDraft=()=>{const t=document.getElementById('fbTxt');try{if((t&&t.value.trim())||fbImg)localStorage.setItem('fb_draft',JSON.stringify({text:t?t.value:'',img:fbImg||null}));else localStorage.removeItem('fb_draft');}catch(e){}};
+ const clearDraft=()=>{try{localStorage.removeItem('fb_draft');}catch(e){}};
+ const setImg=url=>{fbImg=url;const p=document.getElementById('fbPrev');if(url){document.getElementById('fbPrevImg').src=url;p.style.display='block';}else p.style.display='none';saveDraft();};
+ if(draft){const t=document.getElementById('fbTxt');if(t&&draft.text)t.value=draft.text;if(draft.img)setImg(draft.img);}
+ document.getElementById('fbTxt').oninput=saveDraft;
  const onPaste=e=>{if(!document.getElementById('fbPanel'))return;const it=[...((e.clipboardData&&e.clipboardData.items)||[])].find(i=>i.type&&i.type.startsWith('image/'));if(it){e.preventDefault();const f=it.getAsFile();if(f)fbCompress(f,setImg);}};
  document.addEventListener('paste',onPaste);
  const close=()=>{document.removeEventListener('paste',onPaste);host.innerHTML='';};
- document.getElementById('fbX').onclick=close;
- document.getElementById('fbCancel').onclick=close;
+ document.getElementById('fbX').onclick=close; // ✕ beholder kladden
+ document.getElementById('fbCancel').onclick=()=>{clearDraft();close();}; // Annullér kasserer kladden
  document.getElementById('fbPick').onclick=()=>document.getElementById('fbFile').click();
  document.getElementById('fbFile').onchange=e=>{const f=e.target.files[0];if(f)fbCompress(f,setImg);};
  document.getElementById('fbPrevX').onclick=()=>setImg(null);
@@ -1173,7 +1180,7 @@ function feedbackModal(){
  setTimeout(()=>{const t=document.getElementById('fbTxt');if(t)t.focus();},50);
  const rw=document.getElementById('fbRecent');
  document.getElementById('fbSend').onclick=()=>{const v=document.getElementById('fbTxt').value.trim();if(!v&&!fbImg){toast('Skriv lidt eller vedhæft et billede først 🙂');return;}
-  const list=fbList();list.push({id:newSid(),text:v||'(kun skærmbillede)',tab:tab,tabLabel:tabLabel(tab),at:new Date().toISOString(),status:'ny',img:fbImg||null});LS.s('feedback',list);close();fbBadge();toast('Tak! Gemt i backloggen 💬');};
+  const list=fbList();list.push({id:newSid(),text:v||'(kun skærmbillede)',tab:tab,tabLabel:tabLabel(tab),at:new Date().toISOString(),status:'ny',img:fbImg||null});LS.s('feedback',list);clearDraft();close();fbBadge();toast('Tak! Gemt i backloggen 💬');};
  if(rw)recent.forEach(f=>{const r=document.createElement('div');r.style.cssText='display:flex;gap:6px;align-items:center;font-size:12px;padding:4px 0;border-bottom:1px solid var(--line)';
   r.innerHTML='<span class="chip" style="font-size:10px">'+esc(f.tabLabel||f.tab)+'</span><span style="flex:1">'+esc(f.text.slice(0,52))+(f.text.length>52?'…':'')+'</span><span style="color:var(--muted)" title="'+(f.status==='ny'?'Venter på gennemgang':'Behandlet')+'">'+(f.status==='ny'?'ny':'✓')+'</span>';
   if(f.img){const th=document.createElement('img');th.src=f.img;th.style.cssText='width:30px;height:22px;object-fit:cover;border-radius:4px;border:1px solid var(--line);cursor:pointer';th.title='Se skærmbillede';th.onclick=()=>fbViewImg(f.img);r.appendChild(th);}
