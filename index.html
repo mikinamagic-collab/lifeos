@@ -1255,6 +1255,21 @@ function horLabel(k){const h=HORIZONS.find(x=>x[0]===k);return h?h[1]:'Engang';}
 function bkCollapsed(){try{return JSON.parse(localStorage.getItem('bk_collapse')||'[]');}catch(e){return[];}}
 function bkToggle(k){const a=bkCollapsed();const i=a.indexOf(k);if(i>=0)a.splice(i,1);else a.push(k);try{localStorage.setItem('bk_collapse',JSON.stringify(a));}catch(e){}}
 let BKADD=null; // horisont med åben tilføj-linje
+let BKFLT=null; // v51: kategori-filter i backlog-tabben
+function bkDrag(h,row,t){h.onpointerdown=e=>{e.preventDefault(); // v51: træk backlog-kort til dagens plan (ghost — aldrig DOM-flyt under træk)
+ const rect=row.getBoundingClientRect();
+ const ghost=row.cloneNode(true);ghost.classList.add('dragghost');ghost.style.width=rect.width+'px';ghost.style.left=rect.left+'px';ghost.style.top=rect.top+'px';ghost.style.background='#fff';document.body.appendChild(ghost);
+ row.classList.add('dragsrc');
+ const target=document.getElementById('planList')||document.getElementById('planListM');
+ let over=false,moved=false;
+ const offX=e.clientX-rect.left,offY=e.clientY-rect.top;
+ const mv=ev=>{ev.preventDefault();moved=true;ghost.style.left=(ev.clientX-offX)+'px';ghost.style.top=(ev.clientY-offY)+'px';
+  if(target){const tr=target.getBoundingClientRect();over=ev.clientX>=tr.left-20&&ev.clientX<=tr.right+20&&ev.clientY>=tr.top-30&&ev.clientY<=tr.bottom+30;
+   target.style.outline=over?'2px dashed var(--accent)':'';target.style.outlineOffset='3px';}};
+ const up=()=>{document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);document.removeEventListener('pointercancel',up);
+  ghost.remove();row.classList.remove('dragsrc');if(target)target.style.outline='';
+  if(moved&&over){t.due=TODAY;t.parked=false;save();toast('Lagt på dagens plan ✓');render();}};
+ document.addEventListener('pointermove',mv);document.addEventListener('pointerup',up);document.addEventListener('pointercancel',up);};}
 function horMenu(t,ev){popMenu(ev.clientX,ev.clientY,(box,close)=>{
  const hd=document.createElement('div');hd.className='pophd';hd.textContent='Flyt til horisont:';box.appendChild(hd);
  HORIZONS.forEach(([k,label,col])=>{mItem(box,'<span><span style="display:inline-block;width:15px;height:15px;border-radius:50%;background:'+col+';color:#fff;font-size:9px;font-weight:700;text-align:center;line-height:15px;margin-right:7px">'+label[0].toUpperCase()+'</span>'+label+'</span>'+(t.hor===k?'<span>✓</span>':''),()=>{t.hor=k;save();close();render();});});
@@ -1262,10 +1277,18 @@ function horMenu(t,ev){popMenu(ev.clientX,ev.clientY,(box,close)=>{
 function sideBacklog(c){
  const list=active().filter(t=>!t.rec&&t.parked);
  {let ch=false;list.forEach(t=>{if(!t.hor){t.hor='s';ch=true;}if(!t.parkedAt){t.parkedAt=TODAY;ch=true;}});if(ch)save();}
- const hd=document.createElement('p');hd.className='hint';hd.style.margin='6px 0 4px';hd.textContent=list.length+' i backloggen · uden dato, sorteret efter horisont. Tryk på bogstavet for at flytte.';c.appendChild(hd);
+ const hd=document.createElement('p');hd.className='hint';hd.style.margin='6px 0 4px';hd.textContent=list.length+' i backloggen · uden dato, sorteret efter horisont. Tryk på bogstavet for at flytte — eller træk ⠿ til dagens plan.';c.appendChild(hd);
+ {const cats=[...new Set(list.map(t=>t.pid).filter(Boolean))]; // v51: kategori-filter
+  if(cats.length>1){const fr=document.createElement('div');fr.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin:0 0 6px';
+   cats.forEach(pid=>{const p=catOf(pid);const n=list.filter(t=>t.pid===pid).length;const ch=document.createElement('span');ch.className='chip';
+    ch.style.cssText='cursor:pointer;font-size:11px;padding:3px 9px;'+(BKFLT===pid?'background:'+esc(p.color)+';color:#fff':'color:'+esc(p.color)+';background:#f4f5f6;font-weight:600');
+    ch.textContent='# '+p.name+' · '+n;ch.title=BKFLT===pid?'Fjern filter':'Vis kun '+p.name;
+    ch.onclick=()=>{BKFLT=BKFLT===pid?null:pid;render();};fr.appendChild(ch);});
+   c.appendChild(fr);}
+  else BKFLT=null;}
  const collapsed=bkCollapsed();
  HORIZONS.forEach(([k,label,col])=>{
-  const items=list.filter(t=>t.hor===k).sort((a,b)=>(a.parkedAt||'')<(b.parkedAt||'')?-1:1);
+  const items=list.filter(t=>t.hor===k&&(!BKFLT||t.pid===BKFLT)).sort((a,b)=>(a.parkedAt||'')<(b.parkedAt||'')?-1:1);
   const isCol=collapsed.includes(k);
   const gh=document.createElement('div');gh.style.cssText='display:flex;gap:8px;align-items:center;padding:7px 2px;margin-top:4px;background:#f7f8f9;border-radius:7px;padding-left:8px;cursor:pointer;user-select:none';
   gh.innerHTML='<span style="width:17px;height:17px;border-radius:50%;background:'+col+';color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto">'+label[0].toUpperCase()+'</span><b style="font-size:12.5px;flex:1">'+label+'</b><span style="font-size:11px;color:var(--muted)">'+items.length+'</span>';
@@ -1283,11 +1306,14 @@ function sideBacklog(c){
   if(!isCol){
    if(!items.length&&BKADD!==k){const e=document.createElement('div');e.style.cssText='font-size:11.5px;color:var(--muted);font-style:italic;padding:4px 8px';e.textContent='Ingen opgaver.';c.appendChild(e);}
    items.forEach(t=>{const r=document.createElement('div');r.className='sdrow';r.dataset.tid=t.id;
+    const dh=document.createElement('span');dh.textContent='⠿';dh.title='Træk til dagens plan';dh.style.cssText='cursor:grab;color:#c3c6ca;font-size:12px;flex:0 0 auto;touch-action:none';bkDrag(dh,r,t);
     const dot=document.createElement('span');dot.style.cssText='width:8px;height:8px;border-radius:50%;background:'+esc(catOf(t.pid).color)+';flex:0 0 auto';dot.title=catOf(t.pid).name;
     const tx=document.createElement('div');tx.style.cssText='flex:1;min-width:0;font-size:13px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';tx.textContent=t.content;tx.title=t.content;tx.onclick=()=>editModal(t);
+    const age=t.parkedAt?Math.round((today-new Date(t.parkedAt+'T12:00'))/864e5):0; // v51: alders-hint
+    let ag=null;if(age>=14){ag=document.createElement('span');ag.textContent=age+'d';ag.title='Har ligget i backloggen i '+age+' dage';ag.style.cssText='font-size:10px;color:var(--muted);flex:0 0 auto';}
     const hb=document.createElement('span');hb.textContent=label[0].toUpperCase();hb.title='Horisont: '+label+' — tryk for at flytte';hb.style.cssText='width:16px;height:16px;border-radius:50%;background:'+col+';color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto;cursor:pointer';hb.onclick=e=>horMenu(t,e);
     const b=document.createElement('button');b.className='btn';b.style.cssText='min-height:26px;padding:2px 8px;font-size:11px;flex:0 0 auto';b.textContent='+ I dag';b.onclick=()=>{t.due=TODAY;t.parked=false;save();toast('Lagt på dagens plan ✓');render();};
-    r.appendChild(dot);r.appendChild(tx);r.appendChild(hb);r.appendChild(b);c.appendChild(r);});}
+    r.appendChild(dh);r.appendChild(dot);r.appendChild(tx);if(ag)r.appendChild(ag);r.appendChild(hb);r.appendChild(b);c.appendChild(r);});}
  });
  if(!list.length)c.appendChild(empty('Backloggen er tom. Park opgaver med 💤 — eller tilføj direkte med ＋ ovenfor.'));}
 function focusP(w){
