@@ -1546,16 +1546,28 @@ function habitStreak(t,done){
  const best=LS.g('hbest',{});if(n>(best[t.id]||0)){best[t.id]=n;LS.s('hbest',best);}
  return{n,frozen,best:best[t.id]||n};
 }
+let HWOFF=0; // v48: uge-offset i Vaner (0 = denne uge, -1 = sidste uge …)
 function habitsP(w){
- const H=habitsAll();const c=card('🔁 Vanetracker','Dine daglige rutiner (fra Apple Notes). Tryk på cirklen for at logge i dag. Tilføj flere via + nedenfor.');
+ const H=habitsAll();const c=card('🔁 Vanetracker','Dine daglige rutiner (fra Apple Notes). Tryk på en dag i ugen for at logge — eller fjerne en logning. Bladr tilbage med ‹ for at rette tidligere uger.');
  const grid=document.createElement('div');grid.className='hgrid';const log=LS.g('hlog',{});
  {const FRi=LS.g('hfreeze',{m:'',used:0});const frLeft=FRi.m===TODAY.slice(0,7)?Math.max(0,2-FRi.used):2;const hint=c.querySelector('.hint');if(hint)hint.textContent+=' 🧊 '+frLeft+'/2 streak-frys tilbage denne måned — en frys redder automatisk din streak, når du misser én dag.';}
+ const mon=new Date(today);mon.setDate(today.getDate()-((today.getDay()+6)%7)+HWOFF*7);
+ {const sun=new Date(mon);sun.setDate(mon.getDate()+6);const fm=d=>d.getDate()+'/'+(d.getMonth()+1);
+  const nav=document.createElement('div');nav.style.cssText='display:flex;gap:8px;align-items:center;margin:2px 0 10px';
+  nav.innerHTML='<button class="btn" id="hwPrev" title="Forrige uge">‹</button><span style="font-size:12.5px;color:var(--muted);min-width:130px;text-align:center">'+fm(mon)+' – '+fm(sun)+(HWOFF===0?' · denne uge':'')+'</span><button class="btn" id="hwNext" title="Næste uge"'+(HWOFF>=0?' disabled style="opacity:.4"':'')+'>›</button>'+(HWOFF!==0?'<button class="btn" id="hwToday">Til i dag</button>':'');
+  nav.querySelector('#hwPrev').onclick=()=>{HWOFF--;render();};
+  if(HWOFF<0)nav.querySelector('#hwNext').onclick=()=>{HWOFF++;render();};
+  const ht=nav.querySelector('#hwToday');if(ht)ht.onclick=()=>{HWOFF=0;render();};
+  c.appendChild(nav);}
  H.forEach(t=>{const done=log[t.id]||[];const sf=habitStreak(t,done);const streak=sf.n;
-  const mon=new Date(today);mon.setDate(today.getDate()-((today.getDay()+6)%7));
-  let week='';for(let i=0;i<7;i++){const d=new Date(mon);d.setDate(mon.getDate()+i);const ds=iso(d);const isT=ds===TODAY;const future=d>today;week+=`<div class="dot ${done.includes(ds)?'done':''} ${isT?'tdy':''}" style="${future?'opacity:.4':''}">${done.includes(ds)?'✓':['M','T','O','T','F','L','S'][i]}</div>`;}
+  let week='';for(let i=0;i<7;i++){const d=new Date(mon);d.setDate(mon.getDate()+i);const ds=iso(d);const isT=ds===TODAY;const future=d>today;week+=`<div class="dot ${done.includes(ds)?'done':''} ${isT?'tdy':''}"${future?'':' data-ds="'+ds+'"'} title="${future?'':ds+(done.includes(ds)?' — tryk for at fjerne logning':' — tryk for at logge')}" style="${future?'opacity:.4':'cursor:pointer'}">${done.includes(ds)?'✓':['M','T','O','T','F','L','S'][i]}</div>`;}
   const row=document.createElement('div');row.className='habit';
   const nm=document.createElement('div');nm.className='hname';nm.innerHTML=`${esc(t.content)} <span class="chip rec">🔁 ${esc(t.rec)}</span>`;nm.style.cursor='pointer';nm.title='Tryk for at redigere';nm.onclick=()=>habitModal(t);
   const wk=document.createElement('div');wk.className='week';wk.innerHTML=week;
+  wk.onclick=e=>{const el=e.target.closest('.dot');if(!el||!el.dataset.ds)return;const ds=el.dataset.ds;
+   const l=LS.g('hlog',{});const arr=l[t.id]||[];const ix=arr.indexOf(ds);
+   if(ix>=0){arr.splice(ix,1);l[t.id]=arr;LS.s('hlog',l);render();toastUndo('Logning '+(+ds.slice(8,10))+'/'+(+ds.slice(5,7))+' fjernet',()=>{const l2=LS.g('hlog',{});(l2[t.id]=l2[t.id]||[]).push(ds);LS.s('hlog',l2);render();});}
+   else{arr.push(ds);l[t.id]=arr;LS.s('hlog',l);render();toast(ds===TODAY?'Logget 🔁':'Logget for '+(+ds.slice(8,10))+'/'+(+ds.slice(5,7))+' 🔁');}};
   const sk=document.createElement('div');sk.className='streak';sk.textContent='🔥 '+streak+'d'+(sf.frozen?' 🧊':'');sk.title='Længste streak: '+(sf.best||streak)+'d'+(sf.frozen?' · 🧊 freeze brugt':'');
   row.appendChild(nm);row.appendChild(wk);row.appendChild(sk);
   const btn=document.createElement('button');btn.className='btn';btn.textContent=done.includes(TODAY)?'✓ logget':'Log i dag';btn.onclick=()=>{if(done.includes(TODAY))return;done.push(TODAY);log[t.id]=done;LS.s('hlog',log);toast('Logget 🔁');render();};row.appendChild(btn);
