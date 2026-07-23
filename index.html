@@ -1147,7 +1147,7 @@ function fbViewImg(src){const host=document.getElementById('popHost');
 function feedbackModal(){
  const host=document.getElementById('fbHost'); // v47: eget host — andre modals rydder ikke længere panelet
  const tab=LS.g('tab','dash');
- const recent=fbList().slice(-5).reverse();
+ const recent=fbList().filter(f=>f.status==='ny').slice(-5).reverse(); // v52: kun åbne — håndterede forsvinder fra listen
  let draft=null;try{draft=JSON.parse(localStorage.getItem('fb_draft')||'null');}catch(e){}
  let fbImg=null;
  host.innerHTML='<div class="fbpanel" id="fbPanel">'
@@ -1158,7 +1158,7 @@ function feedbackModal(){
  +'<div style="display:flex;gap:8px;align-items:center;margin-top:8px"><button class="btn" id="fbPick">📷 Vedhæft skærmbillede</button><span class="hint" style="margin:0">…eller indsæt med ⌘V</span><input id="fbFile" type="file" accept="image/*" style="display:none"></div>'
  +'<div id="fbPrev" style="display:none;position:relative;margin-top:8px;width:fit-content"><img id="fbPrevImg" style="max-width:180px;max-height:120px;border-radius:8px;border:1px solid var(--line)"><span id="fbPrevX" title="Fjern" style="position:absolute;top:-7px;right:-7px;background:#dd4b4b;color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;cursor:pointer">✕</span></div>'
  +'<div class="mbtns"><button class="cancel" id="fbCancel">Annullér</button><button class="save" id="fbSend">Send 💬</button></div>'
- +(recent.length?'<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:8px"><b style="font-size:12px">Seneste</b><div id="fbRecent"></div></div>':'')
+ +(recent.length?'<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:8px"><b style="font-size:12px">Venter på gennemgang</b><div id="fbRecent"></div></div>':'')
  +'</div>';
  const saveDraft=()=>{const t=document.getElementById('fbTxt');try{if((t&&t.value.trim())||fbImg)localStorage.setItem('fb_draft',JSON.stringify({text:t?t.value:'',img:fbImg||null}));else localStorage.removeItem('fb_draft');}catch(e){}};
  const clearDraft=()=>{try{localStorage.removeItem('fb_draft');}catch(e){}};
