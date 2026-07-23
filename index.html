@@ -71,7 +71,9 @@ h1{font-size:19px;margin:0;font-weight:600;letter-spacing:0}
 .pop .mi{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:8px 10px;border:none;background:none;font:inherit;font-size:13px;border-radius:6px;cursor:pointer;text-align:left}
 .pop .mi:hover{background:#f5f6f7}
 .pophd{font-size:11px;color:#9aa1a9;padding:6px 10px 2px}
-.tview{max-width:640px}
+.tview{max-width:640px;position:relative}
+.tvclose{position:absolute;top:8px;right:8px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:none;background:none;font:inherit;font-size:17px;color:#8a8f98;cursor:pointer;border-radius:8px}
+.tvclose:hover{background:#f5f6f7;color:#3c4043}
 .tvbar{display:flex;gap:2px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
 .tvbtn{border:none;background:none;font:inherit;font-size:12.5px;color:#787878;cursor:pointer;padding:4px 6px;border-radius:6px}
 .tvbtn:hover{background:#f5f6f7}
@@ -535,9 +537,10 @@ function editModal(t){
  +'<input id="tv_d" type="date" class="tvdate" value="'+(t.due||'')+'" title="Forfaldsdato">'
  +'<input id="tv_t" type="time" class="tvdate" value="'+(t.time||'')+'" title="Tidspunkt">'
  +'<select id="tv_rep" class="tvsel" title="Gentagelse — næste oprettes når du fuldfører">'+repOpts+'</select>'
+ +'<button class="tvbtn" id="tv_park" title="Flyt til backlog — uden dato, dukker op i ugentlig gennemgang og 💤-panelet">💤</button>'
  +'<button class="tvbtn" id="tv_del" title="Slet" style="color:var(--over)">🗑</button>'
- +'<button class="tvbtn" id="tv_x" title="Luk (gemmer)" style="font-size:15px">✕</button>'
  +'</div>'
+ +'<button class="tvclose" id="tv_x" title="Luk (gemmer)">✕</button>'
  +'<div style="display:flex;gap:10px;align-items:flex-start">'
  +'<div class="cchk'+(t.pri?' '+t.pri:'')+'" id="tv_done" style="margin-top:8px" title="Fuldfør opgave"></div>'
  +'<input id="tv_c" class="tvtitle" value="'+esc(t.content).replace(/"/g,'&quot;')+'">'
@@ -558,6 +561,7 @@ function editModal(t){
  const close=()=>{applyFields();save();host.innerHTML='';render();};
  document.getElementById('tv_x').onclick=close;
  document.getElementById('tvBg').onclick=e=>{if(e.target.id==='tvBg')close();};
+ document.getElementById('tv_park').onclick=()=>{document.getElementById('tv_d').value='';document.getElementById('tv_t').value='';t.parked=true;t.parkedAt=TODAY;t.star=false;if(!t.hor)t.hor='s';close();toast('Lagt i backlog 💤');};
  document.getElementById('tv_del').onclick=()=>{host.innerHTML='';delTasks([t]);};
  document.getElementById('tv_done').onclick=()=>{applyFields();const nd=completeTask(t);save();host.innerHTML='';toast(nd?'Færdig ✓ — næste: '+fmtDue(nd):'Færdig ✓');render();};
  (function(){const c=document.getElementById('e_ch');const rf=()=>{c.innerHTML='';c.appendChild(buildChecklist(t,rf));};rf();})();
@@ -1449,8 +1453,12 @@ function bulkBar(){const c=document.createElement('div');c.className='card';c.st
   const ids=new Set(rest.map(t=>t.id));STORE=STORE.filter(t=>!ids.has(t.id));pushTrash(rest.map(t=>({type:'task',item:t})));SEL.clear();save();
   toastUndo('⇄ Flettet '+list.length+' opgaver til "'+keep.content.slice(0,24)+(keep.content.length>24?'…':'')+'"',()=>{keep.children=snap.children;keep.note=snap.note;keep.est=snap.est;rest.forEach(t=>STORE.unshift(t));LS.s('trash',LS.g('trash',[]).filter(x=>!(x.type==='task'&&ids.has(x.item.id))));save();render();});
   render();};
+ const pk=document.createElement('button');pk.className='btn';pk.textContent='💤 Backlog';pk.title='Flyt de markerede til backloggen (uden dato)';pk.onclick=()=>{
+  const list=STORE.filter(t=>SEL.has(t.id));const prev=list.map(t=>({id:t.id,due:t.due,time:t.time,star:t.star,parked:!!t.parked}));
+  list.forEach(t=>{t.due=null;t.time=null;t.parked=true;t.parkedAt=TODAY;t.star=false;if(!t.hor)t.hor='s';});SEL.clear();save();
+  toastUndo(list.length+' lagt i backlog 💤',()=>{prev.forEach(p=>{const t=STORE.find(x=>x.id===p.id);if(t){t.due=p.due;t.time=p.time;t.star=p.star;t.parked=p.parked;}});save();render();});render();};
  const cl=document.createElement('button');cl.className='btn';cl.textContent='Ryd';cl.onclick=()=>{SEL.clear();render();};
- [lbl,sel,mv,cp,mg,dl,cl].forEach(x=>row.appendChild(x));c.appendChild(row);return c;}
+ [lbl,sel,mv,cp,pk,mg,dl,cl].forEach(x=>row.appendChild(x));c.appendChild(row);return c;}
 function allP(w){
  w.appendChild(addBar(PROJECTS[0]&&PROJECTS[0].id));
  const mb=document.createElement('div');mb.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px';
