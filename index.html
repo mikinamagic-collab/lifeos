@@ -580,11 +580,12 @@ function catsModal(){
  host.querySelector('#addcat').onclick=()=>{persist();const n=document.getElementById('newn').value.trim();if(!n){toast('Navngiv kategorien');return;}PROJECTS.push({id:'c'+Date.now(),name:n,color:document.getElementById('newc').value});saveCats();catsModal();};
  host.querySelector('#catdone').onclick=()=>{persist();close();toast('Kategorier gemt');render();};
 }
-function habitModal(t){
+function habitModal(t,isNew){
  const host=document.getElementById('modalHost');
  host.innerHTML=`<div class="mbg"><div class="modal">
-   <h3>Rediger vane</h3>
+   <h3>${isNew?'Ny vane':'Rediger vane'}</h3>
    <label>Vane</label><input id="h_c" value="${esc(t.content).replace(/"/g,'&quot;')}">
+   <label>Kategori</label><select id="h_p">${PROJECTS.map(p=>`<option value="${p.id}"${t.pid===p.id?' selected':''}>${esc(p.name)}</option>`).join('')}</select>
    <label>Hyppighed</label><select id="h_r">
      <option value="hver dag"${t.rec==='hver dag'?' selected':''}>Hver dag</option>
      <option value="hverdage"${t.rec==='hverdage'?' selected':''}>Hverdage</option>
@@ -593,16 +594,18 @@ function habitModal(t){
      <option value="__custom__">Tilpasset…</option>
    </select>
    <input id="h_rc" placeholder="Tilpasset hyppighed (f.eks. hver mandag)" style="width:100%;margin-top:6px;display:none">
-   <div class="mbtns"><button class="del">Slet</button><button class="cancel">Annullér</button><button class="save">Gem</button></div>
+   <div class="mbtns">${isNew?'':'<button class="del">Slet</button>'}<button class="cancel">Annullér</button><button class="save">${isNew?'Opret vane':'Gem'}</button></div>
  </div></div>`;
  const close=()=>host.innerHTML='';
+ const discard=()=>{const i=STORE.indexOf(t);if(i>=0)STORE.splice(i,1);save();close();render();}; // v49: Annullér på ny vane = fortryd oprettelse
  const sel=document.getElementById('h_r'),cust=document.getElementById('h_rc');
  if(!['hver dag','hverdage','hver 2 dage','hver uge'].includes(t.rec)){sel.value='__custom__';cust.style.display='block';cust.value=t.rec||'';}
  sel.onchange=()=>{cust.style.display=sel.value==='__custom__'?'block':'none';};
- host.querySelector('.mbg').onclick=e=>{if(e.target===host.querySelector('.mbg'))close();};
- host.querySelector('.cancel').onclick=close;
- host.querySelector('.del').onclick=()=>{const l=LS.g('hlog',{});delete l[t.id];LS.s('hlog',l);close();delTasks([t],'Vane slettet');};
- host.querySelector('.save').onclick=()=>{t.content=document.getElementById('h_c').value.trim()||t.content;t.rec=sel.value==='__custom__'?(cust.value.trim()||t.rec):sel.value;save();close();toast('Gemt');render();};
+ host.querySelector('.mbg').onclick=e=>{if(e.target===host.querySelector('.mbg'))(isNew?discard:close)();};
+ host.querySelector('.cancel').onclick=isNew?discard:close;
+ const delBtn=host.querySelector('.del');if(delBtn)delBtn.onclick=()=>{const l=LS.g('hlog',{});delete l[t.id];LS.s('hlog',l);close();delTasks([t],'Vane slettet');};
+ host.querySelector('.save').onclick=()=>{t.content=document.getElementById('h_c').value.trim()||t.content;t.pid=document.getElementById('h_p').value;t.rec=sel.value==='__custom__'?(cust.value.trim()||t.rec):sel.value;save();close();toast(isNew?'Vane oprettet 🔁':'Gemt');render();};
+ setTimeout(()=>{const i=document.getElementById('h_c');if(i&&isNew){i.focus();i.select();}},50);
 }
 // ---------- render ----------
 function secKey(t){return String(t).replace(/<[^>]*>/g,'').split('·')[0].split('—')[0].split('(')[0].replace(/\s+/g,' ').trim().toLowerCase();}
@@ -1576,7 +1579,7 @@ function habitsP(w){
   grid.appendChild(row);});
  c.appendChild(grid);w.appendChild(c);
  const ac=document.createElement('div');ac.className='addbar';ac.innerHTML=`<input class="t" placeholder="Ny daglig vane… (Enter)"><button class="go">Tilføj vane</button>`;
- const inp=ac.querySelector('.t');const add=()=>{const v=inp.value.trim();if(!v)return;STORE.push({id:'t'+(UID++),content:v,pid:catByName('Family'),due:TODAY,rec:'hver dag',pri:null,q:null,imp:null,eff:null,done:false,star:false,src:'me'});save();inp.value='';toast('Vane tilføjet');render();};ac.querySelector('.go').onclick=add;inp.onkeydown=e=>{if(e.key==='Enter')add();};w.appendChild(ac);
+ const inp=ac.querySelector('.t');const add=()=>{const v=inp.value.trim();if(!v)return;const nt={id:'t'+(UID++),content:v,pid:catByName('Family'),due:TODAY,rec:'hver dag',pri:null,q:null,imp:null,eff:null,done:false,star:false,src:'me'};STORE.push(nt);save();inp.value='';render();habitModal(nt,true);};ac.querySelector('.go').onclick=add;inp.onkeydown=e=>{if(e.key==='Enter')add();};w.appendChild(ac);
 }
 // wheel
 const HEALTH_DEFAULT={
