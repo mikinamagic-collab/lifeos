@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>Nina's LifeOS</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -96,7 +96,8 @@ h1{font-size:19px;margin:0;font-weight:600;letter-spacing:0}
 #bdBtn{position:fixed;right:18px;bottom:72px;z-index:40;width:46px;height:46px;border-radius:50%;border:none;background:#fff;border:1px solid var(--line);font-size:19px;cursor:pointer;box-shadow:0 4px 14px rgba(20,24,28,.18)}
 #bdBtn:hover{transform:scale(1.06)}
 #fbBadge{position:absolute;top:-4px;right:-4px;background:#dd4b4b;color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;padding:0 4px}
-@media(max-width:560px){#fbBtn{bottom:76px;right:12px}#bdBtn{bottom:130px;right:12px}}
+@media(max-width:560px){#fbBtn{bottom:76px;right:12px}#bdBtn{bottom:130px;right:12px}
+input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus på felter <16px — 16px forhindrer zoom helt */
 .fbpanel{position:fixed;right:18px;bottom:76px;z-index:45;background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;width:min(430px,92vw);box-shadow:0 14px 44px rgba(20,24,28,.28);max-height:82vh;overflow:auto}
 .fbhead{display:flex;align-items:center;gap:8px;cursor:grab;margin:0 0 6px;user-select:none;-webkit-user-select:none;touch-action:none}
 .fbhead h3{margin:0;font-size:15px;flex:1}
