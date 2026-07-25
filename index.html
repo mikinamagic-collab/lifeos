@@ -93,8 +93,10 @@ h1{font-size:19px;margin:0;font-weight:600;letter-spacing:0}
 .dropmark{height:0;border-top:2px solid var(--accent);border-radius:1px;margin:2px 6px}
 #fbBtn{position:fixed;right:18px;bottom:18px;z-index:40;width:46px;height:46px;border-radius:50%;border:none;background:var(--accent);color:#fff;font-size:19px;cursor:pointer;box-shadow:0 4px 14px rgba(20,24,28,.28)}
 #fbBtn:hover{transform:scale(1.06)}
+#bdBtn{position:fixed;right:18px;bottom:72px;z-index:40;width:46px;height:46px;border-radius:50%;border:none;background:#fff;border:1px solid var(--line);font-size:19px;cursor:pointer;box-shadow:0 4px 14px rgba(20,24,28,.18)}
+#bdBtn:hover{transform:scale(1.06)}
 #fbBadge{position:absolute;top:-4px;right:-4px;background:#dd4b4b;color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;padding:0 4px}
-@media(max-width:560px){#fbBtn{bottom:76px;right:12px}}
+@media(max-width:560px){#fbBtn{bottom:76px;right:12px}#bdBtn{bottom:130px;right:12px}}
 .fbpanel{position:fixed;right:18px;bottom:76px;z-index:45;background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;width:min(430px,92vw);box-shadow:0 14px 44px rgba(20,24,28,.28);max-height:82vh;overflow:auto}
 .fbhead{display:flex;align-items:center;gap:8px;cursor:grab;margin:0 0 6px;user-select:none;-webkit-user-select:none;touch-action:none}
 .fbhead h3{margin:0;font-size:15px;flex:1}
@@ -250,7 +252,9 @@ h1{font-size:19px;margin:0;font-weight:600;letter-spacing:0}
 <div class="toast" id="toast"></div>
 <div id="modalHost"></div>
 <div id="fbHost"></div>
+<div id="bdHost"></div>
 <div id="popHost"></div>
+<button id="bdBtn" title="Braindump — tøm hovedet, jeg sorterer">🧠</button>
 <button id="fbBtn" title="Send feedback til Claude — gemmes i backloggen">💬<span id="fbBadge"></span></button>
 <nav id="botNav"></nav>
 <script>
@@ -321,6 +325,7 @@ function wakeCheck(){
  const ae=document.activeElement;if(ae&&['INPUT','TEXTAREA','SELECT'].includes(ae.tagName))return;
  const mh=document.getElementById('modalHost');if(mh&&mh.innerHTML)return;
  const fh=document.getElementById('fbHost');if(fh&&fh.innerHTML)return;
+ const bh=document.getElementById('bdHost');if(bh&&bh.innerHTML)return;
  GH.lastSync=Date.now();
  fetch(ghUrl(),{headers:ghHdr()}).then(r=>r.ok?r.json():null)
  .then(j=>{if(j&&j.sha&&GH.sha&&j.sha!==GH.sha)location.reload();}).catch(()=>{});}
@@ -1194,6 +1199,106 @@ function feedbackModal(){
   const del=document.createElement('span');del.textContent='🗑';del.style.cssText='cursor:pointer;color:#c7c9cd';del.onclick=()=>{LS.s('feedback',fbList().filter(x=>x.id!==f.id));feedbackModal();fbBadge();};
   r.appendChild(del);rw.appendChild(r);});
 }
+// ---------- v54: 🧠 Braindump — tøm hovedet, appen foreslår, du bekræfter ----------
+let BDITEMS=null; // null = skriv-tilstand, array = triage-tilstand
+function bdSplit(raw){
+ let parts=raw.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+ parts=parts.flatMap(p=>p.length>140||parts.length===1?p.split(/(?:[.!?]+|\s+og så|\s+derudover|\s+desuden)\s+/i).map(s=>s.trim()):[p]);
+ return parts.map(s=>s.replace(/^[-•*\d.)\s]+/,'').replace(/[.!?]+$/,'').trim()).filter(s=>s.length>3);
+}
+function bdRecommend(line,r){
+ const lc=line.toLowerCase();
+ let dest,hor='s';
+ if(/hver (dag|uge|morgen|aften)|dagligt|ugentligt|vane/.test(lc))dest='vane';
+ else if(r.due===TODAY||/\bi dag\b|straks|med det samme/.test(lc))dest='idag';
+ else if(r.due)dest='dato';
+ else if(/engang|en dag|på et tidspunkt|drøm|langt sigt|næste år/.test(lc)){dest='bk';hor=/næste år/.test(lc)?'y':'s';}
+ else if(/kvartal/.test(lc)){dest='bk';hor='q';}
+ else if(/måned/.test(lc)){dest='bk';hor='m';}
+ else if(/(denne|næste) uge|snart/.test(lc)){dest='bk';hor='w';}
+ else dest=line.split(/\s+/).length<=6?'bk':'bk',hor=line.split(/\s+/).length<=6?'w':'s';
+ let pid=r.pid;
+ if(!pid){const f=PROJECTS.find(p=>lc.includes(p.name.toLowerCase()));if(f)pid=f.id;}
+ return {dest,hor,pid:pid||(PROJECTS[0]&&PROJECTS[0].id)};
+}
+function braindumpModal(){
+ const host=document.getElementById('bdHost');
+ host.innerHTML='<div class="fbpanel" id="bdPanel">'
+ +'<div class="fbhead" id="bdHead"><h3>🧠 Braindump</h3><span style="font-size:11px;color:var(--muted)">⠿ træk for at flytte</span><button class="tvbtn" id="bdX" title="Luk (kladden gemmes)" style="font-size:15px">✕</button></div>'
+ +'<div id="bdBody"></div></div>';
+ const body=document.getElementById('bdPanel').querySelector('#bdBody');
+ const close=()=>{host.innerHTML='';};
+ document.getElementById('bdX').onclick=close;
+ {const panel=document.getElementById('bdPanel');const head=document.getElementById('bdHead');
+  head.onpointerdown=e=>{if(e.target.id==='bdX')return;e.preventDefault();
+   const rr=panel.getBoundingClientRect();panel.style.left=rr.left+'px';panel.style.top=rr.top+'px';panel.style.right='auto';panel.style.bottom='auto';
+   const ox=e.clientX-rr.left,oy=e.clientY-rr.top;
+   const mv=ev=>{panel.style.left=Math.max(4,Math.min(ev.clientX-ox,innerWidth-80))+'px';panel.style.top=Math.max(4,Math.min(ev.clientY-oy,innerHeight-50))+'px';};
+   const up=()=>{document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);document.removeEventListener('pointercancel',up);};
+   document.addEventListener('pointermove',mv);document.addEventListener('pointerup',up);document.addEventListener('pointercancel',up);};}
+ const HORLBL={w:'💤 Uge eller to',m:'💤 Måned',q:'💤 Kvartal',y:'💤 År',s:'💤 Engang',n:'💤 Aldrig'};
+ const renderWrite=()=>{BDITEMS=null;
+  let draft='';try{draft=localStorage.getItem('bd_draft')||'';}catch(e){}
+  body.innerHTML='<p class="hint" style="margin:0 0 8px">Skriv eller dikter (🎤 på tastaturet) alt hvad der fylder — jeg deler det op og foreslår, hvor tingene hører til. Intet oprettes før du bekræfter.</p>'
+  +'<textarea id="bdTxt" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit;font-size:13.5px;min-height:140px" placeholder="Fx: Ring til banken om børneopsparing. Købe fødselsdagsgave til mormor på lørdag. Engang vil jeg gerne male soveværelset…"></textarea>'
+  +'<div class="mbtns" style="margin-top:10px"><button class="cancel" id="bdClaude" title="Gem rå-dumpen til Claude — vi sorterer den sammen (søndags-review eller næste session)">💬 Send til Claude</button><button class="save" id="bdGo">Organisér 🧠</button></div>';
+  const ta=document.getElementById('bdTxt');ta.value=draft;
+  ta.oninput=()=>{try{if(ta.value.trim())localStorage.setItem('bd_draft',ta.value);else localStorage.removeItem('bd_draft');}catch(e){}};
+  setTimeout(()=>ta.focus(),50);
+  document.getElementById('bdGo').onclick=()=>{const raw=ta.value.trim();if(!raw){toast('Skriv eller diktér lidt først 🙂');return;}
+   const parts=bdSplit(raw);if(!parts.length){toast('Kunne ikke finde noget at organisere');return;}
+   BDITEMS=parts.map(line=>{const r=parseQuickAdd(line,false);const rec=bdRecommend(line,r);
+    return {txt:r.content||line,dest:rec.dest,hor:rec.hor,due:r.due||'',time:r.time||'',pri:r.pri,est:r.est,pid:rec.pid};});
+   renderTriage(raw);};
+  document.getElementById('bdClaude').onclick=()=>{const raw=ta.value.trim();if(!raw){toast('Skriv eller diktér lidt først 🙂');return;}
+   const l=LS.g('braindump',[]);l.push({id:newSid(),text:raw,at:new Date().toISOString(),status:'ny'});LS.s('braindump',l);
+   try{localStorage.removeItem('bd_draft');}catch(e){}close();toast('Gemt til Claude 💬 — vi sorterer den sammen');};
+ };
+ const renderTriage=raw=>{
+  body.innerHTML='<p class="hint" style="margin:0 0 8px">'+BDITEMS.length+' ting fundet — ret titel, mål og kategori, og bekræft. Mine forslag er sat på forhånd.</p><div id="bdCards"></div>'
+  +'<div class="mbtns" style="margin-top:10px"><button class="cancel" id="bdBack">← Ret teksten</button><button class="save" id="bdAll"></button></div>';
+  const cw=body.querySelector('#bdCards');
+  BDITEMS.forEach((it,i)=>{
+   const r=document.createElement('div');r.style.cssText='border:1px solid var(--line);border-radius:9px;padding:9px;margin-bottom:7px;background:#fff';
+   const t1=document.createElement('div');t1.style.cssText='display:flex;gap:6px;align-items:center';
+   const inp=document.createElement('input');inp.value=it.txt;inp.style.cssText='flex:1;border:none;font:inherit;font-size:13px;padding:2px';inp.oninput=()=>{it.txt=inp.value;};
+   const rm=document.createElement('span');rm.textContent='✕';rm.title='Fjern';rm.style.cssText='cursor:pointer;color:#c7c9cd;font-size:12px;flex:0 0 auto';rm.onclick=()=>{BDITEMS.splice(i,1);renderTriage(raw);};
+   t1.appendChild(inp);t1.appendChild(rm);r.appendChild(t1);
+   const t2=document.createElement('div');t2.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:center';
+   const ds=document.createElement('select');ds.style.cssText='font:inherit;font-size:11.5px;border:1px solid var(--line);border-radius:7px;padding:3px 5px';
+   ds.innerHTML='<option value="idag">☀️ I dag</option><option value="dato">📅 Dato…</option>'+Object.keys(HORLBL).map(k=>'<option value="bk-'+k+'">'+HORLBL[k]+'</option>').join('')+'<option value="vane">🔁 Vane (hver dag)</option>';
+   ds.value=it.dest==='bk'?'bk-'+it.hor:it.dest;
+   const di=document.createElement('input');di.type='date';di.value=it.due;di.style.cssText='font:inherit;font-size:11.5px;border:1px solid var(--line);border-radius:7px;padding:2px 4px;display:'+(ds.value==='dato'?'':'none');
+   di.onchange=()=>{it.due=di.value;};
+   ds.onchange=()=>{const v=ds.value;di.style.display=v==='dato'?'':'none';
+    if(v==='idag')it.dest='idag';else if(v==='dato')it.dest='dato';else if(v==='vane')it.dest='vane';else{it.dest='bk';it.hor=v.slice(3);}};
+   const cs=document.createElement('select');cs.style.cssText='font:inherit;font-size:11.5px;border:1px solid var(--line);border-radius:7px;padding:3px 5px';
+   cs.innerHTML=PROJECTS.map(p=>'<option value="'+p.id+'"'+(p.id===it.pid?' selected':'')+'># '+esc(p.name)+'</option>').join('');
+   cs.onchange=()=>{it.pid=cs.value;};
+   t2.appendChild(ds);t2.appendChild(di);t2.appendChild(cs);
+   if(it.time){const c=document.createElement('span');c.className='chip';c.style.fontSize='10.5px';c.textContent='🕒 '+it.time;t2.appendChild(c);}
+   if(it.est){const c=document.createElement('span');c.className='chip';c.style.fontSize='10.5px';c.textContent='⏱ '+fmtEst(it.est);t2.appendChild(c);}
+   if(it.pri){const c=document.createElement('span');c.className='chip';c.style.fontSize='10.5px';c.textContent='⚑ '+priLabel(it.pri);t2.appendChild(c);}
+   r.appendChild(t2);cw.appendChild(r);});
+  const ab=body.querySelector('#bdAll');ab.textContent='✓ Opret alle ('+BDITEMS.length+')';
+  ab.onclick=()=>{if(!BDITEMS.length){toast('Ingen ting at oprette');return;}
+   let nT=0,nB=0,nV=0;
+   BDITEMS.forEach(it=>{const v=it.txt.trim();if(!v)return;
+    const base={id:'t'+(UID++),content:v,pid:it.pid,due:null,time:it.time||null,rec:null,pri:it.pri||null,q:null,imp:null,eff:null,est:it.est||null,done:false,star:false,src:'braindump'};
+    if(it.dest==='idag'){base.due=TODAY;nT++;}
+    else if(it.dest==='dato'){base.due=it.due||TODAY;nT++;}
+    else if(it.dest==='vane'){base.rec='hver dag';base.due=TODAY;nV++;}
+    else{base.parked=true;base.parkedAt=TODAY;base.hor=it.hor||'s';nB++;}
+    STORE.push(base);});
+   save();
+   const l=LS.g('braindump',[]);l.push({id:newSid(),text:raw,at:new Date().toISOString(),status:'organiseret',n:BDITEMS.length});LS.s('braindump',l);
+   try{localStorage.removeItem('bd_draft');}catch(e){}
+   BDITEMS=null;close();
+   toast('🧠 Oprettet: '+[nT?nT+' opgave'+(nT>1?'r':''):'',nB?nB+' i backlog':'',nV?nV+' vane'+(nV>1?'r':''):''].filter(Boolean).join(' · '));render();};
+  body.querySelector('#bdBack').onclick=()=>renderWrite();
+ };
+ renderWrite();
+}
 function catMenu(t,ev){popMenu(ev.clientX,ev.clientY,(box,close)=>{
  const hd=document.createElement('div');hd.className='pophd';hd.textContent='Kategori:';box.appendChild(hd);
  PROJECTS.forEach(p=>{mItem(box,'<span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+esc(p.color)+';margin-right:7px"></span>'+esc(p.name)+'</span>'+(t.pid===p.id?'<span>✓</span>':''),()=>{t.pid=p.id;save();close();render();});});
@@ -1921,6 +2026,7 @@ if(LS.g('autoroll',false)&&LS.g('lastroll','')!==TODAY){
 }
 pruneTrash();render();
 {const _fb=document.getElementById('fbBtn');if(_fb)_fb.onclick=feedbackModal;fbBadge();}
+{const _bd=document.getElementById('bdBtn');if(_bd)_bd.onclick=braindumpModal;}
 } /* end initApp */
 (function boot(){
  const appEl=document.getElementById('app');
