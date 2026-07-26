@@ -369,12 +369,12 @@ const today=new Date();today.setHours(0,0,0,0);
 const iso=d=>{const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
 const TODAY=iso(today);
 const dPlus=n=>{const d=new Date(today);d.setDate(d.getDate()+n);return iso(d)};
-function nextMon(){const d=new Date(today);let add=(8-(d.getDay()||7))%7;if(add===0)add=7;d.setDate(d.getDate()+add);return iso(d);}
+function nextWeekSun(){const d=new Date(today);const add=(7-d.getDay())%7;d.setDate(d.getDate()+add+7);return iso(d);}
 function nextSat(){const d=new Date(today);const add=(6-d.getDay()+7)%7;if(add===0)return null;d.setDate(d.getDate()+add);return iso(d);}
 const shortDate=s=>new Date(s+'T12:00').toLocaleDateString('da-DK',{weekday:'short',day:'numeric',month:'short'});
 function relDates(){const out=[];const sa=nextSat();
  if(sa)out.push({k:'wknd',l:(today.getDay()===0?'Næste weekend (lør)':'Denne weekend (lør)'),d:sa});
- out.push({k:'nweek',l:'Næste uge (man)',d:nextMon()});return out;}
+ out.push({k:'nweek',l:'Næste uge (søn)',d:nextWeekSun()});return out;}
 document.getElementById('dateStr').textContent=today.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
 function toast(m){const t=document.getElementById('toast');t.classList.remove('act');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
