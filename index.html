@@ -368,6 +368,13 @@ const app=document.getElementById('app');
 const today=new Date();today.setHours(0,0,0,0);
 const iso=d=>{const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
 const TODAY=iso(today);
+const dPlus=n=>{const d=new Date(today);d.setDate(d.getDate()+n);return iso(d)};
+function nextMon(){const d=new Date(today);let add=(8-(d.getDay()||7))%7;if(add===0)add=7;d.setDate(d.getDate()+add);return iso(d);}
+function nextSat(){const d=new Date(today);const add=(6-d.getDay()+7)%7;if(add===0)return null;d.setDate(d.getDate()+add);return iso(d);}
+const shortDate=s=>new Date(s+'T12:00').toLocaleDateString('da-DK',{weekday:'short',day:'numeric',month:'short'});
+function relDates(){const out=[];const sa=nextSat();
+ if(sa)out.push({k:'wknd',l:(today.getDay()===0?'Næste weekend (lør)':'Denne weekend (lør)'),d:sa});
+ out.push({k:'nweek',l:'Næste uge (man)',d:nextMon()});return out;}
 document.getElementById('dateStr').textContent=today.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
 function toast(m){const t=document.getElementById('toast');t.classList.remove('act');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -465,6 +472,7 @@ function moveMenu(t,ev){popMenu(ev.clientX,ev.clientY,(box,close)=>{
  const hd=document.createElement('div');hd.className='pophd';hd.textContent='Flyt:';box.appendChild(hd);
  mItem(box,'I dag',()=>{t.due=TODAY;t.parked=false;save();close();render();});
  mItem(box,'Udsæt til i morgen',()=>{const d=new Date(today);d.setDate(d.getDate()+1);t.due=iso(d);t.parked=false;save();close();render();});
+ relDates().forEach(r=>{mItem(box,'<span>'+r.l+'</span><span style="color:var(--muted);font-size:11px;margin-left:8px">'+shortDate(r.d)+'</span>',()=>{t.due=r.d;t.parked=false;save();close();toast('Flyttet til '+fmtDue(r.d));render();});});
  mItem(box,'Udsæt én uge',()=>{const base=(t.due&&t.due>TODAY)?new Date(t.due+'T12:00'):new Date(today);base.setDate(base.getDate()+7);t.due=iso(base);t.parked=false;save();close();toast('Udskudt til '+fmtDue(t.due));render();});
  mItem(box,'💤 Til backlog',()=>{t.due=null;t.parked=true;t.parkedAt=TODAY;t.star=false;save();close();toast('Lagt i backlog 💤');render();});
  mItem(box,'<span style="color:var(--over)">🗑 Slet</span>',()=>{close();delTasks([t]);});
@@ -566,6 +574,7 @@ function editModal(t){
  +'<span style="flex:1"></span>'
  +'<button class="tvbtn" id="tv_flag" title="Prioritet"></button>'
  +'<input id="tv_d" type="date" class="tvdate" value="'+(t.due||'')+'" title="Forfaldsdato">'
+ +'<button class="tvbtn" id="tv_dq" title="Hurtig dato — i dag / i morgen / weekend / næste uge">▾</button>'
  +'<input id="tv_t" type="time" class="tvdate" value="'+(t.time||'')+'" title="Tidspunkt">'
  +'<select id="tv_rep" class="tvsel" title="Gentagelse — næste oprettes når du fuldfører">'+repOpts+'</select>'
  +'<button class="tvbtn" id="tv_park" title="Flyt til backlog — uden dato, dukker op i ugentlig gennemgang og 💤-panelet">💤</button>'
@@ -592,6 +601,14 @@ function editModal(t){
  const close=()=>{applyFields();save();host.innerHTML='';render();};
  document.getElementById('tv_x').onclick=close;
  document.getElementById('tvBg').onclick=e=>{if(e.target.id==='tvBg')close();};
+ document.getElementById('tv_dq').onclick=e=>{e.stopPropagation();popMenu(e.clientX,e.clientY,(box,close)=>{
+  const hd=document.createElement('div');hd.className='pophd';hd.textContent='Sæt dato:';box.appendChild(hd);
+  const set=d=>{document.getElementById('tv_d').value=d;t.parked=false;close();};
+  mItem(box,'<span>I dag</span><span style="color:var(--muted);font-size:11px">'+shortDate(TODAY)+'</span>',()=>set(TODAY));
+  mItem(box,'<span>I morgen</span><span style="color:var(--muted);font-size:11px">'+shortDate(dPlus(1))+'</span>',()=>set(dPlus(1)));
+  relDates().forEach(r=>mItem(box,'<span>'+r.l+'</span><span style="color:var(--muted);font-size:11px">'+shortDate(r.d)+'</span>',()=>set(r.d)));
+  mItem(box,'<span style="color:#4a86c9">Ryd dato</span>',()=>set(''));
+ });};
  document.getElementById('tv_park').onclick=()=>{document.getElementById('tv_d').value='';document.getElementById('tv_t').value='';t.parked=true;t.parkedAt=TODAY;t.star=false;if(!t.hor)t.hor='s';close();toast('Lagt i backlog 💤');};
  document.getElementById('tv_del').onclick=()=>{host.innerHTML='';delTasks([t]);};
  document.getElementById('tv_done').onclick=()=>{applyFields();const nd=completeTask(t);save();host.innerHTML='';toast(nd?'Færdig ✓ — næste: '+fmtDue(nd):'Færdig ✓');render();};
@@ -853,7 +870,7 @@ function morningModal(){
    L.forEach(t=>{const r=document.createElement('div');r.className='row';
     const bd=document.createElement('div');bd.className='tbody';bd.innerHTML='<div class="ttl" style="font-size:12.5px">'+esc(t.content)+'</div><div class="meta"><span class="chip over">'+esc(t.due)+'</span></div>';
     const a=document.createElement('div');a.className='acts';
-    [['I dag',()=>{t.due=TODAY;}],['I morgen',()=>{t.due=tom;}],['💤',()=>{t.due=null;t.parked=true;t.parkedAt=TODAY;}]].forEach(([txt,fn])=>{const b=document.createElement('button');b.className='btn';b.textContent=txt;b.onclick=()=>{fn();save();renderStep();};a.appendChild(b);});
+    [['I dag',()=>{t.due=TODAY;}],['I morgen',()=>{t.due=tom;}]].concat(relDates().map(r=>[r.l,()=>{t.due=r.d;t.parked=false;}])).concat([['💤',()=>{t.due=null;t.parked=true;t.parkedAt=TODAY;}]]).forEach(([txt,fn])=>{const b=document.createElement('button');b.className='btn';b.textContent=txt;b.onclick=()=>{fn();save();renderStep();};a.appendChild(b);});
     bd.appendChild(a);r.appendChild(bd);lw.appendChild(r);});
    {const _old=L.filter(t=>Math.round((today-new Date(t.due+'T12:00'))/864e5)>14);
     if(_old.length){const bar=document.createElement('div');bar.style.cssText='margin-top:8px';
@@ -940,11 +957,12 @@ function weeklyModal(){
    let inner='<p style="font-size:12px;color:var(--muted)">Ryd bunken · opgave '+(i1+1)+' af '+U.length+' uden dato</p>';
    inner+='<div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin:6px 0"><div class="ttl" style="font-size:14px">'+esc(t.content)+'</div><div class="meta"><span class="chip area" style="background:transparent;padding-left:0;color:'+esc(catOf(t.pid).color)+';font-weight:600"># '+esc(catOf(t.pid).name)+'</span></div></div>';
    inner+='<div style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Vælg dato: <input type="date" id="wDate" style="border:1px solid var(--line);border-radius:8px;padding:7px"></div>';
-   shell(inner,'<button class="btn" id="wToday">I dag</button><button class="btn" id="wTom">I morgen</button><button class="btn" id="wWeek">I denne uge (fre)</button><button class="btn" id="wPark">💤 Parkér</button><button class="btn" id="wSkip">Spring over</button><button class="btn" id="wDel" style="color:var(--over)">Slet</button><button class="cancel" id="wEnough">Det er nok →</button>');
+   shell(inner,'<button class="btn" id="wToday">I dag</button><button class="btn" id="wTom">I morgen</button><button class="btn" id="wWeek">I denne uge (fre)</button><span id="wRel" style="display:contents"></span><button class="btn" id="wPark">💤 Parkér</button><button class="btn" id="wSkip">Spring over</button><button class="btn" id="wDel" style="color:var(--over)">Slet</button><button class="cancel" id="wEnough">Det er nok →</button>');
    const nx=()=>{i1++;renderStep();};
    document.getElementById('wToday').onclick=()=>{t.due=TODAY;t.parked=false;save();nx();};
    document.getElementById('wTom').onclick=()=>{t.due=tom;t.parked=false;save();nx();};
    document.getElementById('wWeek').onclick=()=>{t.due=fri;t.parked=false;save();nx();};
+   {const rh=document.getElementById('wRel');relDates().forEach(r=>{const b=document.createElement('button');b.className='btn';b.textContent=r.l;b.title=shortDate(r.d);b.onclick=()=>{t.due=r.d;t.parked=false;save();nx();};rh.appendChild(b);});}
    document.getElementById('wPark').onclick=()=>{t.parked=true;t.parkedAt=TODAY;save();nx();};
    document.getElementById('wSkip').onclick=nx;
    document.getElementById('wDel').onclick=()=>{pushTrash([{type:'task',item:t}]);STORE=STORE.filter(x=>x!==t);save();renderStep();};
