@@ -246,6 +246,7 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
   <header>
     <h1>Nina's LifeOS</h1><span id="pageTitle"></span><span class="date" id="dateStr"></span>
     <span id="syncChip" style="margin-left:auto;font-size:12px;color:var(--muted)">⚪ ikke sat op</span>
+    <button class="imp" id="undoBtn" title="Fortryd seneste ændring (⌘Z)" style="margin-left:0;opacity:.4">↩️</button>
     <button class="imp" id="ghBtn" style="margin-left:0">⚙️ Sync</button>
   </header>
   <p class="sub">Dit opgavesystem — synkroniseret privat via GitHub. Virker på Mac og iPhone.</p>
@@ -320,6 +321,16 @@ function conflictModal(remote){ // v35 push-guard: en anden enhed har gemt nyere
 }
 const _lss=LS.s.bind(LS);
 LS.s=(k,v)=>{_lss(k,v);if(GH.cfg&&!NOSYNC.has('cc2_'+k)){GH.status='pend';updateChip();clearTimeout(GH.timer);GH.timer=setTimeout(()=>ghPush(false),2500);}};
+// ---------- v59: automatisk fortryd-stak (↩️ / ⌘Z) ----------
+let UNDO=[],UNDO_LAST=0,UNDO_FRESH=0,UNDOING=false;
+const UNDOKEYS=k=>k==='tasks'||k==='hlog'||k==='trash'||k.startsWith('dayorder_');
+const undoDayKey=()=>{const d=new Date();return 'dayorder_'+d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}; // egen dato — TODAY findes ikke endnu ved boot
+{const _lsv=LS.s; // fanger tilstanden FØR hver skrivning — nul wiring pr. handling
+ LS.s=(k,v)=>{if(!UNDOING&&UNDOKEYS(k)){const now=Date.now();
+  if(now-UNDO_LAST>300){UNDO.push({at:now,snap:{tasks:localStorage.getItem('cc2_tasks'),hlog:localStorage.getItem('cc2_hlog'),trash:localStorage.getItem('cc2_trash'),dayorder:localStorage.getItem('cc2_'+undoDayKey())}});if(UNDO.length>20)UNDO.shift();}
+  UNDO_LAST=now;UNDO_FRESH=now;}
+ _lsv(k,v);};}
+// doUndo defineres inde i initApp (skal bruge STORE/render/toast, som er closure-scoped)
 window.addEventListener('beforeunload',()=>{if(GH.status==='pend'){clearTimeout(GH.timer);ghPush(false);}});
 // v35: auto-opfriskning når appen vågner efter at have stået åben — henter nyeste data i stedet for at arbejde videre på en gammel kopi
 function wakeCheck(){
@@ -407,6 +418,19 @@ function pushTrash(entries){const tr=LS.g('trash',[]);const now=Date.now();entri
 function pruneTrash(){const tr=LS.g('trash',[]);const cut=Date.now()-2592000000;const keep=tr.filter(x=>x.at>=cut);if(keep.length!==tr.length)LS.s('trash',keep);}
 let _tuTimer;
 function toastUndo(msg,undoFn){const t=document.getElementById('toast');t.innerHTML='';t.classList.add('act');const sp=document.createElement('span');sp.textContent=msg+'  ';t.appendChild(sp);const b=document.createElement('button');b.textContent='Fortryd';b.style.cssText='background:none;border:none;color:#8ab4ff;font:inherit;font-weight:700;cursor:pointer;padding:0 2px';b.onclick=()=>{clearTimeout(_tuTimer);t.classList.remove('show');undoFn();};t.appendChild(b);t.classList.add('show');clearTimeout(_tuTimer);_tuTimer=setTimeout(()=>{t.classList.remove('show');},6000);}
+function doUndo(){const u=UNDO.pop();UNDO_FRESH=0; // v59
+ if(!u){toast('Intet at fortryde her i sessionen');return;}
+ UNDOING=true;
+ const put=(k,val)=>{if(val==null)localStorage.removeItem('cc2_'+k);else localStorage.setItem('cc2_'+k,val);};
+ put('hlog',u.snap.hlog);put('trash',u.snap.trash);put(undoDayKey(),u.snap.dayorder);
+ put('tasks',u.snap.tasks);
+ STORE=LS.g('tasks',[]);
+ LS.s('tasks',STORE); // trigger sync-push af den gendannede tilstand
+ UNDOING=false;
+ const ub=document.getElementById('undoBtn');if(ub)ub.style.opacity=UNDO.length?'1':'.4';
+ render();toast('Fortrudt ↩️');}
+{const _t=toast; // v59: toasts efter en ændring får automatisk Fortryd-knap
+ toast=m=>{if(!UNDOING&&UNDO.length&&Date.now()-UNDO_FRESH<600){toastUndo(m,doUndo);}else _t(m);};}
 function delTasks(list,label){if(!list||!list.length)return;const ids=new Set(list.map(t=>t.id));STORE=STORE.filter(t=>!ids.has(t.id));list.forEach(t=>SEL.delete(t.id));pushTrash(list.map(t=>({type:'task',item:t})));save();toastUndo(label||(list.length>1?list.length+' opgaver slettet':'Slettet'),()=>{list.forEach(t=>STORE.unshift(t));LS.s('trash',LS.g('trash',[]).filter(x=>!(x.type==='task'&&ids.has(x.item.id))));save();render();});render();}
 function delEvents(list,label){if(!list||!list.length)return;const ids=new Set(list.map(e=>e.id));EVENTS=EVENTS.filter(e=>!ids.has(e.id));list.forEach(e=>ESEL.delete(e.id));pushTrash(list.map(e=>({type:'event',item:e})));saveEv();toastUndo(label||(list.length>1?list.length+' datoer slettet':'Slettet'),()=>{list.forEach(e=>EVENTS.push(e));LS.s('trash',LS.g('trash',[]).filter(x=>!(x.type==='event'&&ids.has(x.item.id))));saveEv();render();});render();}
 function trashModal(){pruneTrash();const host=document.getElementById('modalHost');const tr=LS.g('trash',[]);
@@ -796,6 +820,7 @@ function planP(w){
 function render(){
  const tab=LS.g('tab','dash');app.innerHTML='';buildNav(tab);
  {const pt=document.getElementById('pageTitle');if(pt)pt.textContent='· '+tabLabel(tab);} // v58: sidenavn i den låste header
+ {const ub=document.getElementById('undoBtn');if(ub)ub.style.opacity=UNDO.length?'1':'.4';} // v59
  if(['all','prio'].includes(tab))app.appendChild(statsBar()); // v58: optælling kun på Opgaver
  const p=navPills(tab);if(p)app.appendChild(p);
  const w=document.createElement('div');
@@ -1597,7 +1622,7 @@ function allP(w){
   lb.innerHTML='<input type="checkbox" style="width:auto"'+(AFLTDONE?' checked':'')+'> Vis fuldførte';
   lb.querySelector('input').onchange=e=>{AFLTDONE=e.target.checked;render();};fbar.appendChild(lb);}
  w.appendChild(fbar);
- {const chips=[];AFILTERS.forEach(f=>(AFLT[f.key]||[]).forEach(v=>{const l=(f.options(all).find(o=>o[0]===v)||[v,v])[1];chips.push({f,v,l});}));
+ {const chips=[];AFILTERS.forEach(f=>(AFLT[f.key]||[]).forEach(v=>{const o=f.options(all).find(o=>o[0]===v);const l=o?o[1]:(f.labelOf?f.labelOf(v):esc(v));chips.push({f,v,l});}));
   if(chips.length||AFLTDONE){const cr=document.createElement('div');cr.style.cssText='display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 10px';
    chips.forEach(ch=>{const s=document.createElement('span');s.className='chip';s.style.cssText='display:inline-flex;gap:6px;align-items:center;background:var(--accent);color:#fff;font-size:11.5px;padding:4px 9px;cursor:default';
     s.innerHTML=esc(ch.f.label)+': '+ch.l+' <span style="cursor:pointer;font-weight:700" title="Fjern filter">✕</span>';
@@ -1619,7 +1644,7 @@ function allP(w){
 // v56: generiske filter-definitioner — fremtidige opgave-felter (fx ansvarlig) tilføjes som ÉN ny linje her
 let AFLT={},AFLTDONE=false;
 const AFILTERS=[
- {key:'cat',label:'Kategori',options:list=>PROJECTS.filter(p=>list.some(t=>t.pid===p.id)).map(p=>[p.id,'# '+p.name]),test:(t,v)=>t.pid===v},
+ {key:'cat',label:'Kategori',options:()=>PROJECTS.map(p=>[p.id,'# '+esc(p.name)]),labelOf:v=>'# '+esc(catOf(v).name),test:(t,v)=>t.pid===v}, // v60: alle kategorier + navne-opslag via catOf (chips viste rå id'er)
  {key:'dato',label:'Dato',options:()=>[['over','Forfaldne'],['idag','I dag'],['uge','Næste 7 dage'],['senere','Senere'],['udendato','Uden dato'],['bk','💤 Backlog']],test:(t,v)=>{if(v==='bk')return !!t.parked;if(t.parked)return false;const b=dueBucket(t);if(v==='over')return b==='over';if(v==='idag')return b==='today';if(v==='uge')return b==='today'||b==='soon';if(v==='senere')return b==='later';return !t.due;}},
  {key:'src',label:'Kilde',options:()=>[['me','Mig'],['todoist','✓ Todoist'],['braindump','🧠 Braindump'],['health','🌱 Sundhed']],test:(t,v)=>(t.tdid?'todoist':(t.src||'me'))===v}, // v57: Kilde efter Dato (Ninas ønske)
  {key:'type',label:'Type',options:()=>[['alm','Almindelig'],['rep','🔁 Gentagen'],['deltrin','Med deltrin'],['tid','🕒 Med tidspunkt']],test:(t,v)=>v==='rep'?!!t.rep:v==='deltrin'?!!(t.children&&t.children.length):v==='tid'?!!t.time:(!t.rep&&!(t.children&&t.children.length))},
@@ -2024,6 +2049,7 @@ function paletteModal(){
 }
 document.addEventListener('keydown',e=>{
  if((e.metaKey||e.ctrlKey)&&String(e.key).toLowerCase()==='k'){e.preventDefault();paletteModal();return;}
+ if((e.metaKey||e.ctrlKey)&&!e.shiftKey&&String(e.key).toLowerCase()==='z'){const tg=(e.target.tagName||'').toLowerCase();if(tg==='input'||tg==='textarea'||e.target.isContentEditable)return;e.preventDefault();doUndo();return;} // v59: ⌘Z
  const tag=(e.target.tagName||'').toLowerCase();
  if(tag==='input'||tag==='textarea'||tag==='select'||e.target.isContentEditable)return;
  if(document.getElementById('modalHost').innerHTML)return;
@@ -2049,6 +2075,7 @@ if(LS.g('autoroll',false)&&LS.g('lastroll','')!==TODAY){
 pruneTrash();render();
 {const _fb=document.getElementById('fbBtn');if(_fb)_fb.onclick=feedbackModal;fbBadge();}
 {const _bd=document.getElementById('bdBtn');if(_bd)_bd.onclick=braindumpModal;}
+{const _un=document.getElementById('undoBtn');if(_un)_un.onclick=doUndo;} // v59
 } /* end initApp */
 (function boot(){
  const appEl=document.getElementById('app');
