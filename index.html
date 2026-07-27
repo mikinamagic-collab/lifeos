@@ -68,6 +68,8 @@ h1{font-size:19px;margin:0;font-weight:600;letter-spacing:0}
 .sym.symc{filter:none;opacity:1}
 .sym.symflag{font-size:17px;line-height:1}/* v63: ⚑ har smallere em-boks end 📅/🕒 — skaleres op så ikonrækken ser ensartet ud */
 .tvgrp{display:inline-flex;align-items:center;flex:0 0 auto}/* v63: dato + ▾ må aldrig brydes fra hinanden */
+.tvbtn.tvdq{font-size:16px;line-height:1;color:#5f6368;background:#f1f3f4;border-radius:8px;margin-left:4px}/* v64: ▾ skal SE ud som en knap, ikke som en prik */
+.tvbtn.tvdq:hover{background:#e5e8ea}
 .symtxt{font-size:10px;font-weight:600;color:#b4b4b4}
 .popbg{position:fixed;inset:0;z-index:59}
 .pop{position:fixed;background:#fff;border:1px solid #e6e6e6;border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.14);padding:6px;z-index:60;min-width:200px;max-height:70vh;overflow:auto}
@@ -244,6 +246,7 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 .sym.symflag{font-size:21px}
 .tvspacer{display:none}/* v63: skub-feltet spildte en hel linje i topbaren på telefon */
 .tvbtn{min-width:40px;min-height:40px;padding:8px;display:inline-flex;align-items:center;justify-content:center}
+.tvbtn.tvdq{font-size:22px;min-width:52px;min-height:44px;margin-left:6px}/* v64: fingervenlig og tydelig */
 .modal .tvsel,.modal .tvdate{min-height:40px;padding:8px 4px}
 .tvclose{width:40px;height:40px;top:4px;right:4px}
 .row:hover .acts{display:none}.row.exp .acts{display:flex}
@@ -308,6 +311,14 @@ function updateChip(){const c=document.getElementById('syncChip');if(!c)return;
  c.textContent=map[GH.status]||GH.status;}
 // ---------- v35: push-guard + auto-opfriskning (rene beslutningsfunktioner) ----------
 function conflictChoiceNeeded(st,retry,hasRemoteTasks){return (st===409||st===422)&&!retry&&!!hasRemoteTasks;}
+// v64: en fane hvis boot-hentning fejlede har FORÆLDEDE data — den må aldrig skrive til skyen.
+// (27/7: en gammel åben fane overskrev remote og slettede to feedback-poster.)
+function pushBlocked(hasCfg,pullOk){return !!hasCfg && !pullOk;}
+// v64: hvilke nøgler ville TABE poster hvis vi skrev lokal tilstand over remote?
+function remoteLossKeys(rk,lk){const out=[];if(!rk)return out;
+ Object.keys(rk).forEach(k=>{const r=rk[k];if(!Array.isArray(r))return;
+  const l=lk?lk[k]:null;if(r.length>(Array.isArray(l)?l.length:0))out.push(k);});
+ return out;}
 function wakeNeedsCheck(lastSyncMs,nowMs,status){return status==='ok'&&(nowMs-lastSyncMs)>=600000;}
 function ghPullAsync(){ // async pull at boot with the same safety guards (incl. empty-over-full)
  if(!GH.cfg)return Promise.resolve();
@@ -319,12 +330,15 @@ function ghPullAsync(){ // async pull at boot with the same safety guards (incl.
    return ghBlobText(j).then(txt=>{
     if(txt===null){GH.status='err';return;}
     const data=JSON.parse(txt);const rk=data&&data.keys?data.keys:null;const rTasks=rk&&rk.cc2_tasks&&rk.cc2_tasks.length;const lTasks=(LS.g('tasks',[])||[]).length;
+    GH.pullOk=true;// v64: hentning lykkedes — først nu må denne fane skrive
     if(rk&&(rTasks||!lTasks)){applyKeys(rk);GH.status='ok';if(trimFeedbackImgs()){GH.status='pend';setTimeout(()=>ghPush(false),1500);}}
     else if(rk){GH.status='pend';setTimeout(()=>ghPush(false),1200);}else{GH.status='ok';}});}
-  else if(res.st===404){GH.status='new';}
+  else if(res.st===404){GH.pullOk=true;GH.status='new';}
   else GH.status='err';
  }).catch(()=>{GH.status='err';});}
-function ghPush(retry){if(!GH.cfg)return;GH.status='sync';updateChip();
+function ghPush(retry){if(!GH.cfg)return;
+ if(pushBlocked(!!GH.cfg,GH.pullOk)){GH.status='err';updateChip();return;}// v64: skriv aldrig fra en fane der ikke har hentet
+ GH.status='sync';updateChip();
  const body={message:'lifeos sync '+new Date().toISOString(),
   content:b64e(JSON.stringify({updated:new Date().toISOString(),keys:collectKeys()},null,1))};
  if(GH.sha)body.sha=GH.sha;
@@ -335,16 +349,19 @@ function ghPush(retry){if(!GH.cfg)return;GH.status='sync';updateChip();
   else if((st===409||st===422)&&!retry){
    fetch(ghUrl(),{headers:ghHdr()}).then(r=>r.json()).then(k=>ghBlobText(k).then(txt=>{
     let rk=null;try{rk=JSON.parse(txt).keys;}catch(e){}
-    if(conflictChoiceNeeded(st,retry,rk&&rk.cc2_tasks)){GH.status='conflict';updateChip();conflictModal({sha:k.sha,keys:rk});}
+    if(conflictChoiceNeeded(st,retry,rk&&rk.cc2_tasks)||(rk&&remoteLossKeys(rk,collectKeys()).length)){GH.status='conflict';updateChip();conflictModal({sha:k.sha,keys:rk});}
     else{GH.sha=k.sha;ghPush(true);}}));}
   else{GH.status='err';updateChip();}})
  .catch(()=>{GH.status='err';updateChip();});}
 function conflictModal(remote){ // v35 push-guard: en anden enhed har gemt nyere data
  const host=document.getElementById('modalHost');if(!host)return;
  const rT=(remote.keys.cc2_tasks||[]).length,lT=(LS.g('tasks',[])||[]).length;
- host.innerHTML='<div class="mbg" id="cfBg"><div class="modal"><h3>⚠️ Nyere data findes</h3><p style="font-size:13px">En anden enhed har gemt nyere data siden denne skærm sidst blev opdateret (<b>'+rT+'</b> opgaver dér · <b>'+lT+'</b> her).</p><p class="hint">Anbefalet: hent nyeste. Kun denne skærms allerseneste ændring går tabt — og intet slettes fra historikken (🕘 Gendan tidligere version).</p><div class="mbtns"><button class="cancel" id="cfOver">Overskriv med denne skærms data</button><button class="save" id="cfPull">🔄 Hent nyeste (anbefalet)</button></div></div></div>';
+ const LOSSNAMES={cc2_tasks:'opgaver',cc2_feedback:'feedback',cc2_braindump:'braindump',cc2_trash:'papirkurv',cc2_events:'begivenheder',cc2_journal:'journal'};
+ const loss=remoteLossKeys(remote.keys,collectKeys()).map(k=>{const r=remote.keys[k].length,l=(collectKeys()[k]||[]).length;return (LOSSNAMES[k]||k.replace('cc2_',''))+' ('+r+' → '+l+')';});
+ const lossHtml=loss.length?'<p style="font-size:13px;color:var(--over)">⚠️ Overskriver du, mister du poster i: <b>'+loss.map(esc).join('</b>, <b>')+'</b></p>':'';
+ host.innerHTML='<div class="mbg" id="cfBg"><div class="modal"><h3>⚠️ Nyere data findes</h3><p style="font-size:13px">En anden enhed har gemt nyere data siden denne skærm sidst blev opdateret (<b>'+rT+'</b> opgaver dér · <b>'+lT+'</b> her).</p>'+lossHtml+'<p class="hint">Anbefalet: hent nyeste. Kun denne skærms allerseneste ændring går tabt — og intet slettes fra historikken (🕘 Gendan tidligere version).</p><div class="mbtns"><button class="cancel" id="cfOver">Overskriv med denne skærms data</button><button class="save" id="cfPull">🔄 Hent nyeste (anbefalet)</button></div></div></div>';
  document.getElementById('cfPull').onclick=()=>{applyKeys(remote.keys);GH.sha=remote.sha;host.innerHTML='';location.reload();};
- document.getElementById('cfOver').onclick=()=>{host.innerHTML='';GH.sha=remote.sha;ghPush(true);};
+ document.getElementById('cfOver').onclick=()=>{host.innerHTML='';GH.sha=remote.sha;GH.pullOk=true;ghPush(true);};
 }
 const _lss=LS.s.bind(LS);
 LS.s=(k,v)=>{_lss(k,v);if(GH.cfg&&!NOSYNC.has('cc2_'+k)){GH.status='pend';updateChip();clearTimeout(GH.timer);GH.timer=setTimeout(()=>ghPush(false),2500);}};
@@ -605,7 +622,7 @@ function editModal(t){
  +'<span class="tvspacer" style="flex:1"></span>'
  +'<button class="tvbtn" id="tv_flag" title="Prioritet"></button>'
  +'<span class="tvgrp"><input id="tv_d" type="date" class="tvdate" value="'+(t.due||'')+'" title="Forfaldsdato">'
- +'<button class="tvbtn" id="tv_dq" title="Hurtig dato — i dag / i morgen / weekend / næste uge / udsæt én uge">▾</button></span>'
+ +'<button class="tvbtn tvdq" id="tv_dq" title="Hurtig dato — i dag / i morgen / weekend / næste uge / udsæt én uge">▾</button></span>'
  +'<input id="tv_t" type="time" class="tvdate" value="'+(t.time||'')+'" title="Tidspunkt">'
  +'<select id="tv_rep" class="tvsel" title="Gentagelse — næste oprettes når du fuldfører">'+repOpts+'</select>'
  +'<button class="tvbtn" id="tv_park" title="Flyt til backlog — uden dato, dukker op i ugentlig gennemgang og 💤-panelet">💤</button>'
@@ -1971,7 +1988,7 @@ function doImport(txt){let d;try{d=JSON.parse(txt);}catch(e){toast('⚠️ Ikke 
  const keys=d.keys||d;let n=0;for(const k in keys)if(k.startsWith('cc2_'))n++;
  if(!n){toast('⚠️ Ingen data fundet i den fil');return;}
  applyKeys(keys);toast('Importeret ✓ — synkroniserer & genindlæser…');
- if(GH.cfg){GH.status='pend';updateChip();ghPush(false);const t0=Date.now();const iv=setInterval(()=>{if(GH.status==='ok'){clearInterval(iv);location.reload();}else if(GH.status==='err'||Date.now()-t0>25000){clearInterval(iv);toast('⚠️ Cloud-synk fejlede — data er gemt i denne browser. Åbn ⚙️ og prøv igen.');updateChip();}},300);}
+ if(GH.cfg){GH.pullOk=true;GH.status='pend';updateChip();ghPush(false);const t0=Date.now();const iv=setInterval(()=>{if(GH.status==='ok'){clearInterval(iv);location.reload();}else if(GH.status==='err'||Date.now()-t0>25000){clearInterval(iv);toast('⚠️ Cloud-synk fejlede — data er gemt i denne browser. Åbn ⚙️ og prøv igen.');updateChip();}},300);}
  else setTimeout(()=>location.reload(),800);}
 function restoreModal(){
  const host=document.getElementById('modalHost');
@@ -2005,7 +2022,7 @@ function restorePreview(sha,d){
   document.getElementById('rpX').onclick=restoreModal;
   document.getElementById('rpGo').onclick=()=>{
    applyKeys(keys);toast('Gendannet ✓ — synkroniserer & genindlæser…');
-   GH.status='pend';updateChip();ghPush(false);
+   GH.pullOk=true;GH.status='pend';updateChip();ghPush(false);
    const t0=Date.now();const iv=setInterval(()=>{if(GH.status==='ok'){clearInterval(iv);location.reload();}else if(GH.status==='err'||Date.now()-t0>25000){clearInterval(iv);toast('⚠️ Synk fejlede — versionen er gendannet i denne browser. Åbn ⚙️ og prøv igen.');updateChip();}},300);};})
  .catch(()=>{toast('⚠️ Kunne ikke hente den version');restoreModal();});
 }
