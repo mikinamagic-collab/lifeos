@@ -66,6 +66,8 @@ h1{font-size:19px;margin:0;font-weight:600;letter-spacing:0}
 .sym{font-size:13px;line-height:1;color:#b4b4b4;cursor:pointer;filter:grayscale(1);opacity:.55}
 .sym:hover{opacity:1}
 .sym.symc{filter:none;opacity:1}
+.sym.symflag{font-size:17px;line-height:1}/* v63: ⚑ har smallere em-boks end 📅/🕒 — skaleres op så ikonrækken ser ensartet ud */
+.tvgrp{display:inline-flex;align-items:center;flex:0 0 auto}/* v63: dato + ▾ må aldrig brydes fra hinanden */
 .symtxt{font-size:10px;font-weight:600;color:#b4b4b4}
 .popbg{position:fixed;inset:0;z-index:59}
 .pop{position:fixed;background:#fff;border:1px solid #e6e6e6;border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.14);padding:6px;z-index:60;min-width:200px;max-height:70vh;overflow:auto}
@@ -239,6 +241,8 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 .symrow{gap:2px}
 .sym{min-width:40px;height:38px;display:inline-flex;align-items:center;justify-content:center;margin:-7px 0}
 .symtxt{min-height:38px;display:inline-flex;align-items:center;margin:-7px 0}
+.sym.symflag{font-size:21px}
+.tvspacer{display:none}/* v63: skub-feltet spildte en hel linje i topbaren på telefon */
 .tvbtn{min-width:40px;min-height:40px;padding:8px;display:inline-flex;align-items:center;justify-content:center}
 .modal .tvsel,.modal .tvdate{min-height:40px;padding:8px 4px}
 .tvclose{width:40px;height:40px;top:4px;right:4px}
@@ -284,6 +288,19 @@ function ghUrl(){return 'https://api.github.com/repos/'+GH.cfg.owner+'/'+GH.cfg.
 function ghHdr(){return {Authorization:'Bearer '+GH.cfg.token,Accept:'application/vnd.github+json'};}
 function b64e(s){return btoa(unescape(encodeURIComponent(s)));}
 function b64d(s){return decodeURIComponent(escape(atob(s.replace(/\s/g,''))));}
+// v63: Contents-API'et udelader content for filer >1 MB (encoding:'none'). Så falder vi tilbage til blobs-API'et (op til 100 MB).
+function ghBlobText(j){
+ try{if(j&&j.content&&j.content.length)return Promise.resolve(b64d(j.content));}catch(e){return Promise.resolve(null);}
+ const m=ghUrl().match(/repos\/([^/]+)\/([^/]+)\//);
+ if(!m||!j||!j.sha)return Promise.resolve(null);
+ return fetch('https://api.github.com/repos/'+m[1]+'/'+m[2]+'/git/blobs/'+j.sha,{headers:ghHdr()})
+  .then(r=>r.ok?r.json():null)
+  .then(b=>{try{return b&&b.content?b64d(b.content):null;}catch(e){return null;}})
+  .catch(()=>null);}
+// v63: skærmbilleder på behandlet feedback ryddes — de fyldte 94% af synk-filen (Ninas beslutning 27/7).
+function trimFeedbackImgs(){const fb=LS.g('feedback',null);if(!fb||!fb.length)return 0;
+ let n=0;fb.forEach(x=>{if(x&&x.status!=='ny'){if(x.imgs&&x.imgs.length){x.imgs=[];n++;}if(x.img){x.img=null;n++;}}});
+ if(n)LS.s('feedback',fb);return n;}
 function collectKeys(){const o={};Object.keys(localStorage).forEach(k=>{if(k.startsWith('cc2_')&&!NOSYNC.has(k)){try{o[k]=JSON.parse(localStorage.getItem(k))}catch(e){}}});return o;}
 function applyKeys(keys){Object.keys(localStorage).forEach(k=>{if(k.startsWith('cc2_')&&!NOSYNC.has(k))localStorage.removeItem(k);});for(const k in keys)if(k.startsWith('cc2_'))localStorage.setItem(k,JSON.stringify(keys[k]));}
 function updateChip(){const c=document.getElementById('syncChip');if(!c)return;
@@ -299,7 +316,11 @@ function ghPullAsync(){ // async pull at boot with the same safety guards (incl.
  return Promise.race([go,timeout]).then(res=>{
   if(res==='timeout'||!res){GH.status='err';return;}
   if(res.st===200){const j=res.j;GH.sha=j.sha;GH.lastSync=Date.now();
-   const data=JSON.parse(b64d(j.content));const rk=data&&data.keys?data.keys:null;const rTasks=rk&&rk.cc2_tasks&&rk.cc2_tasks.length;const lTasks=(LS.g('tasks',[])||[]).length;if(rk&&(rTasks||!lTasks)){applyKeys(rk);GH.status='ok';}else if(rk){GH.status='pend';setTimeout(()=>ghPush(false),1200);}else{GH.status='ok';}}
+   return ghBlobText(j).then(txt=>{
+    if(txt===null){GH.status='err';return;}
+    const data=JSON.parse(txt);const rk=data&&data.keys?data.keys:null;const rTasks=rk&&rk.cc2_tasks&&rk.cc2_tasks.length;const lTasks=(LS.g('tasks',[])||[]).length;
+    if(rk&&(rTasks||!lTasks)){applyKeys(rk);GH.status='ok';if(trimFeedbackImgs()){GH.status='pend';setTimeout(()=>ghPush(false),1500);}}
+    else if(rk){GH.status='pend';setTimeout(()=>ghPush(false),1200);}else{GH.status='ok';}});}
   else if(res.st===404){GH.status='new';}
   else GH.status='err';
  }).catch(()=>{GH.status='err';});}
@@ -312,10 +333,10 @@ function ghPush(retry){if(!GH.cfg)return;GH.status='sync';updateChip();
  .then(({ok,st,j})=>{
   if(ok){GH.sha=j.content.sha;GH.status='ok';GH.lastSync=Date.now();updateChip();}
   else if((st===409||st===422)&&!retry){
-   fetch(ghUrl(),{headers:ghHdr()}).then(r=>r.json()).then(k=>{
-    let rk=null;try{rk=JSON.parse(b64d(k.content)).keys;}catch(e){}
+   fetch(ghUrl(),{headers:ghHdr()}).then(r=>r.json()).then(k=>ghBlobText(k).then(txt=>{
+    let rk=null;try{rk=JSON.parse(txt).keys;}catch(e){}
     if(conflictChoiceNeeded(st,retry,rk&&rk.cc2_tasks)){GH.status='conflict';updateChip();conflictModal({sha:k.sha,keys:rk});}
-    else{GH.sha=k.sha;ghPush(true);}});}
+    else{GH.sha=k.sha;ghPush(true);}}));}
   else{GH.status='err';updateChip();}})
  .catch(()=>{GH.status='err';updateChip();});}
 function conflictModal(remote){ // v35 push-guard: en anden enhed har gemt nyere data
@@ -378,9 +399,16 @@ const dPlus=n=>{const d=new Date(today);d.setDate(d.getDate()+n);return iso(d)};
 function nextWeekSun(){const d=new Date(today);const add=(7-d.getDay())%7;d.setDate(d.getDate()+add+7);return iso(d);}
 function nextSat(){const d=new Date(today);const add=(6-d.getDay()+7)%7;if(add===0)return null;d.setDate(d.getDate()+add);return iso(d);}
 const shortDate=s=>new Date(s+'T12:00').toLocaleDateString('da-DK',{weekday:'short',day:'numeric',month:'short'});
-function relDates(){const out=[];const sa=nextSat();
+// v63: ÉT sted definerer alle dato-genveje — bruges af 📅-menuen, opgavevinduets ▾,
+// Planlæg dagen og ugentlig gennemgang, så valgene er ens overalt (Ninas feedback 26/7).
+function dateActions(t){const out=[{k:'today',l:'I dag',d:TODAY},{k:'tom',l:'I morgen',d:dPlus(1)}];
+ const sa=nextSat();
  if(sa)out.push({k:'wknd',l:(today.getDay()===0?'Næste weekend (lør)':'Denne weekend (lør)'),d:sa});
- out.push({k:'nweek',l:'Næste uge (søn)',d:nextWeekSun()});return out;}
+ out.push({k:'nweek',l:'Næste uge (søn)',d:nextWeekSun()});
+ const base=(t&&t.due&&t.due>TODAY)?new Date(t.due+'T12:00'):new Date(today);
+ base.setDate(base.getDate()+7);
+ out.push({k:'plus7',l:'Udsæt én uge',d:iso(base)});
+ return out;}
 document.getElementById('dateStr').textContent=today.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
 function toast(m){const t=document.getElementById('toast');t.classList.remove('act');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -476,10 +504,7 @@ function popMenu(x,y,build){const host=document.getElementById('popHost');
 function mItem(box,html,fn){const b=document.createElement('button');b.className='mi';b.innerHTML=html;b.onclick=fn;box.appendChild(b);return b;}
 function moveMenu(t,ev){popMenu(ev.clientX,ev.clientY,(box,close)=>{
  const hd=document.createElement('div');hd.className='pophd';hd.textContent='Flyt:';box.appendChild(hd);
- mItem(box,'I dag',()=>{t.due=TODAY;t.parked=false;save();close();render();});
- mItem(box,'Udsæt til i morgen',()=>{const d=new Date(today);d.setDate(d.getDate()+1);t.due=iso(d);t.parked=false;save();close();render();});
- relDates().forEach(r=>{mItem(box,'<span>'+r.l+'</span><span style="color:var(--muted);font-size:11px;margin-left:8px">'+shortDate(r.d)+'</span>',()=>{t.due=r.d;t.parked=false;save();close();toast('Flyttet til '+fmtDue(r.d));render();});});
- mItem(box,'Udsæt én uge',()=>{const base=(t.due&&t.due>TODAY)?new Date(t.due+'T12:00'):new Date(today);base.setDate(base.getDate()+7);t.due=iso(base);t.parked=false;save();close();toast('Udskudt til '+fmtDue(t.due));render();});
+ dateActions(t).forEach(r=>{mItem(box,'<span>'+r.l+'</span><span style="color:var(--muted);font-size:11px;margin-left:8px">'+shortDate(r.d)+'</span>',()=>{t.due=r.d;t.parked=false;save();close();toast('Flyttet til '+fmtDue(r.d));render();});});
  mItem(box,'💤 Til backlog',()=>{t.due=null;t.parked=true;t.parkedAt=TODAY;t.star=false;save();close();toast('Lagt i backlog 💤');render();});
  mItem(box,'<span style="color:var(--over)">🗑 Slet</span>',()=>{close();delTasks([t]);});
  const dh=document.createElement('div');dh.className='pophd';dh.textContent='Vælg dato:';box.appendChild(dh);
@@ -518,7 +543,7 @@ function taskRow(t,opts){opts=opts||{};
  const chk=document.createElement('div');chk.className='cchk'+(t.pri?' '+t.pri:'');chk.title='Fuldfør opgave';chk.onclick=()=>{const nd=completeTask(t);save();toast(nd?'Færdig ✓ — næste: '+fmtDue(nd):'Færdig ✓');render();};sy.appendChild(chk);
  {const s=document.createElement('span');s.className='sym';s.title='Flyt / udsæt';s.textContent='📅';s.onclick=e=>{e.stopPropagation();moveMenu(t,e);};sy.appendChild(s);}
  {const s=document.createElement('span');s.className='sym';s.title='Planlagt tid';s.textContent='🕒';s.onclick=e=>{e.stopPropagation();estPicker(t,e);};sy.appendChild(s);}
- {const f=document.createElement('span');f.className='sym'+(t.pri?' symc':'');f.title='Prioritet: '+priLabel(t.pri);f.textContent='⚑';f.style.color=t.pri?('var(--'+t.pri+')'):'';f.onclick=e=>{e.stopPropagation();priPicker(t,e);};sy.appendChild(f);}
+ {const f=document.createElement('span');f.className='sym symflag'+(t.pri?' symc':'');f.title='Prioritet: '+priLabel(t.pri);f.textContent='⚑';f.style.color=t.pri?('var(--'+t.pri+')'):'';f.onclick=e=>{e.stopPropagation();priPicker(t,e);};sy.appendChild(f);}
  if(t.rep){const s=document.createElement('span');s.className='sym';s.style.cursor='default';s.title='Gentages — '+repLabel(t.rep);s.textContent='🔁';sy.appendChild(s);}
  if(t.tdid){const s=document.createElement('span');s.className='symtxt';s.title='Synkroniseret med Todoist';s.textContent='✓ Todoist';sy.appendChild(s);}
  {const _h=LS.g('highlight',null);if(_h&&_h.date===TODAY&&_h.id===t.id){const s=document.createElement('span');s.className='sym symc';s.style.cursor='default';s.title='Dagens højdepunkt';s.textContent='🌟';sy.appendChild(s);}}
@@ -577,10 +602,10 @@ function editModal(t){
  +'<div class="tvbar">'
  +'<span id="tv_dot" style="width:9px;height:9px;border-radius:50%;flex:0 0 auto"></span>'
  +'<select id="tv_cat" class="tvsel" title="Kategori">'+catOpts+'</select>'
- +'<span style="flex:1"></span>'
+ +'<span class="tvspacer" style="flex:1"></span>'
  +'<button class="tvbtn" id="tv_flag" title="Prioritet"></button>'
- +'<input id="tv_d" type="date" class="tvdate" value="'+(t.due||'')+'" title="Forfaldsdato">'
- +'<button class="tvbtn" id="tv_dq" title="Hurtig dato — i dag / i morgen / weekend / næste uge">▾</button>'
+ +'<span class="tvgrp"><input id="tv_d" type="date" class="tvdate" value="'+(t.due||'')+'" title="Forfaldsdato">'
+ +'<button class="tvbtn" id="tv_dq" title="Hurtig dato — i dag / i morgen / weekend / næste uge / udsæt én uge">▾</button></span>'
  +'<input id="tv_t" type="time" class="tvdate" value="'+(t.time||'')+'" title="Tidspunkt">'
  +'<select id="tv_rep" class="tvsel" title="Gentagelse — næste oprettes når du fuldfører">'+repOpts+'</select>'
  +'<button class="tvbtn" id="tv_park" title="Flyt til backlog — uden dato, dukker op i ugentlig gennemgang og 💤-panelet">💤</button>'
@@ -610,9 +635,7 @@ function editModal(t){
  document.getElementById('tv_dq').onclick=e=>{e.stopPropagation();popMenu(e.clientX,e.clientY,(box,close)=>{
   const hd=document.createElement('div');hd.className='pophd';hd.textContent='Sæt dato:';box.appendChild(hd);
   const set=d=>{document.getElementById('tv_d').value=d;t.parked=false;close();};
-  mItem(box,'<span>I dag</span><span style="color:var(--muted);font-size:11px">'+shortDate(TODAY)+'</span>',()=>set(TODAY));
-  mItem(box,'<span>I morgen</span><span style="color:var(--muted);font-size:11px">'+shortDate(dPlus(1))+'</span>',()=>set(dPlus(1)));
-  relDates().forEach(r=>mItem(box,'<span>'+r.l+'</span><span style="color:var(--muted);font-size:11px">'+shortDate(r.d)+'</span>',()=>set(r.d)));
+  dateActions({due:document.getElementById('tv_d').value||null}).forEach(r=>mItem(box,'<span>'+r.l+'</span><span style="color:var(--muted);font-size:11px">'+shortDate(r.d)+'</span>',()=>set(r.d)));
   mItem(box,'<span style="color:#4a86c9">Ryd dato</span>',()=>set(''));
  });};
  document.getElementById('tv_park').onclick=()=>{document.getElementById('tv_d').value='';document.getElementById('tv_t').value='';t.parked=true;t.parkedAt=TODAY;t.star=false;if(!t.hor)t.hor='s';close();toast('Lagt i backlog 💤');};
@@ -876,7 +899,7 @@ function morningModal(){
    L.forEach(t=>{const r=document.createElement('div');r.className='row';
     const bd=document.createElement('div');bd.className='tbody';bd.innerHTML='<div class="ttl" style="font-size:12.5px">'+esc(t.content)+'</div><div class="meta"><span class="chip over">'+esc(t.due)+'</span></div>';
     const a=document.createElement('div');a.className='acts';
-    [['I dag',()=>{t.due=TODAY;}],['I morgen',()=>{t.due=tom;}]].concat(relDates().map(r=>[r.l,()=>{t.due=r.d;t.parked=false;}])).concat([['💤',()=>{t.due=null;t.parked=true;t.parkedAt=TODAY;}]]).forEach(([txt,fn])=>{const b=document.createElement('button');b.className='btn';b.textContent=txt;b.onclick=()=>{fn();save();renderStep();};a.appendChild(b);});
+    dateActions(t).map(r=>[r.l,()=>{t.due=r.d;t.parked=false;}]).concat([['💤',()=>{t.due=null;t.parked=true;t.parkedAt=TODAY;}]]).forEach(([txt,fn])=>{const b=document.createElement('button');b.className='btn';b.textContent=txt;b.onclick=()=>{fn();save();renderStep();};a.appendChild(b);});
     bd.appendChild(a);r.appendChild(bd);lw.appendChild(r);});
    {const _old=L.filter(t=>Math.round((today-new Date(t.due+'T12:00'))/864e5)>14);
     if(_old.length){const bar=document.createElement('div');bar.style.cssText='margin-top:8px';
@@ -963,12 +986,9 @@ function weeklyModal(){
    let inner='<p style="font-size:12px;color:var(--muted)">Ryd bunken · opgave '+(i1+1)+' af '+U.length+' uden dato</p>';
    inner+='<div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin:6px 0"><div class="ttl" style="font-size:14px">'+esc(t.content)+'</div><div class="meta"><span class="chip area" style="background:transparent;padding-left:0;color:'+esc(catOf(t.pid).color)+';font-weight:600"># '+esc(catOf(t.pid).name)+'</span></div></div>';
    inner+='<div style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Vælg dato: <input type="date" id="wDate" style="border:1px solid var(--line);border-radius:8px;padding:7px"></div>';
-   shell(inner,'<button class="btn" id="wToday">I dag</button><button class="btn" id="wTom">I morgen</button><button class="btn" id="wWeek">I denne uge (fre)</button><span id="wRel" style="display:contents"></span><button class="btn" id="wPark">💤 Parkér</button><button class="btn" id="wSkip">Spring over</button><button class="btn" id="wDel" style="color:var(--over)">Slet</button><button class="cancel" id="wEnough">Det er nok →</button>');
+   shell(inner,'<span id="wRel" style="display:contents"></span><button class="btn" id="wPark">💤 Parkér</button><button class="btn" id="wSkip">Spring over</button><button class="btn" id="wDel" style="color:var(--over)">Slet</button><button class="cancel" id="wEnough">Det er nok →</button>');
    const nx=()=>{i1++;renderStep();};
-   document.getElementById('wToday').onclick=()=>{t.due=TODAY;t.parked=false;save();nx();};
-   document.getElementById('wTom').onclick=()=>{t.due=tom;t.parked=false;save();nx();};
-   document.getElementById('wWeek').onclick=()=>{t.due=fri;t.parked=false;save();nx();};
-   {const rh=document.getElementById('wRel');relDates().forEach(r=>{const b=document.createElement('button');b.className='btn';b.textContent=r.l;b.title=shortDate(r.d);b.onclick=()=>{t.due=r.d;t.parked=false;save();nx();};rh.appendChild(b);});}
+   {const rh=document.getElementById('wRel');dateActions(t).forEach(r=>{const b=document.createElement('button');b.className='btn';b.textContent=r.l;b.title=shortDate(r.d);b.onclick=()=>{t.due=r.d;t.parked=false;save();nx();};rh.appendChild(b);});}
    document.getElementById('wPark').onclick=()=>{t.parked=true;t.parkedAt=TODAY;save();nx();};
    document.getElementById('wSkip').onclick=nx;
    document.getElementById('wDel').onclick=()=>{pushTrash([{type:'task',item:t}]);STORE=STORE.filter(x=>x!==t);save();renderStep();};
@@ -1976,7 +1996,8 @@ function restorePreview(sha,d){
  const host=document.getElementById('modalHost');
  fetch(ghUrl()+'?ref='+sha,{headers:ghHdr()})
  .then(r=>{if(!r.ok)throw 0;return r.json();})
- .then(j=>{const data=JSON.parse(b64d(j.content));const keys=data&&data.keys;if(!keys)throw 0;
+ .then(j=>ghBlobText(j))
+ .then(txt=>{const data=JSON.parse(txt);const keys=data&&data.keys;if(!keys)throw 0;
   const nT=(keys.cc2_tasks||[]).length,curT=(LS.g('tasks',[])||[]).length;
   const warn=(!nT&&curT)?'<p style="font-size:13px;color:var(--over)">⚠️ Denne version er TOM — dine nuværende '+curT+' opgaver ville blive erstattet af ingenting. Er du helt sikker?</p>':'';
   host.innerHTML='<div class="mbg" id="rpBg"><div class="modal"><h3>Gendan denne version?</h3><p style="font-size:13px">Fra <b>'+d.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'})+' kl. '+d.toLocaleTimeString('da-DK',{hour:'2-digit',minute:'2-digit'})+'</b><br>Indeholder <b>'+nT+'</b> opgaver (lige nu: '+curT+').</p>'+warn+'<p class="hint">Den nuværende version slettes ikke — den bliver liggende i historikken, så du kan altid fortryde.</p><div class="mbtns"><button class="cancel" id="rpX">Annullér</button><button class="save" id="rpGo">Gendan ✓</button></div></div></div>';
@@ -2108,7 +2129,7 @@ pruneTrash();render();
   appEl.innerHTML='<div class="empty" style="padding:24px;text-align:center">🔄 Henter dine data…</div>';
   GH.status='sync';updateChip();
   ghPullAsync().then(()=>{if(GH.status==='new'&&Object.keys(collectKeys()).length)setTimeout(()=>ghPush(false),1500);if(GH.status==='sync')GH.status='ok';updateChip();start();});
- }else start();
+ }else{trimFeedbackImgs();start();}
 })();
 </script>
 </body>
