@@ -135,6 +135,8 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 .subchk.done{background:var(--home);border-color:var(--home)}
 .subchk.done:after{content:'✓';color:#fff;font-size:11px;position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
 .subtxt.done{text-decoration:line-through;color:var(--muted)}
+.subedit{flex:1;min-width:0;border:1px solid var(--accent);border-radius:6px;padding:3px 6px;font:inherit;font-size:13px;background:#fff}
+.subedit:focus{outline:none}
 .subadd{display:flex;gap:6px;margin-top:6px}
 .btn{font-size:12.5px;border:1px solid #e3e5e8;background:#fff;border-radius:7px;padding:7px 12px;min-height:34px;display:inline-flex;align-items:center;cursor:pointer;color:#4a5057;box-shadow:0 1px 1px rgba(20,24,28,.03)}
 .btn:hover{background:#f6f7f8}.btn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
@@ -468,11 +470,20 @@ function uncompleteTask(t){t.done=false;delete t.doneAt;
 function chToggle(t,c){c.done=!c.done;if(chAllDone(t)){const nd=completeTask(t);toast('Alle deltrin fuldført ✓'+(nd?' — næste: '+fmtDue(nd):''));}save();}
 function chAdd(t,txt){if(!t.children)t.children=[];t.children.push({id:newSid(),txt:txt,done:false});save();}
 function chDel(t,c){t.children=(t.children||[]).filter(x=>x!==c);save();}
+function chEdit(t,c,txt){const v=String(txt||'').trim();if(!v||v===c.txt)return false;c.txt=v;save();return true;}// v66
 function buildChecklist(t,onChange){
  const wrap=document.createElement('div');wrap.className='subs2';
  (t.children||[]).forEach(c=>{const r=document.createElement('div');r.className='subrow';
   const cb=document.createElement('div');cb.className='subchk'+(c.done?' done':'');cb.onclick=e=>{e.stopPropagation();chToggle(t,c);onChange();};
   const tx=document.createElement('div');tx.className='subtxt'+(c.done?' done':'');tx.textContent=c.txt;tx.style.flex='1';
+  tx.title='Tryk for at redigere';tx.style.cursor='text';
+  tx.onclick=e=>{e.stopPropagation();// v66: inline-redigering af deltrin
+   const inp=document.createElement('input');inp.className='subedit';inp.value=c.txt;
+   let done=false;const commit=()=>{if(done)return;done=true;chEdit(t,c,inp.value);onChange();};
+   inp.onclick=ev=>ev.stopPropagation();
+   inp.onkeydown=ev=>{ev.stopPropagation();if(ev.key==='Enter'){ev.preventDefault();inp.blur();}else if(ev.key==='Escape'){inp.value=c.txt;inp.blur();}};
+   inp.onblur=commit;
+   r.replaceChild(inp,tx);inp.focus();inp.select();};
   const dl=document.createElement('span');dl.textContent='🗑';dl.style.cssText='cursor:pointer;color:#c7c9cd;font-size:12px';dl.onclick=e=>{e.stopPropagation();chDel(t,c);onChange();};
   r.appendChild(cb);r.appendChild(tx);r.appendChild(dl);wrap.appendChild(r);});
  const add=document.createElement('div');add.className='subadd';
@@ -1656,9 +1667,14 @@ function catCard(w,id,name,color,sel){const items=active().filter(t=>t.pid===id&
 function bulkBar(){const c=document.createElement('div');c.className='card';c.style.cssText='position:sticky;top:52px;z-index:4;border-color:var(--accent);border-width:2px';
  c.innerHTML=`<b>${SEL.size} markeret</b>`;
  const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px';
- const lbl=document.createElement('span');lbl.textContent='Flyt til:';lbl.style.fontSize='12.5px';
- const sel=document.createElement('select');sel.style.cssText='font:inherit;border:1px solid var(--line);border-radius:8px;padding:6px 8px';sel.innerHTML=PROJECTS.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
- const mv=document.createElement('button');mv.className='btn';mv.textContent='Flyt';mv.onclick=()=>{const n=SEL.size;STORE.forEach(t=>{if(SEL.has(t.id))t.pid=sel.value;});SEL.clear();save();toast('Flyttet '+n+' opgave'+(n>1?'r':''));render();};
+ // v66: før var det "Flyt til:" + en dropdown + en knap "Flyt" — man kunne nå at trykke Flyt uden at have valgt,
+ // og kvitteringen sagde ikke HVORHEN. Nu: én knap der åbner kategorimenuen og navngiver destinationen.
+ const mv=document.createElement('button');mv.className='btn';mv.textContent='📁 Flyt til kategori…';
+ mv.onclick=e=>{e.stopPropagation();popMenu(e.clientX,e.clientY,(box,cl)=>{
+  const hd=document.createElement('div');hd.className='pophd';hd.textContent='Flyt '+SEL.size+' opgave'+(SEL.size>1?'r':'')+' til:';box.appendChild(hd);
+  PROJECTS.forEach(p=>mItem(box,'<span><span style="color:'+esc(p.color)+'">#</span> '+esc(p.name)+'</span>',()=>{
+   const n=SEL.size;STORE.forEach(t=>{if(SEL.has(t.id))t.pid=p.id;});SEL.clear();cl();save();
+   toast('Flyttet '+n+' opgave'+(n>1?'r':'')+' til # '+p.name);render();}));});};
  const cp=document.createElement('button');cp.className='btn';cp.textContent='✓ Fuldfør';cp.onclick=()=>{const list=STORE.filter(t=>SEL.has(t.id));list.forEach(t=>completeTask(t));SEL.clear();save();toast('Fuldført');render();};
  const dl=document.createElement('button');dl.className='btn';dl.style.color='var(--over)';dl.textContent='🗑 Slet';dl.onclick=()=>{delTasks(STORE.filter(t=>SEL.has(t.id)));};
  const mg=document.createElement('button');mg.className='btn';mg.textContent='⇄ Flet';mg.title='Flet de markerede — den FØRST markerede beholder titlen, resten bliver deltrin';mg.onclick=()=>{
@@ -1677,7 +1693,7 @@ function bulkBar(){const c=document.createElement('div');c.className='card';c.st
   list.forEach(t=>{t.due=null;t.time=null;t.parked=true;t.parkedAt=TODAY;t.star=false;if(!t.hor)t.hor='s';});SEL.clear();save();
   toastUndo(list.length+' lagt i backlog 💤',()=>{prev.forEach(p=>{const t=STORE.find(x=>x.id===p.id);if(t){t.due=p.due;t.time=p.time;t.star=p.star;t.parked=p.parked;}});save();render();});render();};
  const cl=document.createElement('button');cl.className='btn';cl.textContent='Ryd';cl.onclick=()=>{SEL.clear();render();};
- [lbl,sel,mv,cp,pk,mg,dl,cl].forEach(x=>row.appendChild(x));c.appendChild(row);return c;}
+ [mv,cp,pk,mg,dl,cl].forEach(x=>row.appendChild(x));c.appendChild(row);return c;}
 function allP(w){
  w.appendChild(addBar(PROJECTS[0]&&PROJECTS[0].id));
  const mb=document.createElement('div');mb.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px';
