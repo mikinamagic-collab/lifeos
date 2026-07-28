@@ -145,6 +145,9 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 .empty{color:var(--muted);font-size:13px;padding:10px 4px}
 .stats{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:14px}
 .stat{display:inline-flex;flex-direction:column;background:none;border:none;padding:2px 4px;min-width:64px}
+.stat{cursor:pointer;border-radius:9px;text-align:left}
+.stat:hover{background:#f0f1f2}
+.stat.on{background:#e8effa;box-shadow:inset 0 0 0 1px #cfdcf3}
 .stat b{font-size:20px;font-weight:600}.stat span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 /* add bar */
 .addbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
@@ -193,6 +196,7 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 .gbig{display:flex;flex-wrap:wrap;gap:8px}.gbig span{background:#f4f6f8;border:1px solid var(--line);border-radius:10px;padding:7px 11px;font-size:12.5px}
 .wheelwrap{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}.mlist{flex:1;min-width:220px}.mlist h3{margin:2px 0 8px;font-size:14px}
 .mitem{font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;background:#fafafa}.seg{cursor:pointer}.seg:hover{opacity:.85}.legend{font-size:11.5px;color:var(--muted);margin-top:8px}
+@media(min-width:561px){.fbarsticky{position:sticky;top:47px;z-index:5;background:var(--bg);padding:8px 0 6px;margin:0!important;border-bottom:1px solid var(--line)}}/* v68: filtrene låses fast sammen med headeren på browser */
 .banner{background:#f2f7fd;border:1px solid #dbe8f7;border-radius:9px;padding:10px 13px;font-size:12.5px;color:#44618a;margin-bottom:14px}
 .calnav{display:flex;align-items:center;gap:8px;margin-bottom:10px}
 .calnav b{font-size:15px;flex:1}
@@ -270,7 +274,7 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 <nav id="sideNav"></nav>
 <div class="wrap">
   <header>
-    <h1>Nina's LifeOS</h1><span id="pageTitle"></span><span class="date" id="dateStr"></span>
+    <h1>Nina's LifeOS</h1><span id="pageTitle"></span><span class="date" id="dateStr"></span><span id="pageActions" style="display:flex;gap:4px;margin-left:6px"></span>
     <span id="syncChip" style="margin-left:auto;font-size:12px;color:var(--muted)">⚪ ikke sat op</span>
     <button class="imp" id="undoBtn" title="Fortryd seneste ændring (⌘Z)" style="margin-left:0;opacity:.4">↩️</button>
     <button class="imp" id="ghBtn" style="margin-left:0">⚙️ Sync</button>
@@ -784,9 +788,9 @@ function sectionReorder(w){
   c.appendChild(ctl);
  });
 }
-const NAV_MAIN=[{id:'dash',ic:'📊',l:'Overblik'},{id:'focus',ic:'🎯',l:'Dagens plan',sl:'Dagen'},{id:'opgaver',ic:'📋',l:'Opgaver',subs:['all','prio']},{id:'kalender',ic:'🗓',l:'Kalender',subs:['timeline','dates']}];
+const NAV_MAIN=[{id:'dash',ic:'📊',l:'Overblik'},{id:'focus',ic:'🎯',l:'Dagens plan',sl:'Dagen'},{id:'opgaver',ic:'📋',l:'Opgaver'},{id:'kalender',ic:'🗓',l:'Kalender',subs:['timeline','dates']}];// v68: Prioritér parkeret på Ninas ønske
 const NAV_MORE=[{id:'habits',ic:'🔁',l:'Vaner'},{id:'health',ic:'🌱',l:'Sundhed'},{id:'wheel',ic:'🎡',l:'Årshjul'},{id:'projects',ic:'🚀',l:'Projekter'},{id:'goals',ic:'🌟',l:'Mål'}];
-const GROUP_OF={all:'opgaver',prio:'opgaver',timeline:'kalender',dates:'kalender'};
+const GROUP_OF={all:'opgaver',timeline:'kalender',dates:'kalender'};
 const NAV_RIT=[
  {ic:'☀️',l:'Planlæg dagen',id:'planlaeg',done:()=>LS.g('lastplan','')===TODAY,run:()=>openPlanning()},
  {ic:'🌙',l:'Luk dagen',done:()=>LS.g('dayclosed','')===TODAY,run:()=>shutdownModal()},
@@ -818,7 +822,8 @@ function moreSheet(){const host=document.getElementById('modalHost');const tab=L
  document.getElementById('moreBg').onclick=e=>{if(e.target.id==='moreBg')host.innerHTML='';};
  document.getElementById('moreX').onclick=()=>host.innerHTML='';}
 function navPills(tab){const g=GROUP_OF[tab];if(!g)return null;
- const defs={opgaver:[['all','📋 Liste'],['prio','🧭 Prioritér']],kalender:[['timeline','🗓 Tidslinje'],['dates','🎂 Datoer']]};
+ const defs={kalender:[['timeline','🗓 Tidslinje'],['dates','🎂 Datoer']]};
+ if(!defs[g])return null;// v68: Opgaver har kun én visning nu (Prioritér er parkeret)
  const d=document.createElement('div');d.className='seg-toggle';
  defs[g].forEach(([id,lb])=>{const b=document.createElement('button');b.className=tab===id?'on':'';b.textContent=lb;b.onclick=()=>goto(id);d.appendChild(b);});return d;}
 function dashP(w){
@@ -934,16 +939,35 @@ function render(){
  const tab=LS.g('tab','dash');app.innerHTML='';buildNav(tab);
  {const pt=document.getElementById('pageTitle');if(pt)pt.textContent='· '+tabLabel(tab);} // v58: sidenavn i den låste header
  {const ub=document.getElementById('undoBtn');if(ub)ub.style.opacity=UNDO.length?'1':'.4';} // v59
- if(['all','prio'].includes(tab))app.appendChild(statsBar()); // v58: optælling kun på Opgaver
+ {const pa=document.getElementById('pageActions');if(pa){pa.innerHTML=''; // v68: ＋ og 🔍 som ikoner i den låste header
+  if(tab==='all'){
+   const sb=document.createElement('button');sb.className='imp';sb.title='Søg (⌘K)';sb.textContent='🔍';
+   if(ALLQ.trim())sb.style.color='var(--accent)';
+   sb.onclick=searchModal;pa.appendChild(sb);
+   const ab=document.createElement('button');ab.className='imp';ab.title='Ny opgave';ab.textContent='＋';
+   ab.style.cssText='font-size:17px;font-weight:700';ab.onclick=()=>addTaskModal();pa.appendChild(ab);}}}
+ if(tab==='all')app.appendChild(statsBar()); // v58: optælling kun på Opgaver
  const p=navPills(tab);if(p)app.appendChild(p);
  const w=document.createElement('div');
- (({dash:dashP,planlaeg:planP,focus:focusP,prio:prioP,all:allP,timeline:timelineP,dates:datesP,habits:habitsP,health:healthP,wheel:wheelP,projects:projP,goals:goalP})[tab]||dashP)(w);
+ (({dash:dashP,planlaeg:planP,focus:focusP,prio:allP,all:allP,timeline:timelineP,dates:datesP,habits:habitsP,health:healthP,wheel:wheelP,projects:projP,goals:goalP})[tab]||dashP)(w);
  app.appendChild(w);sectionReorder(w);
  if(tab==='wheel')drawWheel();
 }
-function statsBar(){const A=active(),over=A.filter(t=>dueBucket(t)==='over').length,tdy=A.filter(t=>dueBucket(t)==='today').length,nd=A.filter(t=>!t.due).length,uns=A.filter(t=>!t.q).length;
- const d=document.createElement('div');d.className='stats';const mk=(n,l,c)=>`<div class="stat"><b style="color:${c||'var(--ink)'}">${n}</b><span>${l}</span></div>`;
- d.innerHTML=mk(A.length,'åbne')+mk(over,'forfaldne','var(--over)')+mk(tdy,'i dag','var(--today)')+mk(nd,'uden dato','var(--muted)')+mk(uns,'usorteret','var(--deleg)');return d;}
+// v68: optællingen er nu filterlinks — tryk på et tal for at se præcis de opgaver (Ninas ønske).
+function statsBar(){const A=active();
+ const d=document.createElement('div');d.className='stats';
+ const cur=(AFLT['dato']||[]);
+ const mk=(n,l,c,v)=>{const b=document.createElement('button');b.className='stat'+(v&&cur.length===1&&cur[0]===v?' on':(!v&&!cur.length?' on':''));
+  b.innerHTML='<b style="color:'+(c||'var(--ink)')+'">'+n+'</b><span>'+l+'</span>';
+  b.title=v?'Vis kun disse':'Vis alle — rydder datofilteret';
+  b.onclick=()=>{if(v)AFLT['dato']=[v];else delete AFLT['dato'];render();};return b;};
+ const F=v=>A.filter(t=>AFILTERS.find(f=>f.key==='dato').test(t,v)).length;
+ d.appendChild(mk(A.length,'åbne',null,null));
+ d.appendChild(mk(F('over'),'forfaldne','var(--over)','over'));
+ d.appendChild(mk(F('idag'),'i dag','var(--today)','idag'));
+ d.appendChild(mk(F('udendato'),'uden dato','var(--muted)','udendato'));
+ d.appendChild(mk(F('bk'),'💤 backlog','var(--muted)','bk'));
+ return d;}
 function card(t,h){const c=document.createElement('div');c.className='card';c.dataset.skey=secKey(t);c.innerHTML=`<h2>${t}</h2>`+(h?`<p class="hint">${h}</p>`:'');return c;}
 function empty(m){const e=document.createElement('div');e.className='empty';e.textContent=m;return e;}
 function emptyCTA(msg,label,fn){const d=document.createElement('div');d.className='empty';d.style.cssText='padding:14px 4px;text-align:center';const p=document.createElement('div');p.style.marginBottom='9px';p.textContent=msg;d.appendChild(p);const b=document.createElement('button');b.textContent=label;b.style.cssText='border:none;background:var(--accent);color:#fff;border-radius:9px;padding:9px 15px;font-weight:600;cursor:pointer;min-height:40px';b.onclick=fn;d.appendChild(b);return d;}
@@ -1260,7 +1284,7 @@ function makeDraggable(container,onDrop,opts){opts=opts||{};
     if(moved)onDrop([...container.querySelectorAll('.tcard')].map(r=>r.dataset.tid));};
    document.addEventListener('pointermove',mv);document.addEventListener('pointerup',up);document.addEventListener('pointercancel',up);};
  });}
-function tabLabel(t){return ({dash:'Overblik',focus:'Dagens plan',all:'Opgaver · Liste',prio:'Opgaver · Prioritér',timeline:'Kalender · Tidslinje',dates:'Kalender · Datoer',planlaeg:'Planlæg dagen',habits:'Vaner',health:'Sundhed',wheel:'Årshjul',projects:'Projekter',goals:'Mål'})[t]||t;}
+function tabLabel(t){return ({dash:'Overblik',focus:'Dagens plan',all:'Opgaver · Liste',prio:'Opgaver · Liste',timeline:'Kalender · Tidslinje',dates:'Kalender · Datoer',planlaeg:'Planlæg dagen',habits:'Vaner',health:'Sundhed',wheel:'Årshjul',projects:'Projekter',goals:'Mål'})[t]||t;}
 function fbList(){return LS.g('feedback',[]);}
 function fbBadge(){const b=document.getElementById('fbBadge');if(!b)return;const n=fbList().filter(f=>f.status==='ny').length;b.style.display=n?'flex':'none';b.textContent=n;}
 function fbCompress(file,cb){const img=new Image();const rd=new FileReader();
@@ -1696,8 +1720,8 @@ function catCard(w,id,name,color,sel){const items=active().filter(t=>t.pid===id&
   const body=document.createElement('div');body.className='area-body'+(isOpen?' open':'');items.forEach(t=>body.appendChild(taskRow(t,{sel})));
   h.querySelector('.selall').onclick=e=>{e.stopPropagation();if(allSel)items.forEach(t=>SEL.delete(t.id));else items.forEach(t=>SEL.add(t.id));render();};
   h.onclick=()=>{catOpen[id]=body.classList.toggle('open');saveCatOpen();};c.dataset.skey='cat:'+id;c.appendChild(h);c.appendChild(body);w.appendChild(c);}
-function bulkBar(){const c=document.createElement('div');c.className='card';c.style.cssText='position:sticky;top:52px;z-index:4;border-color:var(--accent);border-width:2px';
- c.innerHTML=`<b>${SEL.size} markeret</b>`;
+function bulkBar(){const c=document.createElement('div');c.className='card';c.style.cssText='position:sticky;top:104px;z-index:4;border-color:var(--accent);border-width:2px';
+ c.innerHTML=`<b>${SEL.size} markeret</b><p class="hint" style="margin:4px 0 0">Tryk på firkanten for at vælge flere · titlen åbner opgaven · ☆ fastgør · ⚑ / 📅 på kortet</p>`;// v68: vejledningen vises her i stedet for som fast boks
  const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px';
  // v66: før var det "Flyt til:" + en dropdown + en knap "Flyt" — man kunne nå at trykke Flyt uden at have valgt,
  // og kvitteringen sagde ikke HVORHEN. Nu: én knap der åbner kategorimenuen og navngiver destinationen.
@@ -1726,28 +1750,44 @@ function bulkBar(){const c=document.createElement('div');c.className='card';c.st
   toastUndo(list.length+' lagt i backlog 💤',()=>{prev.forEach(p=>{const t=STORE.find(x=>x.id===p.id);if(t){t.due=p.due;t.time=p.time;t.star=p.star;t.parked=p.parked;}});save();render();});render();};
  const cl=document.createElement('button');cl.className='btn';cl.textContent='Ryd';cl.onclick=()=>{SEL.clear();render();};
  [mv,cp,pk,mg,dl,cl].forEach(x=>row.appendChild(x));c.appendChild(row);return c;}
+// v68: tilføj-linjen og søgefeltet er væk fra siden — de bor nu i hver sin modal bag ＋ og 🔍.
+function addTaskModal(){const host=document.getElementById('modalHost');
+ host.innerHTML='<div class="mbg" id="atBg"><div class="modal"><h3>Ny opgave</h3><div id="atSlot"></div><p class="hint">Skriv naturligt: <b>i morgen 14:00</b> · <b>~30m</b> · <b>!p1</b> · <b>#Familie</b></p><div class="mbtns"><button class="cancel" id="atX">Luk</button></div></div></div>';
+ const bar=addBar(PROJECTS[0]&&PROJECTS[0].id);document.getElementById('atSlot').appendChild(bar);
+ const close=()=>{host.innerHTML='';};
+ document.getElementById('atX').onclick=close;
+ document.getElementById('atBg').onclick=e=>{if(e.target.id==='atBg')close();};
+ const i=bar.querySelector('.t');if(i)setTimeout(()=>i.focus(),40);}
+function searchModal(){const host=document.getElementById('modalHost');
+ const flt=LS.g('filters',[]);
+ host.innerHTML='<div class="mbg" id="sqBg"><div class="modal"><h3>Søg</h3>'
+  +'<input id="sqI" type="search" placeholder="fx job @uge · #hjem !p1 · @gentagne" style="width:100%;font-size:15px;padding:10px">'
+  +'<p class="hint">Tokens: #kategori · !p1–p3 · @idag · @uge · @forfaldt · @udendato · @backlog · @gentagne</p>'
+  +'<div id="sqF" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>'
+  +'<div class="mbtns"><button class="cancel" id="sqClr">Ryd</button><button class="save" id="sqGo">Søg</button></div></div></div>';
+ const inp=document.getElementById('sqI');inp.value=ALLQ;setTimeout(()=>{inp.focus();inp.select();},40);
+ const close=()=>{host.innerHTML='';};
+ const go=()=>{ALLQ=inp.value;close();render();};
+ document.getElementById('sqGo').onclick=go;
+ document.getElementById('sqClr').onclick=()=>{ALLQ='';close();render();};
+ document.getElementById('sqBg').onclick=e=>{if(e.target.id==='sqBg')close();};
+ inp.onkeydown=e=>{e.stopPropagation();if(e.key==='Enter')go();else if(e.key==='Escape')close();};
+ const fw=document.getElementById('sqF');
+ flt.forEach((sf,i)=>{const ch=document.createElement('button');ch.className='btn';
+  ch.innerHTML='🔎 '+esc(sf.n)+' <span class="fx" style="opacity:.55;margin-left:4px">✕</span>';
+  ch.onclick=e=>{if(e.target.classList&&e.target.classList.contains('fx')){LS.s('filters',flt.filter((_,j)=>j!==i));toast('Filter slettet');searchModal();return;}ALLQ=sf.q;close();render();};
+  fw.appendChild(ch);});}
 function allP(w){
- w.appendChild(addBar(PROJECTS[0]&&PROJECTS[0].id));
  const mb=document.createElement('div');mb.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px';
  const mgb=document.createElement('button');mgb.className='btn';mgb.textContent='⚙️ Rediger kategorier';mgb.onclick=catsModal;mb.appendChild(mgb);
  const sall=document.createElement('button');sall.className='btn';sall.textContent='☑︎ Vælg alle';sall.title='Vælger alle synlige (efter filtre)';sall.onclick=()=>{active().filter(t=>AFILTERS.every(f=>{const a=AFLT[f.key];return !a||!a.length||a.some(v=>f.test(t,v));})).forEach(t=>SEL.add(t.id));render();};mb.appendChild(sall);
  const trb=document.createElement('button');trb.className='btn';trb.textContent='🗑 Papirkurv';trb.onclick=trashModal;mb.appendChild(trb);
- const sbar=document.createElement('div');sbar.className='addbar';sbar.innerHTML='<input class="t" type="search" placeholder="🔍 Søg… (fx job @uge · #hjem !p1 · @gentagne)">';
- const _si=sbar.querySelector('.t');_si.value=ALLQ;
- _si.oninput=()=>{ALLQ=_si.value;render();const el=document.querySelector('#app input[type=search]');if(el){el.focus();try{el.setSelectionRange(el.value.length,el.value.length);}catch(e){}}};
- w.appendChild(sbar);
- // F11.2: gemte filtre som chips
  const _flt=LS.g('filters',[]);
- if(_flt.length){const fr=document.createElement('div');fr.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px';
-  _flt.forEach((sf,i)=>{const ch=document.createElement('button');ch.className='btn'+(ALLQ.trim()===sf.q?' on':'');
-   ch.innerHTML='🔎 '+esc(sf.n)+' <span class="fx" title="Slet filter" style="opacity:.55;margin-left:4px">✕</span>';
-   ch.onclick=e=>{if(e.target.classList&&e.target.classList.contains('fx')){const nf=_flt.filter((_,j)=>j!==i);LS.s('filters',nf);toast('Filter slettet');render();return;}ALLQ=ALLQ.trim()===sf.q?'':sf.q;render();};
-   fr.appendChild(ch);});
-  w.appendChild(fr);}
  if(ALLQ.trim()){
   const _f=parseSearch(ALLQ,PROJECTS);
   const _res=active().filter(t=>searchHit(t,_f,TODAY));
   const _c=card('🔍 Søgeresultater — '+_res.length,'Titler + noter. Tokens: #kategori · !p1–p3 · @idag · @uge · @forfaldt · @udendato · @backlog · @gentagne. Ryd feltet for kategorierne igen.');
+  {const cl=document.createElement('button');cl.className='btn';cl.textContent='✕ Ryd søgning';cl.style.margin='0 8px 8px 0';cl.onclick=()=>{ALLQ='';render();};_c.appendChild(cl);}
   const _known=_flt.some(sf=>sf.q===ALLQ.trim());
   if(!_known){const sv=document.createElement('button');sv.className='btn';sv.textContent='💾 Gem som filter';sv.style.margin='0 0 8px';
    sv.onclick=()=>{let n=null;try{n=prompt('Navn på filteret:',ALLQ.trim());}catch(e){}
@@ -1757,10 +1797,9 @@ function allP(w){
   w.appendChild(_c);return;}
  w.appendChild(mb);
  if(SEL.size)w.appendChild(bulkBar());
- const b=document.createElement('div');b.className='banner';b.innerHTML='📋 Én liste — brug filtrene til at skære den til. Tryk på <b>firkanten</b> på en opgave for at masse-vælge, <b>🗑</b> for at slette, titlen for at redigere, ☆ for at fastgøre, ⚑ / 📅 for at prioritere.';w.appendChild(b);
  // v56: flad liste + generisk filterbar (AFILTERS)
  const all=active();
- const fbar=document.createElement('div');fbar.style.cssText='display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 6px';
+ const fbar=document.createElement('div');fbar.className='fbarsticky';fbar.style.cssText='display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 6px';
  AFILTERS.forEach(f=>{const act=AFLT[f.key]||[];const sel=document.createElement('select');sel.style.cssText='font:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:8px;padding:5px 7px;background:#fff'+(act.length?';color:var(--accent);border-color:var(--accent);font-weight:600':'');
   const opts=f.options(all).filter(([v])=>!act.includes(v)).map(([v,l])=>{const n=all.filter(t=>f.test(t,v)).length;return '<option value="'+v+'">'+l+' · '+n+'</option>';}).join('');
   sel.innerHTML='<option value="">'+f.label+(act.length?' ('+act.length+')':'')+'…</option>'+opts;
@@ -2172,7 +2211,7 @@ function paletteModal(){
  document.getElementById('cpalBg').onclick=e=>{if(e.target.id==='cpalBg')close();};
  const CMDS=[
   {l:'📊 Gå til Overblik',f:()=>goto('dash')},{l:'🎯 Gå til Dagens plan',f:()=>goto('focus')},
-  {l:'📋 Gå til Opgaver',f:()=>goto('all')},{l:'🧭 Gå til Prioritér',f:()=>goto('prio')},
+  {l:'📋 Gå til Opgaver',f:()=>goto('all')},
   {l:'🗓 Gå til Kalender',f:()=>goto('timeline')},{l:'🎂 Gå til Datoer',f:()=>goto('dates')},
   {l:'🔁 Gå til Vaner',f:()=>goto('habits')},{l:'🌱 Gå til Sundhed',f:()=>goto('health')},
   {l:'🎡 Gå til Årshjul',f:()=>goto('wheel')},{l:'🚀 Gå til Projekter',f:()=>goto('projects')},{l:'🌟 Gå til Mål',f:()=>goto('goals')},
