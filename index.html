@@ -275,6 +275,15 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 .sym{min-width:40px;height:38px;display:inline-flex;align-items:center;justify-content:center;margin:-7px 0}
 .symtxt{min-height:38px;display:inline-flex;align-items:center;margin:-7px 0}
 .sym.symflag{font-size:21px}
+/* v75: optællingen og filterbaren fyldte 2 hhv. 3 linjer på telefon (Ninas melding 28/7) */
+.stats{gap:8px;margin-bottom:10px}
+.stat{min-width:0;flex:1 1 0;padding:2px}
+.stat b{font-size:16px}
+.stat span{font-size:8.5px;letter-spacing:.02em}
+.fbarsticky select{font-size:11.5px!important;padding:5px 4px!important;flex:1 1 30%;min-width:0;max-width:none}
+.fbarsticky{gap:5px!important}
+.fbarsticky label{font-size:11.5px!important}
+.addtask{width:auto;min-height:38px;padding:7px 12px;font-size:12.5px;margin-top:0}
 .tvbtn{min-width:40px;min-height:40px;padding:8px;display:inline-flex;align-items:center;justify-content:center}
 .tvcols{display:block}
 .tvprops{flex:none;margin-top:18px;padding:8px 12px}
@@ -1027,8 +1036,8 @@ function statsBar(){const A=active();
  d.appendChild(mk(A.length,'åbne',null,null));
  d.appendChild(mk(F('over'),'forfaldne','var(--over)','over'));
  d.appendChild(mk(F('idag'),'i dag','var(--today)','idag'));
- d.appendChild(mk(F('udendato'),'uden dato','var(--muted)','udendato'));
- d.appendChild(mk(F('bk'),'💤 backlog','var(--muted)','bk'));
+ d.appendChild(mk(F('udendato'),'– dato','var(--muted)','udendato'));
+ d.appendChild(mk(F('bk'),'backlog','var(--muted)','bk'));
  return d;}
 function card(t,h){const c=document.createElement('div');c.className='card';c.dataset.skey=secKey(t);c.innerHTML=`<h2>${t}</h2>`+(h?`<p class="hint">${h}</p>`:'');return c;}
 function empty(m){const e=document.createElement('div');e.className='empty';e.textContent=m;return e;}
