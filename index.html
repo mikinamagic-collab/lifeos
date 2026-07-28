@@ -1417,24 +1417,139 @@ function feedbackModal(){
 }
 // ---------- v54: 🧠 Braindump — tøm hovedet, appen foreslår, du bekræfter ----------
 let BDITEMS=null; // null = skriv-tilstand, array = triage-tilstand
-function bdSplit(raw){
- let parts=raw.split(/\n+/).map(s=>s.trim()).filter(Boolean);
- parts=parts.flatMap(p=>p.length>140||parts.length===1?p.split(/(?:[.!?]+|\s+og så|\s+derudover|\s+desuden)\s+/i).map(s=>s.trim()):[p]);
- return parts.map(s=>s.replace(/^[-•*\d.)\s]+/,'').replace(/[.!?]+$/,'').trim()).filter(s=>s.length>3);
+// ===== v74: braindump-motoren, bygget mod et testsæt på 30 danske dumps =====
+// FORKORTELSER: ord der aldrig må bruges som sætningsskel ("dr." "osv." "kl." "str.")
+const BD_ABBR=/(\b(dr|hr|fru|frk|bl|ca|evt|fx|inkl|jf|kl|mfl|mht|mm|osv|pga|str|stk|ift|iflg|nr|hhv|el|dvs|f\.?eks|m\.?fl|m\.?m)|\bden \d{1,2}|\bd\.? ?\d{1,2})\.$/i;// v74: ogsaa ordenstal — 'den 3.' er en dato, ikke et punktum
+// Sætninger der IKKE er opgaver: rene tanker, følelser, spørgsmål, negationer, afgivet arbejde
+const BD_NOISE=[
+ /^(øh+|æh+|hmm+|nå+|ok(ay)?|ja|jo|nej|altså|tja|puha|suk)\b[\s.,!?]*$/i,
+ /\b(jeg (er|føler|synes|tror|ved ikke|orker|gider|kan ikke lige huske|aner ikke))\b/i,
+ /\b(det er (jo )?(pinligt|træls|surt|hårdt|for meget|ikke vigtigt))\b/i,
+ /\b(jeg er (godt nok |bare |så )?(bagud|træt|udkørt|stresset|elendig til))\b/i,
+ /\b(skriver det ind senere|kommer i tanke om|ved det ikke rigtig)\b/i,
+ /^(husk|noget med)\b[\s.,!?]*$/i,
+ /^(det der med|eller også|eller ogsaa|nå men|jeg mener|hvad var det)\b/i,
+ /^(og |så |men )?(det|den|de) (var|er) (slet )?ikke\b/i
+];
+const BD_NEG=/\b(skal|behøver|behøves|skulle|må)\s+(jeg\s+|vi\s+|du\s+)?ikke\b|\b(ikke nødvendigt|har (mikkel|han|hun|de) (allerede )?(gjort|klaret|ordnet)|sørger (mikkel|han|hun) for|det (har|klarer) (mikkel|han|hun))\b/i;
+const BD_Q=/\?\s*$/;
+// Kontekst-sætninger: siger noget OM de andre punkter — bliver aldrig selv en opgave
+const BD_CTX=/\b(det (er|var) alt ?sammen|alle de her|alt det her|det hele|ovenstående|de (to|tre|fire|fem) (første|sidste)|det handler (jo )?(bare )?om|det her handler om|hører (alle )?(til|under)|er alt sammen)\b/i;
+// Fyldord i starten af en opgave — skæres væk så titlen bliver kort som Ninas egne
+const BD_FILLER=/^(og\s+|så\s+|derudover\s+|desuden\s+|derefter\s+|bagefter\s+|nå\s+|øh+\s+|altså\s+|ja\s+|men\s+|nu\s+|lige\s+|også\s+|nej vent\s+|vent\s+|i øvrigt\s+|jeg (skal|vil|bør|må|tænkte|tænker)( gerne| lige| altså| også| have| nu)*\s+|vi (skal|vil|skulle)( lige| også| have)*\s+|husk (lige )?(at|på)\s+|jeg skal (lige )?huske (at|på)\s+|få\s+(nu\s+)?|der er (også )?lige det med at\s+|skal (jeg|vi|du)( lige| også| altså| nu| have| gerne)*\s+|(vil|skulle|ville) (jeg|vi)( gerne| lige| også)*\s+|til sidst(e)?\s+|først\s+|for det (første|andet|tredje)\s+|(jeg|vi) (har|skal have)( lige| også)?\s+)/i;
+// Emneord -> kategorinavn. Slås op mod Ninas FAKTISKE kategorier; findes navnet ikke, springes det over.
+const BD_CATWORDS=[
+ ['Work',/\b(job|jobs\w*|ansøgning|ansøgninger|cv|linkedin|samtale|rekrutter\w*|arbejde|arbejds\w*|kollega|chef|karriere|stilling|opslag|netværk|kursus|kurser|produktleder|produktledelse)\b/i],
+ ['Finance',/\b(penge|pengene|budget|løn|regning|regninger|betal\w*|bank|banken|lån|lånet|rente\w*|forsikring\w*|opsparing|abonnement\w*|opsig\w*|investering\w*|overfør\w*|konto|kontoen|dagpenge|økonomi|skat|testamente|pension)\b/i],
+ ['Sundhed',/\b(læge|lægen|jordemoder\w*|tandlæge\w*|scanning|skanning|kontrol|vitamin\w*|jern\w*|blodtryk|medicin|apotek\w*|træning|yoga|løbe|gå tur|motion|vand|søvn|prøvesvar|sygehus|fødsel\w*|gravid\w*)\b/i],
+ ['Family',/\b(lily|lilly|barn|barnet|børn|børne\w*|vuggestue|dagpleje|barnedåb|fødselsdag|autostol|barnevogn|hospitalstask\w*|ammepude|bleer|sutteflask\w*|far|mor til|svigermor|mikkels (mor|far|forældre|søster))\b/i],
+ ['Home',/\b(hus|huset|hjem|hjemme|have|haven|skur|skuret|loft|loftet|male|maling|håndværker|murer|skorstensfejer|tagrende|vindue|vinduer|emhætte|bryggers|køkken|badeværelse|soveværelse|gildesal|terrasse|genbrugsplads|storskrald|vasketøj|vaske|rydde op|oprydning|møbel|møbler|bord|reol|hylde\w*|skraldespand|dækskift|bil(en)?\b)/i],
+ ['Shopping',/\b(køb|købe|bestil\w*|handle ind|indkøb|gave|gaver|gavekort|butik|matas|ikea|apotek\.dk)\b/i],
+ ['Relationer',/\b(mor|far|søster|bror|veninde|ven|vennerne|skriv til|ring til (mor|far|sofie|line|camilla|trine|rie|sara|stine)|brunch|frokost|date|besøg|tak for)\b/i],
+ ['Myself',/\b(me-?tid|mig selv|læs|læse|bog|bogen|meditation|meditér|meditere|frisør|klip|strikke|hobby|fotobog|fotoalbum|kørekort)\b/i]
+];
+function bdCatFromText(txt){
+ for(const [name,re] of BD_CATWORDS){
+  if(re.test(txt)){const p=PROJECTS.find(x=>x.name.toLowerCase()===name.toLowerCase());if(p)return p.id;}
+ }
+ return null;
 }
-function bdRecommend(line,r){
+// v74: Nina skriver bydeform ("Ring til…", "Køb…"). Dikterede dumps er i datid/tillægsform.
+const BD_VERBS=[['opdateret','Opdater'],['bestilt','Bestil'],['ringet','Ring'],['betalt','Betal'],['købt','Køb'],['sendt','Send'],['pakket','Pak'],['ryddet','Ryd'],['skrevet','Skriv'],['flyttet','Flyt'],['booket','Book'],['lavet','Lav'],['taget','Tag'],['kigget','Kig'],['fundet','Find'],['svaret','Svar'],['spurgt','Spørg'],['vasket','Vask'],['malet','Mal'],['renset','Rens'],['opsagt','Opsig'],['undersøgt','Undersøg'],['tjekket','Tjek'],['meldt','Meld'],['læst','Læs'],['afleveret','Aflever'],['overført','Overfør']];
+// infinitiv -> bydeform: "Bestille kage" -> "Bestil kage", "Købe gave" -> "Køb gave"
+function bdImperative(t){
+ for(const [pp,imp] of BD_VERBS){
+  const re=new RegExp('^'+pp+'\\b','i');
+  if(re.test(t))return imp+t.slice(pp.length);
+ }
+ const m=t.match(/^([a-zæøå]{3,})e\b/i);
+ if(m&&/^(bestill|købe?|ringe|skrive|sende|betale|finde|lave|tage|rydde|pakke|vaske|male|læse|booke|flytte|melde|tjekke|svare|spørge|opdatere|undersøge|aflevere|overføre|drikke|gå)/i.test(m[1]+'e')){
+  let stem=m[1];
+  if(/^bestill$/i.test(stem))stem='bestil';
+  if(/^ryddd?$/i.test(stem))stem='ryd';
+  return stem.charAt(0).toUpperCase()+stem.slice(1)+t.slice(m[0].length);
+ }
+ return t;
+}
+// v74: tidsudtryk forrest hører til datofeltet, ikke i titlen. bdRecommend læser stadig den RÅ linje,
+// så destinationen går ikke tabt ved at titlen renses.
+const BD_TIMELEAD=/^(i dag|i morgen|i overmorgen|i aften|i morgen tidlig|på (mandag|tirsdag|onsdag|torsdag|fredag|lørdag|søndag)|næste (uge|måned|år|mandag|tirsdag|onsdag|torsdag|fredag|lørdag|søndag)|denne uge|i denne uge|i denne måned|inden weekenden|inden fredag|inden jul|inden fødslen|inden vinteren|inden efteråret|til sommer|til efteråret|her i kvartalet|om (to|tre|fire|fem|seks|syv|fjorten|et par) (dage|uger)|på et tidspunkt|engang|hver (dag|uge|morgen|aften|måned|mandag|tirsdag|onsdag|torsdag|fredag|lørdag|søndag))[,:\s]+/i;
+function bdClean(s){
+ let t=String(s||'').trim();
+ t=t.replace(/^[-•*–—\s]+/,'').replace(/^\d+[.)]\s+/,'');
+ let prev;do{prev=t;t=t.replace(BD_FILLER,'');}while(t!==prev&&t.length>3);
+ t=t.replace(/\s+/g,' ').replace(/[,;:\s]+$/,'').replace(/[.!?]+$/,'').trim();
+ // klip forklarende haleled væk: ", det ..." / " fordi ..." / " jeg tror ..."
+ t=t.replace(/\s*[,—–-]\s*(det|den|de|jeg|vi|hun|han)\s+(er|var|har|tror|ved|kan|ligger|gør|synes|orker|bruger|betaler|ser)\b.*$/i,'');
+ t=t.replace(/\s+(fordi|så jeg kan|for at jeg kan|jeg kan aldrig|jeg ved ikke)\b.*$/i,'');
+ let pv;do{pv=t;t=t.replace(BD_TIMELEAD,'');t=t.replace(BD_FILLER,'');}while(t!==pv&&t.length>3);
+ if(t)t=t.charAt(0).toUpperCase()+t.slice(1);
+ t=bdImperative(t);
+ return t.trim();
+}
+function bdIsNoise(s){
+ const t=String(s||'').trim();
+ if(t.length<4)return true;
+ if(BD_Q.test(t))return true;
+ if(BD_NEG.test(t))return true;
+ if(BD_NOISE.some(re=>re.test(t)))return true;
+ const words=t.split(/\s+/).filter(Boolean);
+ if(words.length<2&&!/[a-zæøå]{5}/i.test(t))return true;
+ return false;
+}
+// Deler råteksten i kandidat-linjer. Linjeskift vinder; ellers sætningsgrænser der
+// respekterer forkortelser, plus "og så"/"derudover"/"desuden" som bindeord.
+function bdSplit(raw){
+ let parts=String(raw||'').split(/\n+/).map(s=>s.trim()).filter(Boolean);
+ const splitSentences=p=>{
+  const out=[];let buf='';
+  const toks=p.split(/(?<=[.!?])\s+/);
+  toks.forEach(tk=>{
+   buf=buf?buf+' '+tk:tk;
+   if(BD_ABBR.test(buf.trim()))return;      // "dr." må ikke afslutte
+   if(/[.!?]\s*$/.test(buf)){out.push(buf.trim());buf='';}
+  });
+  if(buf.trim())out.push(buf.trim());
+  return out;};
+ parts=parts.flatMap(p=>(p.length>90||parts.length===1)?splitSentences(p):[p]);
+ // bindeord kun når begge sider har rimelig længde
+ parts=parts.flatMap(p=>{
+  if(p.length<60)return [p];
+  const bits=p.split(/\s+(?:og så|og derudover|derudover|desuden|og bagefter)\s+/i).map(x=>x.trim());
+  return bits.every(b=>b.length>8)?bits:[p];});
+ return parts.map(s=>s.trim()).filter(Boolean);
+}
+// Hele dumpen på én gang: finder kontekst-sætninger, renser, kaster støj væk.
+function bdOrganise(raw){
+ const rawLines=bdSplit(raw);
+ let ctxCat=null;
+ const kept=[];
+ rawLines.forEach(line=>{
+  if(BD_CTX.test(line)&&!/\b(køb|ring|skriv|bestil|book|find|lav|send|betal|opdater|rens|mal|pak|opsig)\b/i.test(line)){
+   const c=bdCatFromText(line);if(c)ctxCat=c;      // kontekst sætter kategori for resten
+   return;                                          // og bliver ALDRIG selv en opgave
+  }
+  if(bdIsNoise(line))return;
+  const t=bdClean(line);
+  if(!t||bdIsNoise(t))return;
+  kept.push({raw:line,title:t});
+ });
+ return {items:kept,ctxCat};
+}
+function bdRecommend(line,r,ctxCat){
  const lc=line.toLowerCase();
  let dest,hor='s';
- if(/hver (dag|uge|morgen|aften)|dagligt|ugentligt|vane/.test(lc))dest='vane';
- else if(r.due===TODAY||/\bi dag\b|straks|med det samme/.test(lc))dest='idag';
+ if(/hver (dag|anden dag|uge|anden uge|morgen|aften|mandag|tirsdag|onsdag|torsdag|fredag|lørdag|søndag|tredje måned|måned)|dagligt|ugentligt|en gang om (ugen|måneden)|hver eneste dag|\bvane\b/.test(lc))dest='vane';
+ else if(r.due===TODAY||/\bi dag\b|\bi aften\b|straks|med det samme/.test(lc))dest='idag';
  else if(r.due)dest='dato';
- else if(/engang|en dag|på et tidspunkt|drøm|langt sigt|næste år/.test(lc)){dest='bk';hor=/næste år/.test(lc)?'y':'s';}
- else if(/kvartal/.test(lc)){dest='bk';hor='q';}
- else if(/måned/.test(lc)){dest='bk';hor='m';}
- else if(/(denne|næste) uge|snart/.test(lc)){dest='bk';hor='w';}
- else dest=line.split(/\s+/).length<=6?'bk':'bk',hor=line.split(/\s+/).length<=6?'w':'s';
- let pid=r.pid;
- if(!pid){const f=PROJECTS.find(p=>lc.includes(p.name.toLowerCase()));if(f)pid=f.id;}
+ else if(/\bi morgen\b|\bi overmorgen\b|på (mandag|tirsdag|onsdag|torsdag|fredag|lørdag|søndag)|næste (mandag|tirsdag|onsdag|torsdag|fredag|lørdag|søndag)|om (to|tre|fire|fem|seks|syv|fjorten) dage|inden weekenden|inden fredag|den \d{1,2}\.? ?(jan|feb|mar|apr|maj|jun|jul|aug|sep|okt|nov|dec)/.test(lc))dest='dato';
+ else if(/næste år|til næste sommer|inden jul|om et år/.test(lc)){dest='bk';hor='y';}
+ else if(/kvartal|inden fødslen|til efteråret|til sommer|inden vinteren|inden efteråret|uge \d\d/.test(lc)){dest='bk';hor='q';}
+ else if(/denne måned|i måneden|om en måned|næste måned|inden en måned/.test(lc)){dest='bk';hor='m';}
+ else if(/(denne|næste) uge|snart|i denne uge|om et par uger|inden længe/.test(lc)){dest='bk';hor='w';}
+ else if(/engang|en dag|på et tidspunkt|når (vi|jeg) får tid|drøm|langt sigt/.test(lc)){dest='bk';hor='s';}
+ else {dest='bk';hor=line.split(/\s+/).length<=6?'w':'m';}
+ let pid=r.pid||bdCatFromText(line)||ctxCat||null;
  return {dest,hor,pid:pid||(PROJECTS[0]&&PROJECTS[0].id)};
 }
 function braindumpModal(){
@@ -1462,9 +1577,11 @@ function braindumpModal(){
   ta.oninput=()=>{try{if(ta.value.trim())localStorage.setItem('bd_draft',ta.value);else localStorage.removeItem('bd_draft');}catch(e){}};
   setTimeout(()=>ta.focus(),50);
   document.getElementById('bdGo').onclick=()=>{const raw=ta.value.trim();if(!raw){toast('Skriv eller diktér lidt først 🙂');return;}
-   const parts=bdSplit(raw);if(!parts.length){toast('Kunne ikke finde noget at organisere');return;}
-   BDITEMS=parts.map(line=>{const r=parseQuickAdd(line,false);const rec=bdRecommend(line,r);
-    return {txt:r.content||line,dest:rec.dest,hor:rec.hor,due:r.due||'',time:r.time||'',pri:r.pri,est:r.est,pid:rec.pid};});
+   const org=bdOrganise(raw);// v74: renser fyldord, kaster tanker/negationer væk, fanger kontekst-sætninger
+   if(!org.items.length){toast('Kunne ikke finde nogen opgaver i den 🙂');return;}
+   BDITEMS=org.items.map(it=>{const r=parseQuickAdd(it.title,false);const rec=bdRecommend(it.raw,r,org.ctxCat);
+    const title=(r.content||it.title||'').trim()||it.title;
+    return {txt:title,dest:rec.dest,hor:rec.hor,due:r.due||'',time:r.time||'',pri:r.pri,est:r.est,pid:rec.pid};});
    renderTriage(raw);};
   document.getElementById('bdClaude').onclick=()=>{const raw=ta.value.trim();if(!raw){toast('Skriv eller diktér lidt først 🙂');return;}
    const l=LS.g('braindump',[]);l.push({id:newSid(),text:raw,at:new Date().toISOString(),status:'ny'});LS.s('braindump',l);
