@@ -114,6 +114,10 @@ h1{font-size:19px;margin:0;font-weight:600;letter-spacing:0}
 input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus på felter <16px — 16px forhindrer zoom helt */
 .fbpanel{position:fixed;right:18px;bottom:76px;z-index:45;background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;width:min(430px,92vw);box-shadow:0 14px 44px rgba(20,24,28,.28);max-height:82vh;overflow:auto}
 .fbhead{display:flex;align-items:center;gap:8px;cursor:grab;margin:0 0 6px;user-select:none;-webkit-user-select:none;touch-action:none}
+/* v73: touch-action ARVES IKKE. Rammer fingeren h3'en eller "⠿ træk"-teksten, gælder deres egen (auto),
+   og iOS starter en scroll-gestus der annullerer pointer-strømmen — panelet kunne derfor ikke trækkes på telefon. */
+.fbhead *{touch-action:none}
+.fbhead #fbX,.fbhead #bdX{touch-action:auto}
 .fbhead h3{margin:0;font-size:15px;flex:1}
 .fbhead:active{cursor:grabbing}
 .focuswrap{display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:start}
