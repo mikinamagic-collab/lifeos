@@ -1229,23 +1229,32 @@ function makeDraggable(container,onDrop,opts){opts=opts||{};
    let overCal=null,ind=null,moved=false;
    const mark=document.createElement('div');mark.className='dropmark';
    const offX=e.clientX-rect.left,offY=e.clientY-rect.top;
-   const mv=ev=>{ev.preventDefault();moved=true;
-    ghost.style.left=(ev.clientX-offX)+'px';ghost.style.top=(ev.clientY-offY)+'px';
+   const bkEl=document.getElementById('bkDrop');let overBk=false;// v67: slip på 💤 Backlog
+   const place=(cx,cy)=>{
+    ghost.style.left=(cx-offX)+'px';ghost.style.top=(cy-offY)+'px';
     if(grid){const gr=grid.getBoundingClientRect();
-     if(ev.clientX>=gr.left-40&&ev.clientX<=gr.right+10&&ev.clientY>=gr.top&&ev.clientY<=gr.bottom){
+     if(cx>=gr.left-40&&cx<=gr.right+10&&cy>=gr.top&&cy<=gr.bottom){
       const pxm=+grid.dataset.pxm;const startH=+grid.dataset.starth;
-      let mins=startH*60+(ev.clientY-gr.top)/pxm;mins=Math.round(mins/15)*15;
+      let mins=startH*60+(cy-gr.top)/pxm;mins=Math.round(mins/15)*15;
       overCal=mins;
       if(!ind){ind=document.createElement('div');ind.className='calindic';grid.appendChild(ind);}
       ind.style.top=((mins-startH*60)*pxm)+'px';ind.textContent=String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0');
       if(mark.parentNode)mark.remove();
       return;}
      else{overCal=null;if(ind){ind.remove();ind=null;}}}
+    if(bkEl){const br=bkEl.getBoundingClientRect();
+     overBk=cx>=br.left-20&&cx<=br.right+20&&cy>=br.top-10&&cy<=br.bottom+10;
+     bkEl.style.outline=overBk?'2px dashed var(--accent)':'';bkEl.style.outlineOffset='3px';
+     if(overBk){if(mark.parentNode)mark.remove();return;}}
     const rows=[...container.querySelectorAll('.tcard')].filter(r=>r!==row);
-    const after=rows.find(r=>{const rc=r.getBoundingClientRect();return ev.clientY<rc.top+rc.height/2;});
+    const after=rows.find(r=>{const rc=r.getBoundingClientRect();return cy<rc.top+rc.height/2;});
     if(after)container.insertBefore(mark,after);else container.appendChild(mark);};
-   const up=()=>{document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);document.removeEventListener('pointercancel',up);
-    ghost.remove();row.classList.remove('dragsrc');if(ind)ind.remove();
+   const scroller=dragScroller(place);
+   const mv=ev=>{ev.preventDefault();moved=true;place(ev.clientX,ev.clientY);scroller.move(ev.clientX,ev.clientY);};
+   const up=()=>{scroller.stop();document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);document.removeEventListener('pointercancel',up);
+    ghost.remove();row.classList.remove('dragsrc');if(ind)ind.remove();if(bkEl)bkEl.style.outline='';
+    if(moved&&overBk){if(mark.parentNode)mark.remove();const bt=STORE.find(x=>x.id===row.dataset.tid);
+     if(bt){bt.due=null;bt.time=null;bt.parked=true;bt.parkedAt=TODAY;bt.star=false;if(!bt.hor)bt.hor='s';save();toast('Lagt i backlog 💤');render();}return;}
     if(overCal!=null&&opts.calDrop){if(mark.parentNode)mark.remove();opts.calDrop(row.dataset.tid,overCal);return;}
     if(mark.parentNode){container.insertBefore(row,mark);mark.remove();}
     if(moved)onDrop([...container.querySelectorAll('.tcard')].map(r=>r.dataset.tid));};
@@ -1434,7 +1443,7 @@ function sidePanel(){ // v58: ét panel, altid tre tabs (Ninas rettelse af v57-i
  tog.innerHTML='<button class="'+(tab==='cal'?'on':'')+'" data-p="cal">🗓 Kalender</button><button class="'+(tab==='td'?'on':'')+'" data-p="td">✓ Todoist</button><button class="'+(tab==='bk'?'on':'')+'" data-p="bk">💤 Backlog</button>';
  tog.querySelectorAll('button').forEach(b=>b.onclick=()=>{LS.s('fpanel',b.dataset.p);render();});
  c.appendChild(tog);
- if(tab==='cal')sideCal(c);else if(tab==='bk')sideBacklog(c);else sideTodoist(c);
+ if(tab==='cal')sideCal(c);else if(tab==='bk'){c.id='bkDrop';sideBacklog(c);}else sideTodoist(c);// v67: id = sluppe-mål for træk
  return c;}
 function sideCal(c){
  const CAL=calToday();const timed=CAL.events.filter(e=>!e.a&&e.s&&e.e);const allday=CAL.events.filter(e=>e.a);
@@ -1490,6 +1499,27 @@ function bkCollapsed(){try{return JSON.parse(localStorage.getItem('bk_collapse')
 function bkToggle(k){const a=bkCollapsed();const i=a.indexOf(k);if(i>=0)a.splice(i,1);else a.push(k);try{localStorage.setItem('bk_collapse',JSON.stringify(a));}catch(e){}}
 let BKADD=null; // horisont med åben tilføj-linje
 let BKFLT=null; // v51: kategori-filter i backlog-tabben
+// v67: uden dette kan man ikke trække et kort til noget der ligger uden for skærmen —
+// pointermove.preventDefault() slår browserens egen scroll fra, så vi må selv rulle ved kanten.
+function dragScroller(place){
+ let lx=0,ly=null,raf=null;
+ const EDGE=90,MAX=20;
+ const hostUnder=(x,y)=>{let el=document.elementFromPoint(x,y);
+  while(el&&el!==document.body&&el!==document.documentElement){
+   const st=getComputedStyle(el);
+   if(/(auto|scroll)/.test(st.overflowY)&&el.scrollHeight>el.clientHeight+2)return el;
+   el=el.parentElement;}
+  return null;};
+ const step=()=>{raf=null;if(ly==null)return;
+  const H=innerHeight;let d=0;
+  if(ly<EDGE)d=-MAX*(1-ly/EDGE);
+  else if(ly>H-EDGE)d=MAX*(1-(H-ly)/EDGE);
+  if(d){const el=hostUnder(lx,ly);
+   if(el)el.scrollTop+=d;else window.scrollBy(0,d);
+   if(place)place(lx,ly);}
+  raf=requestAnimationFrame(step);};
+ return {move(x,y){lx=x;ly=y;if(raf==null)raf=requestAnimationFrame(step);},
+         stop(){ly=null;if(raf!=null){cancelAnimationFrame(raf);raf=null;}}};}
 function bkDrag(h,row,t){h.onpointerdown=e=>{e.preventDefault(); // v51: træk backlog-kort til dagens plan (ghost — aldrig DOM-flyt under træk)
  const rect=row.getBoundingClientRect();
  const ghost=row.cloneNode(true);ghost.classList.add('dragghost');ghost.style.width=rect.width+'px';ghost.style.left=rect.left+'px';ghost.style.top=rect.top+'px';ghost.style.background='#fff';document.body.appendChild(ghost);
@@ -1497,10 +1527,12 @@ function bkDrag(h,row,t){h.onpointerdown=e=>{e.preventDefault(); // v51: træk b
  const target=document.getElementById('planList')||document.getElementById('planListM');
  let over=false,moved=false;
  const offX=e.clientX-rect.left,offY=e.clientY-rect.top;
- const mv=ev=>{ev.preventDefault();moved=true;ghost.style.left=(ev.clientX-offX)+'px';ghost.style.top=(ev.clientY-offY)+'px';
-  if(target){const tr=target.getBoundingClientRect();over=ev.clientX>=tr.left-20&&ev.clientX<=tr.right+20&&ev.clientY>=tr.top-30&&ev.clientY<=tr.bottom+30;
+ const place=(cx,cy)=>{ghost.style.left=(cx-offX)+'px';ghost.style.top=(cy-offY)+'px';
+  if(target){const tr=target.getBoundingClientRect();over=cx>=tr.left-20&&cx<=tr.right+20&&cy>=tr.top-30&&cy<=tr.bottom+30;
    target.style.outline=over?'2px dashed var(--accent)':'';target.style.outlineOffset='3px';}};
- const up=()=>{document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);document.removeEventListener('pointercancel',up);
+ const scroller=dragScroller(place);// v67
+ const mv=ev=>{ev.preventDefault();moved=true;place(ev.clientX,ev.clientY);scroller.move(ev.clientX,ev.clientY);};
+ const up=()=>{scroller.stop();document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);document.removeEventListener('pointercancel',up);
   ghost.remove();row.classList.remove('dragsrc');if(target)target.style.outline='';
   if(moved&&over){t.due=TODAY;t.parked=false;save();toast('Lagt på dagens plan ✓');render();}};
  document.addEventListener('pointermove',mv);document.addEventListener('pointerup',up);document.addEventListener('pointercancel',up);};}
