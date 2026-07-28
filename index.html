@@ -641,30 +641,10 @@ function addBar(defPid){
  inp.oninput=preview;go.onclick=add;inp.onkeydown=e=>{if(e.key==='Enter')add();};
  return d;
 }
-function editModal(t){
- const host=document.getElementById('modalHost');
- const crumb=()=>{const p=catOf(t.pid);return '<span style="color:'+esc(p.color)+'">#</span> '+esc(p.name);};
- host.innerHTML='<div class="mbg" id="tvBg"><div class="modal tview">'
- +'<div class="tvhead"><div class="tvcrumb" id="tv_crumb"></div>'
- +'<button class="tvbtn" id="tv_more" title="Flere handlinger">⋯</button>'
- +'<button class="tvbtn" id="tv_x" title="Luk (gemmer)">✕</button></div>'
- +'<div class="tvcols">'
- +'<div class="tvmain">'
- +'<div style="display:flex;gap:10px;align-items:flex-start">'
- +'<div class="cchk'+(t.pri?' '+t.pri:'')+'" id="tv_done" style="margin-top:7px" title="Fuldfør opgave"></div>'
- +'<input id="tv_c" class="tvtitle" value="'+esc(t.content).replace(/"/g,'&quot;')+'">'
- +'</div>'
- +'<textarea id="tv_n" class="tvnotes" placeholder="Noter…">'+esc(t.note||'')+'</textarea>'
- +'<div class="propshdr" style="margin-top:14px">DELTRIN</div><div id="e_ch"></div>'
- +'</div>'
- +'<div class="tvprops"><div class="propshdr">EGENSKABER</div><div class="props" id="tv_props"></div></div>'
- +'</div></div></div>';
-
- const applyFields=()=>{t.content=document.getElementById('tv_c').value.trim()||t.content;
-  const _nv=document.getElementById('tv_n').value.trim();t.note=_nv||null;};
- const close=()=>{applyFields();save();host.innerHTML='';render();};
-
- // --- egenskabsliste: faste rækker, altid samme rækkefølge, tomme vises som "＋ Tilføj …" ---
+// v70: egenskabslisten er nu en genbrugelig komponent — bruges af BÅDE opgavevinduet og "Tilføj opgave",
+// så en ny opgave kan sættes helt op fra starten med de samme pickere.
+function buildProps(t,onChange){
+ const wrap=document.createElement('div');wrap.className='props';
  const PROPS=[
   {k:'cat', l:'Kategori', val:()=>'<span style="color:'+esc(catOf(t.pid).color)+'">#</span> '+esc(catOf(t.pid).name), empty:()=>false, pick:catPick},
   {k:'due', l:'Dato',      val:()=>esc(fmtDue(t.due)), empty:()=>!t.due, add:'＋ Tilføj dato',       pick:duePick},
@@ -674,10 +654,9 @@ function editModal(t){
   {k:'rep', l:'Gentagelse',val:()=>'🔁 '+esc(repLabelOf(t.rep)), empty:()=>!t.rep, add:'＋ Gentag',   pick:repPick}
  ];
  function repLabelOf(v){const m={'1d':'Hver dag','1w':'Hver uge','2w':'Hver 14. dag','1m':'Hver måned','3m':'Hver 3. måned','6m':'Hvert halve år','1y':'Hvert år'};return m[v]||'Nej';}
- function afterChange(){save();paintProps();render();}
- function paintProps(){
-  const wrap=document.getElementById('tv_props');if(!wrap)return;wrap.innerHTML='';
-  document.getElementById('tv_crumb').innerHTML=crumb();
+ function afterChange(){paint();if(onChange)onChange();}
+ function paint(){
+  wrap.innerHTML='';
   PROPS.forEach(p=>{
    const row=document.createElement('div');row.className='prop';
    const lb=document.createElement('div');lb.className='proplbl';lb.textContent=p.l;
@@ -708,7 +687,35 @@ function editModal(t){
   const hd=document.createElement('div');hd.className='pophd';hd.textContent='Gentagelse:';box.appendChild(hd);
   [['','Nej'],['1d','Hver dag'],['1w','Hver uge'],['2w','Hver 14. dag'],['1m','Hver måned'],['3m','Hver 3. måned'],['6m','Hvert halve år'],['1y','Hvert år']]
    .forEach(([v,l])=>mItem(box,'<span>'+l+'</span>'+(String(t.rep||'')===v?'<span>✓</span>':''),()=>{t.rep=v||null;cl();afterChange();}));});}
+ paint();
+ wrap.repaint=paint;
+ return wrap;}
+function editModal(t){
+ const host=document.getElementById('modalHost');
+ const crumb=()=>{const p=catOf(t.pid);return '<span style="color:'+esc(p.color)+'">#</span> '+esc(p.name);};
+ host.innerHTML='<div class="mbg" id="tvBg"><div class="modal tview">'
+ +'<div class="tvhead"><div class="tvcrumb" id="tv_crumb"></div>'
+ +'<button class="tvbtn" id="tv_more" title="Flere handlinger">⋯</button>'
+ +'<button class="tvbtn" id="tv_x" title="Luk (gemmer)">✕</button></div>'
+ +'<div class="tvcols">'
+ +'<div class="tvmain">'
+ +'<div style="display:flex;gap:10px;align-items:flex-start">'
+ +'<div class="cchk'+(t.pri?' '+t.pri:'')+'" id="tv_done" style="margin-top:7px" title="Fuldfør opgave"></div>'
+ +'<input id="tv_c" class="tvtitle" value="'+esc(t.content).replace(/"/g,'&quot;')+'">'
+ +'</div>'
+ +'<textarea id="tv_n" class="tvnotes" placeholder="Noter…">'+esc(t.note||'')+'</textarea>'
+ +'<div class="propshdr" style="margin-top:14px">DELTRIN</div><div id="e_ch"></div>'
+ +'</div>'
+ +'<div class="tvprops"><div class="propshdr">EGENSKABER</div><div class="props" id="tv_props"></div></div>'
+ +'</div></div></div>';
 
+ const applyFields=()=>{t.content=document.getElementById('tv_c').value.trim()||t.content;
+  const _nv=document.getElementById('tv_n').value.trim();t.note=_nv||null;};
+ const close=()=>{applyFields();save();host.innerHTML='';render();};
+
+ // --- egenskabsliste: faste rækker, altid samme rækkefølge, tomme vises som "＋ Tilføj …" ---
+ const propsEl=buildProps(t,()=>{save();document.getElementById('tv_crumb').innerHTML=crumb();render();});
+ const paintProps=()=>{document.getElementById('tv_props').appendChild(propsEl);document.getElementById('tv_crumb').innerHTML=crumb();};
  paintProps();
  document.getElementById('tv_x').onclick=close;
  document.getElementById('tvBg').onclick=e=>{if(e.target.id==='tvBg')close();};
@@ -1753,13 +1760,43 @@ function bulkBar(){const c=document.createElement('div');c.className='card';c.st
  const cl=document.createElement('button');cl.className='btn';cl.textContent='Ryd';cl.onclick=()=>{SEL.clear();render();};
  [mv,cp,pk,mg,dl,cl].forEach(x=>row.appendChild(x));c.appendChild(row);return c;}
 // v68: tilføj-linjen og søgefeltet er væk fra siden — de bor nu i hver sin modal bag ＋ og 🔍.
+// v70: fuld opgaveoprettelse — samme layout og de samme pickere som opgavevinduet,
+// så en opgave kan sættes rigtigt op fra starten i stedet for at skulle redigeres bagefter.
 function addTaskModal(){const host=document.getElementById('modalHost');
- host.innerHTML='<div class="mbg" id="atBg"><div class="modal"><h3>Ny opgave</h3><div id="atSlot"></div><p class="hint">Skriv naturligt: <b>i morgen 14:00</b> · <b>~30m</b> · <b>!p1</b> · <b>#Familie</b></p><div class="mbtns"><button class="cancel" id="atX">Luk</button></div></div></div>';
- const bar=addBar(PROJECTS[0]&&PROJECTS[0].id);document.getElementById('atSlot').appendChild(bar);
+ const d={id:null,content:'',pid:(PROJECTS[0]&&PROJECTS[0].id)||null,due:null,time:null,est:null,pri:null,rep:null,note:null,
+          q:null,imp:null,eff:null,done:false,star:false,parked:false,src:'me'};
+ host.innerHTML='<div class="mbg" id="atBg"><div class="modal tview">'
+  +'<div class="tvhead"><div class="tvcrumb" id="at_crumb"></div><button class="tvbtn" id="at_x" title="Annullér">✕</button></div>'
+  +'<div class="tvcols"><div class="tvmain">'
+  +'<input id="at_c" class="tvtitle" placeholder="Hvad skal der ske?" autocomplete="off">'
+  +'<p class="hint" id="at_hint" style="margin:2px 0 0">Skriv naturligt — <b>i morgen 14:00</b>, <b>~30m</b>, <b>!p1</b>, <b>#Familie</b> — så udfyldes egenskaberne selv.</p>'
+  +'<textarea id="at_n" class="tvnotes" placeholder="Noter…"></textarea>'
+  +'</div>'
+  +'<div class="tvprops"><div class="propshdr">EGENSKABER</div><div id="at_props"></div></div>'
+  +'</div>'
+  +'<div class="mbtns"><button class="cancel" id="at_cancel">Annullér</button><button class="save" id="at_go">Tilføj opgave ✓</button></div>'
+  +'</div></div>';
+ const crumb=()=>{const p=catOf(d.pid);document.getElementById('at_crumb').innerHTML='<span style="color:'+esc(p.color)+'">#</span> '+esc(p.name);};
+ const props=buildProps(d,crumb);
+ document.getElementById('at_props').appendChild(props);crumb();
+ const inp=document.getElementById('at_c');
+ // quick-add-parsing udfylder egenskaberne mens man skriver — men rydder aldrig noget man selv har sat
+ inp.oninput=()=>{const r=parseQuickAdd(inp.value,false);
+  if(r.due)d.due=r.due; if(r.time)d.time=r.time; if(r.pri)d.pri=r.pri; if(r.est)d.est=r.est; if(r.pid)d.pid=r.pid;
+  props.repaint();crumb();};
  const close=()=>{host.innerHTML='';};
- document.getElementById('atX').onclick=close;
+ const add=()=>{const v=inp.value.trim();if(!v){inp.focus();return;}
+  const r=parseQuickAdd(v,true);
+  const note=document.getElementById('at_n').value.trim();
+  STORE.unshift({id:'t'+(UID++),content:r.content||v,pid:r.pid||d.pid,due:d.due,time:d.time,est:d.est,pri:d.pri,rep:d.rep,
+                 note:note||null,rec:null,q:null,imp:null,eff:null,done:false,star:false,src:'me'});
+  save();close();toast('Tilføjet ✓'+(d.due?' — '+fmtDue(d.due):''));render();};
+ document.getElementById('at_go').onclick=add;
+ document.getElementById('at_cancel').onclick=close;
+ document.getElementById('at_x').onclick=close;
  document.getElementById('atBg').onclick=e=>{if(e.target.id==='atBg')close();};
- const i=bar.querySelector('.t');if(i)setTimeout(()=>i.focus(),40);}
+ inp.onkeydown=e=>{e.stopPropagation();if(e.key==='Enter'){e.preventDefault();add();}else if(e.key==='Escape')close();};
+ setTimeout(()=>inp.focus(),40);}
 function searchModal(){const host=document.getElementById('modalHost');
  const flt=LS.g('filters',[]);
  host.innerHTML='<div class="mbg" id="sqBg"><div class="modal"><h3>Søg</h3>'
