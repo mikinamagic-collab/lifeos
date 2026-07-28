@@ -196,6 +196,8 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 .gbig{display:flex;flex-wrap:wrap;gap:8px}.gbig span{background:#f4f6f8;border:1px solid var(--line);border-radius:10px;padding:7px 11px;font-size:12.5px}
 .wheelwrap{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}.mlist{flex:1;min-width:220px}.mlist h3{margin:2px 0 8px;font-size:14px}
 .mitem{font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;background:#fafafa}.seg{cursor:pointer}.seg:hover{opacity:.85}.legend{font-size:11.5px;color:var(--muted);margin-top:8px}
+.bksec{border-radius:9px}
+.bksec.bkover{outline:2px dashed var(--accent);outline-offset:2px;background:#f4f8ff}
 .addtask{margin-left:auto;display:inline-flex;align-items:center;gap:6px;min-height:38px;padding:7px 14px;border:1px solid var(--line);border-radius:9px;background:#fff;font:inherit;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer}
 .addtask b{font-size:16px;font-weight:700;line-height:1}
 .addtask:hover{background:var(--accent);border-color:var(--accent);color:#fff}
@@ -1262,7 +1264,7 @@ function makeDraggable(container,onDrop,opts){opts=opts||{};
    let overCal=null,ind=null,moved=false;
    const mark=document.createElement('div');mark.className='dropmark';
    const offX=e.clientX-rect.left,offY=e.clientY-rect.top;
-   const bkEl=document.getElementById('bkDrop');let overBk=false;// v67: slip på 💤 Backlog
+   const bkEl=document.getElementById('bkDrop');let overBk=false,overHor=null;// v67/v71: slip på 💤 Backlog — og på en bestemt horisont
    const place=(cx,cy)=>{
     ghost.style.left=(cx-offX)+'px';ghost.style.top=(cy-offY)+'px';
     if(grid){const gr=grid.getBoundingClientRect();
@@ -1277,8 +1279,12 @@ function makeDraggable(container,onDrop,opts){opts=opts||{};
      else{overCal=null;if(ind){ind.remove();ind=null;}}}
     if(bkEl){const br=bkEl.getBoundingClientRect();
      overBk=cx>=br.left-20&&cx<=br.right+20&&cy>=br.top-10&&cy<=br.bottom+10;
-     bkEl.style.outline=overBk?'2px dashed var(--accent)':'';bkEl.style.outlineOffset='3px';
-     if(overBk){if(mark.parentNode)mark.remove();return;}}
+     bkEl.style.outline=overBk&&!overHor?'2px dashed var(--accent)':'';bkEl.style.outlineOffset='3px';
+     bkEl.querySelectorAll('.bksec').forEach(se=>se.classList.remove('bkover'));
+     overHor=null;
+     if(overBk){const se=[...bkEl.querySelectorAll('.bksec')].find(x=>{const r=x.getBoundingClientRect();return cy>=r.top&&cy<=r.bottom;});
+      if(se){overHor=se.dataset.hor;se.classList.add('bkover');bkEl.style.outline='';}
+      if(mark.parentNode)mark.remove();return;}}
     const rows=[...container.querySelectorAll('.tcard')].filter(r=>r!==row);
     const after=rows.find(r=>{const rc=r.getBoundingClientRect();return cy<rc.top+rc.height/2;});
     if(after)container.insertBefore(mark,after);else container.appendChild(mark);};
@@ -1286,8 +1292,11 @@ function makeDraggable(container,onDrop,opts){opts=opts||{};
    const mv=ev=>{ev.preventDefault();moved=true;place(ev.clientX,ev.clientY);scroller.move(ev.clientX,ev.clientY);};
    const up=()=>{scroller.stop();document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);document.removeEventListener('pointercancel',up);
     ghost.remove();row.classList.remove('dragsrc');if(ind)ind.remove();if(bkEl)bkEl.style.outline='';
+    if(bkEl)bkEl.querySelectorAll('.bksec').forEach(se=>se.classList.remove('bkover'));
     if(moved&&overBk){if(mark.parentNode)mark.remove();const bt=STORE.find(x=>x.id===row.dataset.tid);
-     if(bt){bt.due=null;bt.time=null;bt.parked=true;bt.parkedAt=TODAY;bt.star=false;if(!bt.hor)bt.hor='s';save();toast('Lagt i backlog 💤');render();}return;}
+     if(bt){bt.due=null;bt.time=null;bt.parked=true;bt.parkedAt=TODAY;bt.star=false;
+      bt.hor=overHor||bt.hor||'s';// v71: den horisont man slap på
+      save();toast('Lagt i backlog 💤 · '+horLabel(bt.hor));render();}return;}
     if(overCal!=null&&opts.calDrop){if(mark.parentNode)mark.remove();opts.calDrop(row.dataset.tid,overCal);return;}
     if(mark.parentNode){container.insertBefore(row,mark);mark.remove();}
     if(moved)onDrop([...container.querySelectorAll('.tcard')].map(r=>r.dataset.tid));};
@@ -1587,6 +1596,7 @@ function sideBacklog(c){
   else BKFLT=null;}
  const collapsed=bkCollapsed();
  HORIZONS.forEach(([k,label,col])=>{
+  const sec=document.createElement('div');sec.className='bksec';sec.dataset.hor=k;c.appendChild(sec);// v71: eget sluppe-mål pr. horisont
   const items=list.filter(t=>t.hor===k&&(!BKFLT||t.pid===BKFLT)).sort((a,b)=>(a.parkedAt||'')<(b.parkedAt||'')?-1:1);
   const isCol=collapsed.includes(k);
   const gh=document.createElement('div');gh.style.cssText='display:flex;gap:8px;align-items:center;padding:7px 2px;margin-top:4px;background:#f7f8f9;border-radius:7px;padding-left:8px;cursor:pointer;user-select:none';
@@ -1596,14 +1606,14 @@ function sideBacklog(c){
   const chev=document.createElement('span');chev.textContent=isCol?'▸':'▾';chev.style.cssText='font-size:11px;color:var(--muted);flex:0 0 auto';
   gh.appendChild(addB);gh.appendChild(chev);
   gh.onclick=()=>{bkToggle(k);render();};
-  c.appendChild(gh);
+  sec.appendChild(gh);
   if(BKADD===k){const ar=document.createElement('div');ar.style.cssText='display:flex;gap:6px;margin:6px 0';
    ar.innerHTML='<input class="t" placeholder="Ny opgave i '+label+'… (Enter)" style="flex:1;border:1px solid var(--line);border-radius:7px;padding:7px 9px;font:inherit;font-size:12.5px">';
    const ai=ar.querySelector('input');
    ai.onkeydown=e=>{if(e.key==='Enter'){const v=ai.value.trim();if(!v)return;const r=parseQuickAdd(v,false);STORE.push({id:'t'+(UID++),content:r.content||v,pid:r.pid||(PROJECTS[0]&&PROJECTS[0].id),due:null,time:null,rec:null,pri:r.pri||null,q:null,imp:null,eff:null,est:r.est||null,done:false,star:false,src:'me',parked:true,parkedAt:TODAY,hor:k});save();BKADD=null;toast('Lagt i backloggen 💤');render();}if(e.key==='Escape'){BKADD=null;render();}};
-   c.appendChild(ar);setTimeout(()=>ai.focus(),50);}
+   sec.appendChild(ar);setTimeout(()=>ai.focus(),50);}
   if(!isCol){
-   if(!items.length&&BKADD!==k){const e=document.createElement('div');e.style.cssText='font-size:11.5px;color:var(--muted);font-style:italic;padding:4px 8px';e.textContent='Ingen opgaver.';c.appendChild(e);}
+   if(!items.length&&BKADD!==k){const e=document.createElement('div');e.style.cssText='font-size:11.5px;color:var(--muted);font-style:italic;padding:4px 8px';e.textContent='Ingen opgaver.';sec.appendChild(e);}
    items.forEach(t=>{const r=document.createElement('div');r.className='sdrow';r.dataset.tid=t.id;
     const dh=document.createElement('span');dh.textContent='⠿';dh.title='Træk til dagens plan';dh.style.cssText='cursor:grab;color:#c3c6ca;font-size:12px;flex:0 0 auto;touch-action:none';bkDrag(dh,r,t);
     const dot=document.createElement('span');dot.style.cssText='width:8px;height:8px;border-radius:50%;background:'+esc(catOf(t.pid).color)+';flex:0 0 auto';dot.title=catOf(t.pid).name;
@@ -1612,7 +1622,7 @@ function sideBacklog(c){
     let ag=null;if(age>=14){ag=document.createElement('span');ag.textContent=age+'d';ag.title='Har ligget i backloggen i '+age+' dage';ag.style.cssText='font-size:10px;color:var(--muted);flex:0 0 auto';}
     const hb=document.createElement('span');hb.textContent=label[0].toUpperCase();hb.title='Horisont: '+label+' — tryk for at flytte';hb.style.cssText='width:16px;height:16px;border-radius:50%;background:'+col+';color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto;cursor:pointer';hb.onclick=e=>horMenu(t,e);
     const b=document.createElement('button');b.className='btn';b.style.cssText='min-height:26px;padding:2px 8px;font-size:11px;flex:0 0 auto';b.textContent='+ I dag';b.onclick=()=>{t.due=TODAY;t.parked=false;save();toast('Lagt på dagens plan ✓');render();};
-    r.appendChild(dh);r.appendChild(dot);r.appendChild(tx);if(ag)r.appendChild(ag);r.appendChild(hb);r.appendChild(b);c.appendChild(r);});}
+    r.appendChild(dh);r.appendChild(dot);r.appendChild(tx);if(ag)r.appendChild(ag);r.appendChild(hb);r.appendChild(b);sec.appendChild(r);});}
  });
  if(!list.length)c.appendChild(empty('Backloggen er tom. Park opgaver med 💤 — eller tilføj direkte med ＋ ovenfor.'));}
 function focusP(w){
