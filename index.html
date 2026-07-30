@@ -100,7 +100,7 @@ h1{font-size:19px;margin:0;font-weight:600;letter-spacing:0}
 .modal .tvnotes{width:100%;border:none;resize:vertical;min-height:64px;font:inherit;font-size:13.5px;color:#5f6670;margin-top:8px;padding:0}
 .modal .tvnotes:focus{outline:none}
 .tcard .subadd{display:none}
-.drag{cursor:grab;touch-action:none;color:#c7c9cd;font-size:15px;line-height:1;padding:2px 6px 2px 0;flex:0 0 auto;user-select:none;-webkit-user-select:none;align-self:center}
+.drag{cursor:grab;touch-action:none;color:#b9bcc1;font-size:18px;line-height:1;padding:12px 4px 12px 0;min-width:24px;text-align:center;flex:0 0 auto;user-select:none;-webkit-user-select:none;align-self:center}/* v76: rigtigt trykfelt til en tommelfinger — både felt og ikon */
 .drag:active{cursor:grabbing}
 .tcard.dragghost{position:fixed;z-index:99;pointer-events:none;opacity:.92;box-shadow:0 12px 28px rgba(0,0,0,.22);margin:0;background:#fff}
 .tcard.dragsrc{opacity:.35}
@@ -409,11 +409,11 @@ const _lss=LS.s.bind(LS);
 LS.s=(k,v)=>{_lss(k,v);if(GH.cfg&&!NOSYNC.has('cc2_'+k)){GH.status='pend';updateChip();clearTimeout(GH.timer);GH.timer=setTimeout(()=>ghPush(false),2500);}};
 // ---------- v59: automatisk fortryd-stak (↩️ / ⌘Z) ----------
 let UNDO=[],UNDO_LAST=0,UNDO_FRESH=0,UNDOING=false;
-const UNDOKEYS=k=>k==='tasks'||k==='hlog'||k==='trash'||k.startsWith('dayorder_');
+const UNDOKEYS=k=>k==='tasks'||k==='hlog'||k==='trash'||k==='taskorder'||k.startsWith('dayorder_');
 const undoDayKey=()=>{const d=new Date();return 'dayorder_'+d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}; // egen dato — TODAY findes ikke endnu ved boot
 {const _lsv=LS.s; // fanger tilstanden FØR hver skrivning — nul wiring pr. handling
  LS.s=(k,v)=>{if(!UNDOING&&UNDOKEYS(k)){const now=Date.now();
-  if(now-UNDO_LAST>300){UNDO.push({at:now,snap:{tasks:localStorage.getItem('cc2_tasks'),hlog:localStorage.getItem('cc2_hlog'),trash:localStorage.getItem('cc2_trash'),dayorder:localStorage.getItem('cc2_'+undoDayKey())}});if(UNDO.length>20)UNDO.shift();}
+  if(now-UNDO_LAST>300){UNDO.push({at:now,snap:{tasks:localStorage.getItem('cc2_tasks'),hlog:localStorage.getItem('cc2_hlog'),trash:localStorage.getItem('cc2_trash'),dayorder:localStorage.getItem('cc2_'+undoDayKey()),taskorder:localStorage.getItem('cc2_taskorder')}});if(UNDO.length>20)UNDO.shift();}
   UNDO_LAST=now;UNDO_FRESH=now;}
  _lsv(k,v);};}
 // doUndo defineres inde i initApp (skal bruge STORE/render/toast, som er closure-scoped)
@@ -490,8 +490,11 @@ function chAllDone(t){return t.children&&t.children.length&&t.children.every(c=>
 function newSid(){return 's'+Date.now().toString(36)+Math.floor(Math.random()*10000);}
 function completeTask(t){t.done=true;t.doneAt=TODAY;t.star=false;
  if(!t.rep)return null;
- const nd=repNext(t.due,t.rep,TODAY);if(!nd)return null;
+ const nd=repNext(t.due,t.rep,TODAY);
+ if(repStop(t,nd))return null; // v76: sidste gang i rækken — ingen ny kopi
  const cp={id:'t'+(UID++),content:t.content,pid:t.pid,due:nd,time:t.time||null,rec:null,rep:t.rep,pri:t.pri||null,q:null,imp:null,eff:null,est:t.est||null,note:t.note||null,done:false,star:false,src:'me'};
+ if(t.repEnd)cp.repEnd=t.repEnd;
+ if(typeof t.repLeft==='number')cp.repLeft=t.repLeft-1;
  if(t.children&&t.children.length)cp.children=t.children.map(c=>({id:newSid(),txt:c.txt,done:false}));
  STORE.unshift(cp);t.repNext=cp.id;return nd;}
 function uncompleteTask(t){t.done=false;delete t.doneAt;
@@ -563,7 +566,7 @@ function doUndo(){const u=UNDO.pop();UNDO_FRESH=0; // v59
  if(!u){toast('Intet at fortryde her i sessionen');return;}
  UNDOING=true;
  const put=(k,val)=>{if(val==null)localStorage.removeItem('cc2_'+k);else localStorage.setItem('cc2_'+k,val);};
- put('hlog',u.snap.hlog);put('trash',u.snap.trash);put(undoDayKey(),u.snap.dayorder);
+ put('hlog',u.snap.hlog);put('trash',u.snap.trash);put(undoDayKey(),u.snap.dayorder);put('taskorder',u.snap.taskorder);
  put('tasks',u.snap.tasks);
  STORE=LS.g('tasks',[]);
  LS.s('tasks',STORE); // trigger sync-push af den gendannede tilstand
@@ -653,7 +656,10 @@ function taskRow(t,opts){opts=opts||{};
  {const s=document.createElement('span');s.className='sym';s.title='Flyt / udsæt';s.textContent='📅';s.onclick=e=>{e.stopPropagation();moveMenu(t,e);};sy.appendChild(s);}
  {const s=document.createElement('span');s.className='sym';s.title='Planlagt tid';s.textContent='🕒';s.onclick=e=>{e.stopPropagation();estPicker(t,e);};sy.appendChild(s);}
  {const f=document.createElement('span');f.className='sym symflag'+(t.pri?' symc':'');f.title='Prioritet: '+priLabel(t.pri);f.textContent='⚑';f.style.color=t.pri?('var(--'+t.pri+')'):'';f.onclick=e=>{e.stopPropagation();priPicker(t,e);};sy.appendChild(f);}
- if(t.rep){const s=document.createElement('span');s.className='sym';s.style.cursor='default';s.title='Gentages — '+repLabel(t.rep);s.textContent='🔁';sy.appendChild(s);}
+ if(t.rep){const s=document.createElement('span');s.className='sym';s.style.cursor='default';s.title='Gentages — '+repLabel(t.rep)+' · slutter: '+repEndLabel(t,shortDate).toLowerCase();s.textContent='🔁';sy.appendChild(s);
+  if(t.repEnd||typeof t.repLeft==='number'){const e=document.createElement('span');e.className='symtxt';e.style.cssText='cursor:default;white-space:nowrap';
+   e.title='Gentagelsen slutter — '+repEndLabel(t,shortDate).toLowerCase();
+   e.textContent=(typeof t.repLeft==='number')?(t.repLeft+'×'):('→ '+shortDate(t.repEnd));sy.appendChild(e);}}
  if(t.tdid){const s=document.createElement('span');s.className='symtxt';s.title='Synkroniseret med Todoist';s.textContent='✓ Todoist';sy.appendChild(s);}
  {const _h=LS.g('highlight',null);if(_h&&_h.date===TODAY&&_h.id===t.id){const s=document.createElement('span');s.className='sym symc';s.style.cursor='default';s.title='Dagens højdepunkt';s.textContent='🌟';sy.appendChild(s);}}
  {const sl=document.createElement('div');sl.className='streamlbl';sl.title='Skift kategori';sl.style.cursor='pointer';sl.innerHTML='<span style="color:'+esc(p.color)+';font-weight:700"># </span>'+esc(p.name||'');sl.onclick=e=>{e.stopPropagation();catMenu(t,e);};sy.appendChild(sl);}
@@ -713,13 +719,16 @@ function buildProps(t,onChange){
   {k:'time',l:'Tidspunkt', val:()=>esc(t.time),        empty:()=>!t.time,add:'＋ Tilføj tidspunkt',  pick:timePick},
   {k:'est', l:'Planlagt',  val:()=>esc(fmtEst(t.est)), empty:()=>!t.est, add:'＋ Tilføj estimat',    pick:(e)=>estPicker(t,e,afterChange)},
   {k:'pri', l:'Prioritet', val:()=>'⚑ '+esc(priLabel(t.pri)), empty:()=>!t.pri, add:'＋ Sæt prioritet', pick:(e)=>priPicker(t,e,afterChange)},
-  {k:'rep', l:'Gentagelse',val:()=>'🔁 '+esc(repLabelOf(t.rep)), empty:()=>!t.rep, add:'＋ Gentag',   pick:repPick}
+  {k:'rep', l:'Gentagelse',val:()=>'🔁 '+esc(repLabelOf(t.rep)), empty:()=>!t.rep, add:'＋ Gentag',   pick:repPick},
+  // v76: vises kun når opgaven faktisk gentages — ellers støjer den
+  {k:'repend',l:'Slutter', val:()=>esc(repEndLabel(t,shortDate)), empty:()=>!t.repEnd&&typeof t.repLeft!=='number', add:'Aldrig', show:()=>!!t.rep, pick:repEndPick}
  ];
  function repLabelOf(v){const m={'1d':'Hver dag','1w':'Hver uge','2w':'Hver 14. dag','1m':'Hver måned','3m':'Hver 3. måned','6m':'Hvert halve år','1y':'Hvert år'};return m[v]||'Nej';}
  function afterChange(){paint();if(onChange)onChange();}
  function paint(){
   wrap.innerHTML='';
   PROPS.forEach(p=>{
+   if(p.show&&!p.show())return;
    const row=document.createElement('div');row.className='prop';
    const lb=document.createElement('div');lb.className='proplbl';lb.textContent=p.l;
    const b=document.createElement('button');b.className='propval'+(p.empty()?' empty':'');
@@ -748,7 +757,18 @@ function buildProps(t,onChange){
  function repPick(ev){popMenu(ev.clientX,ev.clientY,(box,cl)=>{
   const hd=document.createElement('div');hd.className='pophd';hd.textContent='Gentagelse:';box.appendChild(hd);
   [['','Nej'],['1d','Hver dag'],['1w','Hver uge'],['2w','Hver 14. dag'],['1m','Hver måned'],['3m','Hver 3. måned'],['6m','Hvert halve år'],['1y','Hvert år']]
-   .forEach(([v,l])=>mItem(box,'<span>'+l+'</span>'+(String(t.rep||'')===v?'<span>✓</span>':''),()=>{t.rep=v||null;cl();afterChange();}));});}
+   .forEach(([v,l])=>mItem(box,'<span>'+l+'</span>'+(String(t.rep||'')===v?'<span>✓</span>':''),()=>{t.rep=v||null;if(!t.rep){delete t.repEnd;delete t.repLeft;}cl();afterChange();}));});}
+ function repEndPick(ev){popMenu(ev.clientX,ev.clientY,(box,cl)=>{
+  const never=!t.repEnd&&typeof t.repLeft!=='number';
+  const hd=document.createElement('div');hd.className='pophd';hd.textContent='Gentagelsen slutter:';box.appendChild(hd);
+  mItem(box,'<span>Aldrig</span>'+(never?'<span>✓</span>':''),()=>{delete t.repEnd;delete t.repLeft;cl();afterChange();});
+  [3,5,10,12].forEach(n=>mItem(box,'<span>Efter '+n+' gange</span>'+(t.repLeft===n?'<span>✓</span>':''),()=>{t.repLeft=n;delete t.repEnd;cl();afterChange();}));
+  const ch=document.createElement('div');ch.className='pophd';ch.textContent='Eget antal gange:';box.appendChild(ch);
+  const ci=document.createElement('input');ci.type='number';ci.min='1';ci.max='999';ci.className='popinput';ci.placeholder='fx 8';ci.value=(typeof t.repLeft==='number'?t.repLeft:'');
+  ci.onchange=()=>{const n=Math.round(+ci.value);if(n>0&&n<1000){t.repLeft=n;delete t.repEnd;cl();afterChange();}};box.appendChild(ci);
+  const dh=document.createElement('div');dh.className='pophd';dh.textContent='Eller til og med dato:';box.appendChild(dh);
+  const di=document.createElement('input');di.type='date';di.className='popinput';di.value=t.repEnd||'';
+  di.onchange=()=>{if(di.value){t.repEnd=di.value;delete t.repLeft;cl();afterChange();}};box.appendChild(di);});}
  paint();
  wrap.repaint=paint;
  return wrap;}
@@ -1279,6 +1299,18 @@ function repLabel(rule){const p=repParse(rule);if(!p)return '';
  if(p.u==='w'&&p.n===2)return 'hver 14. dag';
  if(p.u==='m'&&p.n===6)return 'hvert halve år';
  return 'hver '+p.n+'. '+{d:'dag',w:'uge',m:'måned',y:'år'}[p.u];}
+// v76: en gentagelse kan slutte — enten efter et antal gange (repLeft = gange tilbage INKL. denne)
+// eller til og med en dato (repEnd). Ingen af delene sat = uendelig, som før.
+function repStop(t,nd){if(!nd)return true;
+ if(!t)return false;
+ if(t.repEnd&&nd>t.repEnd)return true;
+ if(typeof t.repLeft==='number'&&t.repLeft<=1)return true;
+ return false;}
+function repEndLabel(t,fmt){const f=fmt||(x=>x);
+ if(!t||!t.rep)return 'Aldrig';
+ if(typeof t.repLeft==='number')return t.repLeft+' gang'+(t.repLeft===1?'':'e')+' tilbage';
+ if(t.repEnd)return 'Til '+f(t.repEnd);
+ return 'Aldrig';}
 // ---------- F11.2: søge-tokens + gemte filtre ----------
 function parseSearch(raw,projects){
  let s=' '+(raw||'')+' ';const f={text:'',pid:null,pri:null,when:null};
@@ -2034,6 +2066,15 @@ function allP(w){
  {const lb=document.createElement('label');lb.style.cssText='display:flex;gap:5px;align-items:center;font-size:12.5px;color:var(--muted);cursor:pointer';
   lb.innerHTML='<input type="checkbox" style="width:auto"'+(AFLTDONE?' checked':'')+'> Vis fuldførte';
   lb.querySelector('input').onchange=e=>{AFLTDONE=e.target.checked;render();};fbar.appendChild(lb);}
+ // v76: manuel rækkefølge — slås til/fra, så den automatiske sortering ikke ændrer sig bag om ryggen
+ const MAN=LS.g('taskman',false);
+ {const sb=document.createElement('button');sb.className='btn'+(MAN?' on':'');sb.style.cssText='min-height:30px;padding:5px 10px;font-size:12.5px';
+  sb.textContent=MAN?'↕︎ Min rækkefølge':'↕︎ Auto';
+  sb.title=MAN?'Træk i ⠿ for at flytte en opgave. Tryk for at gå tilbage til automatisk sortering.':'Tryk for at kunne trække opgaverne i din egen rækkefølge.';
+  sb.onclick=()=>{const on=!MAN;
+   if(on)LS.s('taskorder',active().slice().sort(flatSort).map(t=>t.id)); // frys den nuværende rækkefølge, så intet hopper
+   LS.s('taskman',on);toast(on?'Din egen rækkefølge — træk i ⠿':'Automatisk sortering');render();};
+  fbar.appendChild(sb);}
  {const ab=document.createElement('button');ab.className='addtask';ab.innerHTML='Tilføj opgave <b>＋</b>';
   ab.title='Ny opgave';ab.onclick=()=>addTaskModal();fbar.appendChild(ab);}// v69: højrestillet i filterbaren
  w.appendChild(fbar);
@@ -2045,11 +2086,18 @@ function allP(w){
     cr.appendChild(s);});
    if(chips.length>1||(chips.length&&AFLTDONE)){const rs=document.createElement('button');rs.className='btn';rs.style.cssText='min-height:26px;padding:2px 9px;font-size:11.5px';rs.textContent='✕ Nulstil alle';rs.onclick=()=>{AFLT={};AFLTDONE=false;render();};cr.appendChild(rs);}
    w.appendChild(cr);}}
- const filtered=all.filter(t=>AFILTERS.every(f=>{const a=AFLT[f.key];return !a||!a.length||a.some(v=>f.test(t,v));})).sort(flatSort);
- const c=card('📋 Opgaver — '+filtered.length+(filtered.length!==all.length?' af '+all.length:''),'Sorteret: forfaldne øverst, så i dag, så kommende efter dato; uden dato og 💤 backlog nederst.');
- if(filtered.length){filtered.slice(0,200).forEach(t=>{const r=taskRow(t,{sel:true});
+ const _fl=all.filter(t=>AFILTERS.every(f=>{const a=AFLT[f.key];return !a||!a.length||a.some(v=>f.test(t,v));}));
+ const filtered=MAN?manualOrder(_fl,LS.g('taskorder',[]),flatSort):_fl.slice().sort(flatSort);
+ const c=card('📋 Opgaver — '+filtered.length+(filtered.length!==all.length?' af '+all.length:''),
+  MAN?'Din egen rækkefølge — træk i ⠿ for at flytte. Nye opgaver lægger sig øverst. Tryk “↕︎ Min rækkefølge” for at gå tilbage til automatisk sortering.'
+     :'Sorteret: forfaldne øverst, så i dag, så kommende efter dato; uden dato og 💤 backlog nederst.');
+ if(filtered.length){const lw=document.createElement('div');lw.id='taskListW';
+  filtered.slice(0,200).forEach(t=>{const r=taskRow(t,{sel:true});
+   if(MAN){const h=document.createElement('div');h.className='drag';h.textContent='⠿';h.title='Træk for at flytte';r.insertBefore(h,r.firstChild);}
    if(t.parked){const ra=document.createElement('button');ra.className='btn';ra.textContent='⚡ Genaktivér i dag';ra.onclick=()=>{t.due=TODAY;t.parked=false;save();toast('Genaktiveret ⚡');render();};const ac=r.querySelector('.acts');if(ac)ac.appendChild(ra);}
-   c.appendChild(r);});
+   lw.appendChild(r);});
+  c.appendChild(lw);
+  if(MAN)makeDraggable(lw,ids=>{LS.s('taskorder',orderMerge(LS.g('taskorder',[]),ids));render();},{});
   if(filtered.length>200)c.appendChild(empty('…og '+(filtered.length-200)+' mere — snær filtrene ind.'));}
  else c.appendChild(empty('Ingen opgaver matcher filtrene.'));
  w.appendChild(c);
@@ -2069,6 +2117,21 @@ function flatSort(a,b){const bk=t=>t.parked?4:!t.due?3:t.due<TODAY?0:t.due===TOD
  const A=bk(a),B=bk(b);if(A!==B)return A-B;
  if((A===0||A===2)&&a.due!==b.due)return a.due<b.due?-1:1;
  return score(b)-score(a);}
+// v76: manuel rækkefølge på Opgaver-listen. `saved` er en fuld id-liste; opgaver der IKKE står i den
+// (fx netop tilføjede) lægger sig øverst, sorteret indbyrdes med den automatiske sortering.
+function manualOrder(list,saved,cmp){const ix={};(saved||[]).forEach((id,i)=>{ix[id]=i;});
+ return list.slice().sort((a,b)=>{const ia=(a.id in ix)?ix[a.id]:-1,ib=(b.id in ix)?ix[b.id]:-1;
+  if(ia>=0&&ib>=0)return ia-ib;
+  if(ia<0&&ib<0)return cmp(a,b);
+  return ia<0?-1:1;});}
+// Flettes efter et slip: de synlige id'er skrives tilbage i den blok de fyldte, så skjulte opgaver
+// (bortfiltrerede) beholder deres plads i forhold til resten af listen.
+function orderMerge(prev,ids){prev=(prev||[]).slice();
+ const vis=new Set(ids);const slots=[];prev.forEach((id,i)=>{if(vis.has(id))slots.push(i);});
+ if(!slots.length)return ids.concat(prev);
+ const lo=slots[0],hi=slots[slots.length-1];const mid=[];
+ for(let i=lo;i<=hi;i++)if(!vis.has(prev[i]))mid.push(prev[i]);
+ return prev.slice(0,lo).concat(ids,mid,prev.slice(hi+1));}
 let tlRef=new Date(today);
 function weekStart(d){const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return x;}
 function weekLabel(d){const s=weekStart(d),e=new Date(s);e.setDate(s.getDate()+6);return s.toLocaleDateString('da-DK',{day:'numeric',month:'short'})+' – '+e.toLocaleDateString('da-DK',{day:'numeric',month:'short',year:'numeric'});}
