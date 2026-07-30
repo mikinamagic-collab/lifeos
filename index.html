@@ -73,6 +73,14 @@ h1{font-size:19px;margin:0;font-weight:600;letter-spacing:0}
 .pop .mi{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:8px 10px;border:none;background:none;font:inherit;font-size:13px;border-radius:6px;cursor:pointer;text-align:left}
 .pop .mi:hover{background:#f5f6f7}
 .pophd{font-size:11px;color:#9aa1a9;padding:6px 10px 2px}
+/* v77: felt-rækker i en popmenu — værdien sættes FØRST når man trykker "Sæt", aldrig af et change-event */
+.popfld{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:7px 10px;font-size:13px;color:#3c4043;border-radius:6px}
+.popfld.on{background:#f2f7fd}
+.popfld input{border:1px solid var(--line);border-radius:7px;padding:7px 8px;font:inherit;font-size:13px;background:#fff;min-height:36px}
+.popfld input.n{width:62px;text-align:center}
+.popfld input.d{flex:1;min-width:134px}
+.popfld .set{border:1px solid var(--line);background:#fff;border-radius:7px;padding:6px 12px;min-height:36px;font:inherit;font-size:12.5px;cursor:pointer;color:#4a5057}
+.popfld .set:hover{background:var(--accent);border-color:var(--accent);color:#fff}
 .modal.tview{max-width:700px;position:relative}/* v65: to kolonner kræver bredde — .modal (380px) står senere i filen, så klassen skal være mere specifik */
 .tvclose{position:absolute;top:8px;right:8px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:none;background:none;font:inherit;font-size:17px;color:#8a8f98;cursor:pointer;border-radius:8px}
 .tvclose:hover{background:#f5f6f7;color:#3c4043}
@@ -758,17 +766,29 @@ function buildProps(t,onChange){
   const hd=document.createElement('div');hd.className='pophd';hd.textContent='Gentagelse:';box.appendChild(hd);
   [['','Nej'],['1d','Hver dag'],['1w','Hver uge'],['2w','Hver 14. dag'],['1m','Hver måned'],['3m','Hver 3. måned'],['6m','Hvert halve år'],['1y','Hvert år']]
    .forEach(([v,l])=>mItem(box,'<span>'+l+'</span>'+(String(t.rep||'')===v?'<span>✓</span>':''),()=>{t.rep=v||null;if(!t.rep){delete t.repEnd;delete t.repLeft;}cl();afterChange();}));});}
+ // v77: tre valg, ikke flere. Felterne skriver ALDRIG af sig selv — kun "Sæt" gemmer.
+ // (Datofeltet fyrede et change-event ~2 sek. efter åbning og satte dagens dato uden at Nina rørte noget.)
  function repEndPick(ev){popMenu(ev.clientX,ev.clientY,(box,cl)=>{
-  const never=!t.repEnd&&typeof t.repLeft!=='number';
+  const hasN=typeof t.repLeft==='number',hasD=!!t.repEnd,never=!hasN&&!hasD;
   const hd=document.createElement('div');hd.className='pophd';hd.textContent='Gentagelsen slutter:';box.appendChild(hd);
   mItem(box,'<span>Aldrig</span>'+(never?'<span>✓</span>':''),()=>{delete t.repEnd;delete t.repLeft;cl();afterChange();});
-  [3,5,10,12].forEach(n=>mItem(box,'<span>Efter '+n+' gange</span>'+(t.repLeft===n?'<span>✓</span>':''),()=>{t.repLeft=n;delete t.repEnd;cl();afterChange();}));
-  const ch=document.createElement('div');ch.className='pophd';ch.textContent='Eget antal gange:';box.appendChild(ch);
-  const ci=document.createElement('input');ci.type='number';ci.min='1';ci.max='999';ci.className='popinput';ci.placeholder='fx 8';ci.value=(typeof t.repLeft==='number'?t.repLeft:'');
-  ci.onchange=()=>{const n=Math.round(+ci.value);if(n>0&&n<1000){t.repLeft=n;delete t.repEnd;cl();afterChange();}};box.appendChild(ci);
-  const dh=document.createElement('div');dh.className='pophd';dh.textContent='Eller til og med dato:';box.appendChild(dh);
-  const di=document.createElement('input');di.type='date';di.className='popinput';di.value=t.repEnd||'';
-  di.onchange=()=>{if(di.value){t.repEnd=di.value;delete t.repLeft;cl();afterChange();}};box.appendChild(di);});}
+  const r1=document.createElement('div');r1.className='popfld'+(hasN?' on':'');
+  const s1=document.createElement('span');s1.textContent='Efter';r1.appendChild(s1);
+  const ni=document.createElement('input');ni.className='n';ni.type='text';ni.inputMode='numeric';ni.autocomplete='off';
+  ni.placeholder='10';ni.value=hasN?String(t.repLeft):'';
+  ni.oninput=()=>{const c=ni.value.replace(/\D/g,'').slice(0,3);if(c!==ni.value)ni.value=c;};
+  r1.appendChild(ni);
+  const s2=document.createElement('span');s2.textContent='gange'+(hasN?' ✓':'');r1.appendChild(s2);
+  const b1=document.createElement('button');b1.className='set';b1.textContent='Sæt';
+  const setN=()=>{const n=+ni.value;if(!(n>0)){ni.focus();return;}t.repLeft=n;delete t.repEnd;cl();afterChange();};
+  b1.onclick=setN;ni.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();setN();}};
+  r1.appendChild(b1);box.appendChild(r1);
+  const r2=document.createElement('div');r2.className='popfld'+(hasD?' on':'');
+  const s3=document.createElement('span');s3.textContent='Til og med'+(hasD?' ✓':'');r2.appendChild(s3);
+  const di=document.createElement('input');di.className='d';di.type='date';di.value=t.repEnd||'';r2.appendChild(di);
+  const b2=document.createElement('button');b2.className='set';b2.textContent='Sæt';
+  b2.onclick=()=>{if(!di.value){di.focus();return;}t.repEnd=di.value;delete t.repLeft;cl();afterChange();};
+  r2.appendChild(b2);box.appendChild(r2);});}
  paint();
  wrap.repaint=paint;
  return wrap;}
