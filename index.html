@@ -619,10 +619,17 @@ function moveMenu(t,ev){popMenu(ev.clientX,ev.clientY,(box,close)=>{
  dateActions(t).forEach(r=>{mItem(box,'<span>'+r.l+'</span><span style="color:var(--muted);font-size:11px;margin-left:8px">'+shortDate(r.d)+'</span>',()=>{t.due=r.d;t.parked=false;save();close();toast('Flyttet til '+fmtDue(r.d));render();});});
  mItem(box,'💤 Til backlog',()=>{t.due=null;t.parked=true;t.parkedAt=TODAY;t.star=false;save();close();toast('Lagt i backlog 💤');render();});
  mItem(box,'<span style="color:var(--over)">🗑 Slet</span>',()=>{close();delTasks([t]);});
- const dh=document.createElement('div');dh.className='pophd';dh.textContent='Vælg dato:';box.appendChild(dh);
- const di=document.createElement('input');di.type='date';di.value=t.due||'';di.style.cssText='width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:7px;padding:6px 8px;font:inherit;font-size:13px;margin:2px 0 4px';
- di.onchange=()=>{if(di.value){t.due=di.value;t.parked=false;save();close();render();}};box.appendChild(di);
+ const dh=document.createElement('div');dh.className='pophd';dh.textContent='Eller vælg en dato:';box.appendChild(dh);
+ dateSetRow(box,t.due,v=>{t.due=v;t.parked=false;save();close();toast('Flyttet til '+fmtDue(v));render();});
 })}
+// v79: ét datofelt-mønster overalt. Feltet gemmer ALDRIG af sig selv — kun "Sæt" gemmer.
+// Browserens datovælger fyrer et change-event når den åbner, og det satte før dagens dato uden at Nina rørte noget.
+function dateSetRow(box,initial,onSet){
+ const r=document.createElement('div');r.className='popfld';
+ const di=document.createElement('input');di.className='d';di.type='date';di.value=initial||'';r.appendChild(di);
+ const b=document.createElement('button');b.className='set';b.textContent='Sæt';
+ b.onclick=()=>{if(!di.value){di.focus();return;}onSet(di.value);};
+ r.appendChild(b);box.appendChild(r);return di;}
 function estPicker(t,ev,cb){cb=cb||render;popMenu(ev?ev.clientX:innerWidth/2-110,ev?ev.clientY:120,(box,close)=>{
  const hd=document.createElement('div');hd.className='pophd';hd.textContent='Planlagt: '+(t.est?fmtEst(t.est):'—');box.appendChild(hd);
  EST_CHOICES.forEach(m=>{mItem(box,'<span>'+fmtEst(m)+'</span>'+(t.est===m?'<span>✓</span>':''),()=>{t.est=m;save();close();cb();});});
@@ -753,9 +760,8 @@ function buildProps(t,onChange){
  function duePick(ev){popMenu(ev.clientX,ev.clientY,(box,cl)=>{
   const hd=document.createElement('div');hd.className='pophd';hd.textContent='Dato:';box.appendChild(hd);
   dateActions(t).forEach(r=>mItem(box,'<span>'+r.l+'</span><span style="color:var(--muted);font-size:11px;margin-left:8px">'+shortDate(r.d)+'</span>',()=>{t.due=r.d;t.parked=false;cl();afterChange();}));
-  const dh=document.createElement('div');dh.className='pophd';dh.textContent='Vælg dato:';box.appendChild(dh);
-  const di=document.createElement('input');di.type='date';di.value=t.due||'';di.className='popinput';
-  di.onchange=()=>{if(di.value){t.due=di.value;t.parked=false;cl();afterChange();}};box.appendChild(di);
+  const dh=document.createElement('div');dh.className='pophd';dh.textContent='Eller vælg en dato:';box.appendChild(dh);
+  dateSetRow(box,t.due,v=>{t.due=v;t.parked=false;cl();afterChange();});
   if(t.due)mItem(box,'<span style="color:#4a86c9">Ryd dato</span>',()=>{t.due=null;cl();afterChange();});});}
  function timePick(ev){popMenu(ev.clientX,ev.clientY,(box,cl)=>{
   const hd=document.createElement('div');hd.className='pophd';hd.textContent='Tidspunkt:';box.appendChild(hd);
@@ -1097,13 +1103,16 @@ function morningModal(){
   if(step===1){
    const L=leftovers();
    if(!L.length){step=2;renderStep();return;}
-   shell('<p style="font-size:13px">⏭ Fra i går ('+L.length+') — hvad gør vi?</p><div id="mpL" style="max-height:200px;overflow:auto"></div>',
+   shell('<p style="font-size:13px">⏭ Fra i går ('+L.length+') — hvad gør vi?</p><div id="mpL" style="max-height:44vh;overflow:auto"></div>',
     '<button class="cancel" id="mpAllTom">Ryk alle til i morgen</button><button class="save" id="mpN1">Videre →</button>');
    const lw=document.getElementById('mpL');
-   L.forEach(t=>{const r=document.createElement('div');r.className='row';
+   // v79: .acts er skjult indtil :hover — og hover findes ikke på iPhone. Uden .exp var alle fem
+   // datovalg i "Fra i går" USYNLIGE på telefon; man kunne kun rykke alle til i morgen.
+   L.forEach(t=>{const r=document.createElement('div');r.className='row exp';
     const bd=document.createElement('div');bd.className='tbody';bd.innerHTML='<div class="ttl" style="font-size:12.5px">'+esc(t.content)+'</div><div class="meta"><span class="chip over">'+esc(t.due)+'</span></div>';
     const a=document.createElement('div');a.className='acts';
-    dateActions(t).map(r=>[r.l,()=>{t.due=r.d;t.parked=false;}]).concat([['💤',()=>{t.due=null;t.parked=true;t.parkedAt=TODAY;}]]).forEach(([txt,fn])=>{const b=document.createElement('button');b.className='btn';b.textContent=txt;b.onclick=()=>{fn();save();renderStep();};a.appendChild(b);});
+    // v79: datoen skal STÅ på knappen. Den lå kun i en tooltip, som ikke findes på iPhone.
+    dateActions(t).map(r=>[esc(r.l)+' <span style="color:var(--muted);font-size:10.5px;margin-left:5px">'+shortDate(r.d)+'</span>',()=>{t.due=r.d;t.parked=false;}]).concat([['💤',()=>{t.due=null;t.parked=true;t.parkedAt=TODAY;}]]).forEach(([html,fn])=>{const b=document.createElement('button');b.className='btn';b.innerHTML=html;b.onclick=()=>{fn();save();renderStep();};a.appendChild(b);});
     bd.appendChild(a);r.appendChild(bd);lw.appendChild(r);});
    {const _old=L.filter(t=>Math.round((today-new Date(t.due+'T12:00'))/864e5)>14);
     if(_old.length){const bar=document.createElement('div');bar.style.cssText='margin-top:8px';
@@ -1189,14 +1198,16 @@ function weeklyModal(){
    const t=U[i1];
    let inner='<p style="font-size:12px;color:var(--muted)">Ryd bunken · opgave '+(i1+1)+' af '+U.length+' uden dato</p>';
    inner+='<div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin:6px 0"><div class="ttl" style="font-size:14px">'+esc(t.content)+'</div><div class="meta"><span class="chip area" style="background:transparent;padding-left:0;color:'+esc(catOf(t.pid).color)+';font-weight:600"># '+esc(catOf(t.pid).name)+'</span></div></div>';
-   inner+='<div style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)">Vælg dato: <input type="date" id="wDate" style="border:1px solid var(--line);border-radius:8px;padding:7px"></div>';
+   inner+='<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:6px">Eller vælg en dato: <input type="date" id="wDate" style="flex:1 1 130px;min-width:0;border:1px solid var(--line);border-radius:8px;padding:7px;font:inherit;font-size:13px"><button class="btn" id="wDateSet" style="min-height:38px">Sæt</button></div>';
    shell(inner,'<span id="wRel" style="display:contents"></span><button class="btn" id="wPark">💤 Parkér</button><button class="btn" id="wSkip">Spring over</button><button class="btn" id="wDel" style="color:var(--over)">Slet</button><button class="cancel" id="wEnough">Det er nok →</button>');
    const nx=()=>{i1++;renderStep();};
-   {const rh=document.getElementById('wRel');dateActions(t).forEach(r=>{const b=document.createElement('button');b.className='btn';b.textContent=r.l;b.title=shortDate(r.d);b.onclick=()=>{t.due=r.d;t.parked=false;save();nx();};rh.appendChild(b);});}
+   {const rh=document.getElementById('wRel');dateActions(t).forEach(r=>{const b=document.createElement('button');b.className='btn';
+    b.innerHTML=esc(r.l)+' <span style="color:var(--muted);font-size:10.5px;margin-left:5px">'+shortDate(r.d)+'</span>';// v79: datoen lå kun i en tooltip
+    b.onclick=()=>{t.due=r.d;t.parked=false;save();nx();};rh.appendChild(b);});}
    document.getElementById('wPark').onclick=()=>{t.parked=true;t.parkedAt=TODAY;save();nx();};
    document.getElementById('wSkip').onclick=nx;
    document.getElementById('wDel').onclick=()=>{pushTrash([{type:'task',item:t}]);STORE=STORE.filter(x=>x!==t);save();renderStep();};
-   document.getElementById('wDate').onchange=e=>{if(e.target.value){t.due=e.target.value;t.parked=false;save();nx();}};
+   document.getElementById('wDateSet').onclick=()=>{const f=document.getElementById('wDate');if(!f.value){f.focus();return;}t.due=f.value;t.parked=false;save();nx();};
    document.getElementById('wEnough').onclick=()=>{step=2;renderStep();};
   }else if(step===2){
    const P=parked();
@@ -1665,7 +1676,10 @@ function braindumpModal(){
    ds.innerHTML='<option value="idag">☀️ I dag</option><option value="dato">📅 Dato…</option>'+Object.keys(HORLBL).map(k=>'<option value="bk-'+k+'">'+HORLBL[k]+'</option>').join('')+'<option value="vane">🔁 Vane (hver dag)</option>';
    ds.value=it.dest==='bk'?'bk-'+it.hor:it.dest;
    const di=document.createElement('input');di.type='date';di.value=it.due;di.style.cssText='font:inherit;font-size:11.5px;border:1px solid var(--line);border-radius:7px;padding:2px 4px;display:'+(ds.value==='dato'?'':'none');
-   di.onchange=()=>{it.due=di.value;};
+   // v79: her er der ingen Sæt-knap (rækken er for tæt), så i stedet rulles et change tilbage
+   // som brugeren ikke har udløst — det er præcis det datovælgeren gør når den åbner.
+   di.onpointerdown=di.onkeydown=()=>{di.dataset.rort='1';};
+   di.onchange=()=>{if(di.dataset.rort)it.due=di.value;else di.value=it.due||'';};
    ds.onchange=()=>{const v=ds.value;di.style.display=v==='dato'?'':'none';
     if(v==='idag')it.dest='idag';else if(v==='dato')it.dest='dato';else if(v==='vane')it.dest='vane';else{it.dest='bk';it.hor=v.slice(3);}};
    const cs=document.createElement('select');cs.style.cssText='font:inherit;font-size:11.5px;border:1px solid var(--line);border-radius:7px;padding:3px 5px';
