@@ -1,4 +1,4 @@
-<!doctype html><!--LIFEOS 1.84 2026-08-03-->
+<!doctype html><!--LIFEOS 1.85 2026-08-03-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -158,6 +158,12 @@ h1{font-size:19px;margin:0;font-weight:600;letter-spacing:0}
 .drag:active{cursor:grabbing}
 .tcard.dragghost{position:fixed;z-index:99;pointer-events:none;opacity:.92;box-shadow:0 12px 28px rgba(0,0,0,.22);margin:0;background:#fff}
 .tcard.dragsrc{opacity:.35}
+/* v1.85: fuldført i dag — bliver stående, bare dæmpet (Sunsama-mønsteret) */
+.tcard.donerow{opacity:.5;background:#fbfcfb;box-shadow:none}
+.tcard.donerow:hover{opacity:.8}
+.tcard.donerow .ttl.done{text-decoration:none}/* dæmpet er nok — gennemstregning er ekstra støj */
+.cchk.done{background:var(--home);border-color:var(--home);position:relative}
+.cchk.done:after{content:'';position:absolute;left:5px;top:2px;width:4px;height:8px;border:solid #fff;border-width:0 1.5px 1.5px 0;transform:rotate(45deg)}
 .dropmark{height:0;border-top:2px solid var(--accent);border-radius:1px;margin:2px 6px}
 #fbBtn{position:fixed;right:18px;bottom:18px;z-index:40;width:46px;height:46px;border-radius:50%;border:none;background:var(--accent);color:#fff;font-size:19px;cursor:pointer;box-shadow:0 4px 14px rgba(20,24,28,.28)}
 #fbBtn:hover{transform:scale(1.06)}
@@ -371,7 +377,7 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 <div class="wrap">
   <header>
     <h1>Nina's LifeOS</h1><span id="pageTitle"></span><span class="date" id="dateStr"></span><span id="pageActions" style="display:flex;gap:4px;margin-left:6px"></span>
-    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.84</span>
+    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.85</span>
     <span id="syncChip" style="margin-left:6px;font-size:12px;color:var(--muted)">⚪ ikke sat op</span>
     <button class="imp" id="undoBtn" title="Fortryd seneste ændring (⌘Z)" style="margin-left:0;opacity:.4">↩️</button>
     <button class="imp" id="ghBtn" style="margin-left:0">⚙️ Sync</button>
@@ -547,7 +553,7 @@ function dateActions(t){const out=[{k:'today',l:'I dag',d:TODAY},{k:'tom',l:'I m
  return out.filter(r=>{if(!r.d||seen.has(r.d))return false;seen.add(r.d);return true;});}
 document.getElementById('dateStr').textContent=today.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
 // ---------- v80: versionsnummer (1.80 = HOVEDVERSION.BYG, Ninas valg 3/8) ----------
-const APP={v:'1.84',d:'2026-08-03'};
+const APP={v:'1.85',d:'2026-08-03'};
 // Versionsmærket står som HTML-kommentar i filens første 100 bytes, så tjekket henter
 // kun et par hundrede bytes i stedet for hele appen (270 KB) hver gang.
 async function verRemote(){
@@ -771,7 +777,10 @@ function taskRow(t,opts){opts=opts||{};
   if(!isCol){const _cl=buildChecklist(t,render);_cl.classList.add('subsinline');body.appendChild(_cl);}}
  if(t.note){const nn=document.createElement('div');nn.className='notetext';nn.textContent=t.note;body.appendChild(nn);}
  const sy=document.createElement('div');sy.className='symrow';
- const chk=document.createElement('div');chk.className='cchk'+(t.pri?' '+t.pri:'');chk.title='Fuldfør opgave';chk.onclick=()=>{const nd=completeTask(t);save();toast(nd?'Færdig ✓ — næste: '+fmtDue(nd):'Færdig ✓');render();};sy.appendChild(chk);
+ const chk=document.createElement('div');chk.className='cchk'+(t.done?' done':'')+(t.pri?' '+t.pri:'');
+ chk.title=t.done?'Fortryd — gør opgaven aktiv igen':'Fuldfør opgave';
+ chk.onclick=()=>{if(t.done){uncompleteTask(t);save();toast('Genåbnet');render();return;}
+  const nd=completeTask(t);save();toast(nd?'Færdig ✓ — næste: '+fmtDue(nd):'Færdig ✓');render();};sy.appendChild(chk);
  {const s=document.createElement('span');s.className='sym';s.title='Flyt / udsæt';s.textContent='📅';s.onclick=e=>{e.stopPropagation();moveMenu(t,e);};sy.appendChild(s);}
  {const s=document.createElement('span');s.className='sym';s.title='Planlagt tid';s.textContent='🕒';s.onclick=e=>{e.stopPropagation();estPicker(t,e);};sy.appendChild(s);}
  {const f=document.createElement('span');f.className='sym symflag'+(t.pri?' symc':'');f.title='Prioritet: '+priLabel(t.pri);f.textContent='⚑';f.style.color=t.pri?('var(--'+t.pri+')'):'';f.onclick=e=>{e.stopPropagation();priPicker(t,e);};sy.appendChild(f);}
@@ -1225,6 +1234,10 @@ function planP(w){
    t.time=String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0');save();
    toast('🕒 '+t.time+' — '+t.content.slice(0,24));render();}});}
  else mc.appendChild(empty('Ingen opgaver endnu — hent fra panelet til højre, eller tilføj ovenfor.'));
+ {const fd=planDone();if(fd.length){
+   const hd=document.createElement('p');hd.className='hint';hd.style.margin='14px 0 4px';
+   hd.textContent='✓ Klaret i dag — '+fd.length;mc.appendChild(hd);
+   fd.forEach(t=>{const r=taskRow(t);r.classList.add('donerow');mc.appendChild(r);});}}
  M.appendChild(mc);wrap.appendChild(M);
  /* RIGHT: ét panel — Kalender · Todoist (fuld hent-liste) · Backlog (v58, Ninas rettelse) */
  const R=document.createElement('div');
@@ -1524,6 +1537,9 @@ function dayView(w){
 function planTasks(){const rotIds=new Set();
  const list=active().filter(t=>t.star||['over','today'].includes(dueBucket(t)));
  return planOrder(list);}
+// v1.85: opgaver fuldført i dag bliver stående i "I dag" — bare nedtonet (Ninas feedback smsd8b2bc9627).
+// Holdes uden for planTasks, så arbejdstid, tidslinje og manuel rækkefølge er uændret.
+function planDone(){return STORE.filter(t=>t.done&&!t.rec&&t.doneAt===TODAY);}
 function planOrder(list){const key='dayorder_'+TODAY;const saved=LS.g(key,[]);
  const autoRank=t=>{let r=0;if(t.star)r-=10000;if(t.time)r+=2000+(+t.time.replace(':',''));else r+=5000;r-=({p1:300,p2:200,p3:-100}[t.pri]||0);r-=({do:50,plan:30,deleg:10}[t.q]||0);return r;};
  return list.slice().sort((a,b)=>{const ia=saved.indexOf(a.id),ib=saved.indexOf(b.id);
@@ -2029,6 +2045,7 @@ function sidePanel(){ // v1.84: fire kilder, og fanevælgeren er flyttet ud som 
   {p:'cal', ic:'🗓', navn:'Kalender',          und:'Dagens aftaler. Træk en opgave ind på tidslinjen for at give den et tidspunkt.'},
   {p:'td',  ic:'✓',  navn:'Todoist',           und:'Hentes automatisk hver morgen. Træk over i dagens plan.'},
   {p:'bk',  ic:'💤', navn:'Backlog',           und:'Uden dato, sorteret efter horisont. Træk ⠿ over i dagens plan.'},
+  {p:'app', ic:'📋', navn:'Dine opgaver',      und:'Alt du har oprettet i LifeOS. Søg, og hent det du vil nå i dag.'},
   {p:'obj', ic:'🎯', navn:'Ugens målsætninger',und:'Det der skal være sandt på søndag. Knyt opgaver til en målsætning, så du kan se om du rykker.'}
  ];
  let tab=LS.g('fpanel','cal');
@@ -2044,6 +2061,7 @@ function sidePanel(){ // v1.84: fire kilder, og fanevælgeren er flyttet ud som 
  if(tab==='cal')sideCal(body);
  else if(tab==='bk'){body.id='bkDrop';sideBacklog(body);}// v67: id = sluppe-mål for træk
  else if(tab==='obj')sideObjectives(body);
+ else if(tab==='app')sideAppTasks(body);
  else sideTodoist(body);
  const rail=document.createElement('div');rail.className='siderail';
  KILDER.forEach(k=>{const btn=document.createElement('button');btn.className='railbtn'+(k.p===tab?' on':'');
@@ -2051,6 +2069,36 @@ function sidePanel(){ // v1.84: fire kilder, og fanevælgeren er flyttet ud som 
   btn.onclick=()=>{LS.s('fpanel',k.p);render();};rail.appendChild(btn);});
  wrap.appendChild(body);wrap.appendChild(rail);c.appendChild(wrap);
  return c;}
+// v1.85: femte kilde — opgaver oprettet i LifeOS selv (Ninas feedback smsd7c1to1472).
+// Backloggen dækker kun de parkerede; her kan man hente hvad som helst ind i dagen.
+let APPQ='';
+function sideAppTasks(c){
+ const iDag=new Set(planTasks().map(t=>t.id));
+ const alle=active().filter(t=>!t.rec&&!t.parked&&!iDag.has(t.id));
+ const q=APPQ.trim().toLowerCase();
+ const list=(q?alle.filter(t=>(t.content||'').toLowerCase().includes(q)||(t.note||'').toLowerCase().includes(q)):alle)
+  .slice().sort(taskCmp(LS.g('taskorder',[])));
+ const sr=document.createElement('div');sr.style.cssText='display:flex;gap:6px;margin:0 0 8px';
+ const si=document.createElement('input');si.type='search';si.placeholder='Søg i dine opgaver…';si.value=APPQ;
+ si.style.cssText='flex:1;min-width:0;border:1px solid var(--line);border-radius:9px;padding:8px 10px;font:inherit;font-size:13px;background:#fff';
+ let tmr=null;si.oninput=()=>{clearTimeout(tmr);tmr=setTimeout(()=>{APPQ=si.value;render();},220);};
+ sr.appendChild(si);c.appendChild(sr);
+ const hd=document.createElement('p');hd.className='hint';hd.style.margin='0 0 6px';
+ hd.textContent=list.length+(q?' match':' opgaver')+' — som ikke allerede er i dagens plan.';c.appendChild(hd);
+ if(!list.length){c.appendChild(empty(q?'Ingen match.':'Alt du har, er allerede i dagens plan.'));return;}
+ list.slice(0,60).forEach(t=>{
+  const r=document.createElement('div');r.className='sdrow';r.dataset.tid=t.id;
+  const dh=document.createElement('span');dh.textContent='⠿';dh.title='Træk til dagens plan';
+  dh.style.cssText='cursor:grab;color:#c3c6ca;font-size:12px;flex:0 0 auto;touch-action:none';bkDrag(dh,r,t);
+  const dot=document.createElement('span');dot.style.cssText='width:8px;height:8px;border-radius:50%;background:'+esc(catOf(t.pid).color)+';flex:0 0 auto';dot.title=catOf(t.pid).name;
+  const tx=document.createElement('div');tx.style.cssText='flex:1;min-width:0;font-size:13px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+  tx.textContent=t.content;tx.title=t.content;tx.onclick=()=>editModal(t);
+  const dv=document.createElement('span');dv.style.cssText='font-size:10.5px;color:var(--muted);flex:0 0 auto;white-space:nowrap';
+  dv.textContent=t.due?shortDate(t.due):'– dato';
+  const b=document.createElement('button');b.className='btn';b.style.cssText='min-height:26px;padding:2px 8px;font-size:11px;flex:0 0 auto';
+  b.textContent='+ I dag';b.onclick=()=>{t.due=TODAY;t.parked=false;save();toast('Lagt på dagens plan ✓');render();};
+  r.appendChild(dh);r.appendChild(dot);r.appendChild(tx);r.appendChild(dv);r.appendChild(b);c.appendChild(r);});
+ if(list.length>60)c.appendChild(empty('…og '+(list.length-60)+' mere — søg for at snævre ind.'));}
 // Målsætningerne som kilde i panelet — samme kort som alle andre steder.
 function sideObjectives(c){
  const uge=weekMonday(TODAY);const mine=objsFor(objAll(),uge);
@@ -2245,8 +2293,11 @@ function focusP(w){
    t.time=String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0');save();
    toast('🕒 '+t.time+' — '+t.content.slice(0,24));render();}});}
  else c1.appendChild(emptyCTA('Ingen plan endnu. Vælg Top 3 og giv dagens opgaver en dato — så samles de her. ⭐','☀️ Planlæg dagen',openPlanning));
- const doneToday=STORE.filter(t=>t.done&&t.doneAt===TODAY&&!t.rec);
- if(doneToday.length){const dv=document.createElement('div');dv.style.cssText='margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)';dv.textContent='✅ Færdig i dag: '+doneToday.length;c1.appendChild(dv);}
+ // v1.85: de fuldførte bliver stående som rigtige kort — nedtonet — i stedet for kun et tal
+ {const fd=planDone();if(fd.length){
+   const hd=document.createElement('p');hd.className='hint';hd.style.margin='14px 0 4px';
+   hd.textContent='✓ Klaret i dag — '+fd.length;c1.appendChild(hd);
+   fd.forEach(t=>{const r=taskRow(t);r.classList.add('donerow');c1.appendChild(r);});}}
  w.appendChild(c1);
  const evu=evUpcoming(7);
  if(evu.length){const ce=card('🎂 Fødselsdage & datoer i denne uge','');evu.forEach(e=>{const r=document.createElement('div');r.className='row';r.innerHTML=`<div style="font-size:17px">${evIcon(e)}</div><div class="tbody"><div class="ttl">${esc(e.name)}${evAge(e)!=null?' (fylder '+evAge(e)+')':''}</div><div class="meta"><span class="chip ${evDays(e)===0?'today':'soon'}">${evWhen(e)}</span></div></div>`;r.querySelector('.ttl').onclick=()=>eventModal(e);ce.appendChild(r);});w.appendChild(ce);}
