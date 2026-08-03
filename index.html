@@ -1,4 +1,4 @@
-<!doctype html><!--LIFEOS 1.85 2026-08-03-->
+<!doctype html><!--LIFEOS 1.86 2026-08-03-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -377,7 +377,7 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 <div class="wrap">
   <header>
     <h1>Nina's LifeOS</h1><span id="pageTitle"></span><span class="date" id="dateStr"></span><span id="pageActions" style="display:flex;gap:4px;margin-left:6px"></span>
-    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.85</span>
+    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.86</span>
     <span id="syncChip" style="margin-left:6px;font-size:12px;color:var(--muted)">⚪ ikke sat op</span>
     <button class="imp" id="undoBtn" title="Fortryd seneste ændring (⌘Z)" style="margin-left:0;opacity:.4">↩️</button>
     <button class="imp" id="ghBtn" style="margin-left:0">⚙️ Sync</button>
@@ -553,7 +553,7 @@ function dateActions(t){const out=[{k:'today',l:'I dag',d:TODAY},{k:'tom',l:'I m
  return out.filter(r=>{if(!r.d||seen.has(r.d))return false;seen.add(r.d);return true;});}
 document.getElementById('dateStr').textContent=today.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
 // ---------- v80: versionsnummer (1.80 = HOVEDVERSION.BYG, Ninas valg 3/8) ----------
-const APP={v:'1.85',d:'2026-08-03'};
+const APP={v:'1.86',d:'2026-08-03'};
 // Versionsmærket står som HTML-kommentar i filens første 100 bytes, så tjekket henter
 // kun et par hundrede bytes i stedet for hele appen (270 KB) hver gang.
 async function verRemote(){
@@ -2046,7 +2046,8 @@ function sidePanel(){ // v1.84: fire kilder, og fanevælgeren er flyttet ud som 
   {p:'td',  ic:'✓',  navn:'Todoist',           und:'Hentes automatisk hver morgen. Træk over i dagens plan.'},
   {p:'bk',  ic:'💤', navn:'Backlog',           und:'Uden dato, sorteret efter horisont. Træk ⠿ over i dagens plan.'},
   {p:'app', ic:'📋', navn:'Dine opgaver',      und:'Alt du har oprettet i LifeOS. Søg, og hent det du vil nå i dag.'},
-  {p:'obj', ic:'🎯', navn:'Ugens målsætninger',und:'Det der skal være sandt på søndag. Knyt opgaver til en målsætning, så du kan se om du rykker.'}
+  {p:'obj', ic:'🎯', navn:'Ugens målsætninger',und:'Det der skal være sandt på søndag. Knyt opgaver til en målsætning, så du kan se om du rykker.'},
+  {p:'rem', ic:'🔔', navn:'Påmindelser',       und:'Fra iPhonens Påmindelser — læses fra din Mac, når den er tændt. ＋ lægger den på dagens plan.'}
  ];
  let tab=LS.g('fpanel','cal');
  if(!KILDER.some(k=>k.p===tab))tab='cal';
@@ -2062,6 +2063,7 @@ function sidePanel(){ // v1.84: fire kilder, og fanevælgeren er flyttet ud som 
  else if(tab==='bk'){body.id='bkDrop';sideBacklog(body);}// v67: id = sluppe-mål for træk
  else if(tab==='obj')sideObjectives(body);
  else if(tab==='app')sideAppTasks(body);
+ else if(tab==='rem')sideReminders(body);
  else sideTodoist(body);
  const rail=document.createElement('div');rail.className='siderail';
  KILDER.forEach(k=>{const btn=document.createElement('button');btn.className='railbtn'+(k.p===tab?' on':'');
@@ -2099,6 +2101,38 @@ function sideAppTasks(c){
   b.textContent='+ I dag';b.onclick=()=>{t.due=TODAY;t.parked=false;save();toast('Lagt på dagens plan ✓');render();};
   r.appendChild(dh);r.appendChild(dot);r.appendChild(tx);r.appendChild(dv);r.appendChild(b);c.appendChild(r);});
  if(list.length>60)c.appendChild(empty('…og '+(list.length-60)+' mere — søg for at snævre ind.'));}
+// v1.86: sjette kilde — iPhone Påmindelser (Ninas feedback sms5zxjes116).
+// Claude læser dem fra Mac'en (læse-kun MCP) og skriver cc2_reminders = {updated, items:[{l,t,d,a,n}]}.
+// Appen kan kun LÆSE påmindelser — fuldføres skal de i Påmindelser-appen på telefonen.
+function remRows(data,TODAY){
+ if(!data||!Array.isArray(data.items))return {rows:[],updated:(data&&data.updated)||null};
+ const rows=data.items.map(r=>{const d=r.d?String(r.d):null;const day=d?d.slice(0,10):null;
+  return {key:(r.l||'')+'|'+(r.t||''),list:r.l||'',title:r.t||'',due:d,day:day,allDay:!!r.a,
+   notes:r.n||null,over:!!day&&day<TODAY};});
+ rows.sort((a,b)=>((a.due===null)-(b.due===null))||String(a.due||'').localeCompare(String(b.due||''))||a.title.toLowerCase().localeCompare(b.title.toLowerCase()));
+ return {rows:rows,updated:data.updated||null};}
+function sideReminders(c){
+ const R=remRows(LS.g('reminders',null),TODAY);
+ const brugt=new Set(STORE.filter(t=>t.remid).map(t=>t.remid));
+ if(!R.rows.length)c.appendChild(empty(R.updated?'Ingen åbne påmindelser 🎉':'Ingen påmindelser endnu — de læses fra din Mac, når den er tændt.'));
+ R.rows.slice(0,60).forEach(r=>{
+  const row=document.createElement('div');row.className='sdrow';
+  const tx=document.createElement('div');tx.style.cssText='flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+  tx.textContent=r.title;tx.title=r.title+(r.notes?' — '+r.notes:'');
+  const dv=document.createElement('span');dv.style.cssText='font-size:10.5px;flex:0 0 auto;white-space:nowrap;color:'+(r.over?'var(--over)':'var(--muted)');
+  dv.textContent=r.day?(shortDate(r.day)+(!r.allDay&&r.due.length>10?' '+r.due.slice(11,16):'')):'– dato';
+  const b=document.createElement('button');b.className='btn';b.style.cssText='min-height:26px;padding:2px 8px;font-size:11px;flex:0 0 auto';
+  if(brugt.has(r.key)){b.textContent='✓ tilføjet';b.disabled=true;b.style.opacity='.55';}
+  else{b.textContent='+ I dag';b.onclick=()=>{
+   STORE.unshift({id:'t'+(UID++),content:r.title,pid:(PROJECTS[0]&&PROJECTS[0].id),due:TODAY,
+    time:(!r.allDay&&r.day===TODAY&&r.due.length>10)?r.due.slice(11,16):null,rec:null,pri:null,q:null,
+    imp:null,eff:null,est:null,note:r.notes,done:false,star:false,src:'rem',remid:r.key});
+   save();toast('Lagt på dagens plan ✓');render();};}
+  row.appendChild(tx);row.appendChild(dv);row.appendChild(b);c.appendChild(row);});
+ if(R.rows.length>60)c.appendChild(empty('…og '+(R.rows.length-60)+' mere.'));
+ if(R.updated){const fresh=document.createElement('p');fresh.className='hint';fresh.style.margin='10px 0 0';
+  fresh.textContent='Læst '+new Date(R.updated).toLocaleString('da-DK',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+' fra din Mac. Fuldfør dem i Påmindelser-appen — her kan kun læses.';
+  c.appendChild(fresh);}}
 // Målsætningerne som kilde i panelet — samme kort som alle andre steder.
 function sideObjectives(c){
  const uge=weekMonday(TODAY);const mine=objsFor(objAll(),uge);
@@ -2529,7 +2563,7 @@ let AFLT={},AFLTDONE=false;
 const AFILTERS=[
  {key:'cat',label:'Kategori',options:()=>PROJECTS.map(p=>[p.id,'# '+esc(p.name)]),labelOf:v=>'# '+esc(catOf(v).name),test:(t,v)=>t.pid===v}, // v60: alle kategorier + navne-opslag via catOf (chips viste rå id'er)
  {key:'dato',label:'Dato',options:()=>[['over','Forfaldne'],['idag','I dag'],['uge','Næste 7 dage'],['senere','Senere'],['udendato','Uden dato'],['bk','💤 Backlog']],test:(t,v)=>{if(v==='bk')return !!t.parked;if(t.parked)return false;const b=dueBucket(t);if(v==='over')return b==='over';if(v==='idag')return b==='today';if(v==='uge')return b==='today'||b==='soon';if(v==='senere')return b==='later';return !t.due;}},
- {key:'src',label:'Kilde',options:()=>[['me','Mig'],['todoist','✓ Todoist'],['braindump','🧠 Braindump'],['health','🌱 Sundhed']],test:(t,v)=>(t.tdid?'todoist':(t.src||'me'))===v}, // v57: Kilde efter Dato (Ninas ønske)
+ {key:'src',label:'Kilde',options:()=>[['me','Mig'],['todoist','✓ Todoist'],['braindump','🧠 Braindump'],['health','🌱 Sundhed'],['rem','🔔 Påmindelser']],test:(t,v)=>(t.tdid?'todoist':(t.src||'me'))===v}, // v57: Kilde efter Dato (Ninas ønske)
  {key:'type',label:'Type',options:()=>[['alm','Almindelig'],['rep','🔁 Gentagen'],['deltrin','Med deltrin'],['tid','🕒 Med tidspunkt']],test:(t,v)=>v==='rep'?!!t.rep:v==='deltrin'?!!(t.children&&t.children.length):v==='tid'?!!t.time:(!t.rep&&!(t.children&&t.children.length))},
  {key:'pri',label:'Prioritet',options:()=>[['p1','🚩 Haster'],['p2','🚩 Prioritet'],['p3','⚑ Lav'],['ingen','Ingen']],test:(t,v)=>v==='ingen'?!t.pri:t.pri===v}
 ];
