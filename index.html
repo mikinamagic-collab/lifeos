@@ -1,4 +1,4 @@
-<!doctype html><!--LIFEOS 1.81 2026-08-03-->
+<!doctype html><!--LIFEOS 1.82 2026-08-03-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -278,6 +278,19 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 .hlbar{background:linear-gradient(135deg,#fffbe8,#fdf3e7);border:1px solid #f2e2b3;border-radius:9px;padding:9px 12px;font-size:13.5px;margin:0 0 10px}
 /* v29 planning page */
 .planwrap{display:grid;grid-template-columns:290px 1fr 320px;gap:16px;align-items:start}
+/* v1.82: på bred skærm scroller hvert panel for sig, så toppen og de andre paneler bliver stående.
+   Højden sættes i JS ud fra hvor griddet faktisk starter — så den følger med hvis headeren ændrer sig. */
+@media(min-width:961px){
+ .planwrap.panelscroll{align-items:stretch}
+ .planwrap.panelscroll>div{min-height:0;overflow:auto;overscroll-behavior:contain;padding-right:2px}
+ .planwrap.panelscroll>div::-webkit-scrollbar{width:8px}
+ .planwrap.panelscroll>div::-webkit-scrollbar-thumb{background:#dcdfe3;border-radius:4px}
+ .planwrap.panelscroll>div::-webkit-scrollbar-track{background:transparent}
+ /* overskriften bliver stående i toppen af sit eget panel — ellers scroller den væk med indholdet */
+ .planwrap.panelscroll>div>.card>.panhead{position:sticky;top:-1px;z-index:3;background:var(--card);
+  margin:-16px -18px 8px;padding:16px 18px 8px;box-shadow:0 7px 7px -7px rgba(20,24,28,.13)}
+ .planwrap.panelscroll>div>.card>.panhead .seg-toggle{margin-bottom:0}
+}
 @media(max-width:960px){.planwrap{grid-template-columns:1fr}}
 .planh{font-size:19px;font-weight:600;margin:0 0 6px}
 /* modal */
@@ -324,7 +337,7 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 <div class="wrap">
   <header>
     <h1>Nina's LifeOS</h1><span id="pageTitle"></span><span class="date" id="dateStr"></span><span id="pageActions" style="display:flex;gap:4px;margin-left:6px"></span>
-    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.81</span>
+    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.82</span>
     <span id="syncChip" style="margin-left:6px;font-size:12px;color:var(--muted)">⚪ ikke sat op</span>
     <button class="imp" id="undoBtn" title="Fortryd seneste ændring (⌘Z)" style="margin-left:0;opacity:.4">↩️</button>
     <button class="imp" id="ghBtn" style="margin-left:0">⚙️ Sync</button>
@@ -500,7 +513,7 @@ function dateActions(t){const out=[{k:'today',l:'I dag',d:TODAY},{k:'tom',l:'I m
  return out.filter(r=>{if(!r.d||seen.has(r.d))return false;seen.add(r.d);return true;});}
 document.getElementById('dateStr').textContent=today.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
 // ---------- v80: versionsnummer (1.80 = HOVEDVERSION.BYG, Ninas valg 3/8) ----------
-const APP={v:'1.81',d:'2026-08-03'};
+const APP={v:'1.82',d:'2026-08-03'};
 // Versionsmærket står som HTML-kommentar i filens første 100 bytes, så tjekket henter
 // kun et par hundrede bytes i stedet for hele appen (270 KB) hver gang.
 async function verRemote(){
@@ -1066,6 +1079,23 @@ function dashP(w){
 let planStep=1;
 let ALLQ='';
 function openPlanning(){planStep=1;goto('planlaeg');}
+function planFitPanels(wrap){
+ const fit=()=>{
+  if(!wrap.isConnected)return;
+  if(innerWidth<961){wrap.classList.remove('panelscroll');wrap.style.height='';return;}
+  wrap.classList.add('panelscroll');
+  const top=wrap.getBoundingClientRect().top+(window.scrollY||0);
+  wrap.style.height=Math.max(320,innerHeight-top-16)+'px';
+  // Selvkorrektion: margener og padding under griddet kan stadig give siden et overløb.
+  // Mål det faktiske overløb og træk det fra, så headeren garanteret bliver stående.
+  requestAnimationFrame(()=>{if(!wrap.isConnected||innerWidth<961)return;
+   const over=document.documentElement.scrollHeight-innerHeight;
+   if(over>0){const h=parseFloat(wrap.style.height)||0;wrap.style.height=Math.max(320,h-over)+'px';}});};
+ requestAnimationFrame(fit);
+ clearTimeout(planFitPanels._t);
+ if(planFitPanels._on)removeEventListener('resize',planFitPanels._on);
+ planFitPanels._on=()=>{clearTimeout(planFitPanels._t);planFitPanels._t=setTimeout(fit,120);};
+ addEventListener('resize',planFitPanels._on);}
 function planP(w){
  const wrap=document.createElement('div');wrap.className='planwrap';
  const plan=planTasks();const sum=planSum(plan);const cap=capacityGet();const noEst=plan.filter(t=>!t.est).length;const stars=plan.filter(t=>t.star).length;
@@ -1110,7 +1140,8 @@ function planP(w){
  L.appendChild(nv);wrap.appendChild(L);
  /* MIDDLE: today list */
  const M=document.createElement('div');const mc=document.createElement('div');mc.className='card';
- mc.innerHTML='<h2 class="planh">I dag</h2><p class="hint">'+today.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'})+' · Arbejde: <b>'+(fmtEst(sum)||'0:00')+'</b></p>';
+ mc.innerHTML='<div class="panhead"><h2 class="planh">I dag</h2><p class="hint">Udfyld dagens arbejde — det du faktisk vil nå.</p>'
+  +'<p class="hint" style="margin:-4px 0 0">'+today.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'})+' · Arbejde: <b>'+(fmtEst(sum)||'0:00')+'</b></p></div>';
  const ab=document.createElement('div');ab.className='addbar';ab.innerHTML='<input class="t" placeholder="＋ Tilføj opgave til i dag… (~30m · !p1 · #kategori)"><button class="go">Tilføj</button>';
  const inp=ab.querySelector('.t');
  const addT=()=>{const v=inp.value.trim();if(!v)return;const r=parseQuickAdd(v,true);STORE.unshift({id:'t'+(UID++),content:r.content||v,pid:r.pid||(PROJECTS[0]&&PROJECTS[0].id),due:r.due||TODAY,time:r.time||null,rec:null,pri:r.pri||null,q:null,imp:null,eff:null,est:r.est||null,done:false,star:false,src:'me'});save();inp.value='';toast('Tilføjet ✓');render();};
@@ -1130,6 +1161,9 @@ function planP(w){
  /* RIGHT: ét panel — Kalender · Todoist (fuld hent-liste) · Backlog (v58, Ninas rettelse) */
  const R=document.createElement('div');
  R.appendChild(sidePanel());wrap.appendChild(R);
+ // v1.82: lås griddets højde til resten af skærmen, så panelerne scroller indeni i stedet for at
+ // trække hele siden med. Kun på bred skærm — på telefon er én lang kolonne det rigtige.
+ planFitPanels(wrap);
  w.appendChild(wrap);
 }
 function render(){
@@ -1802,10 +1836,14 @@ function capModal(){const host=document.getElementById('modalHost');const cur=ca
 function sidePanel(){ // v58: ét panel, altid tre tabs (Ninas rettelse af v57-item 5)
  const tab=LS.g('fpanel','cal');
  const c=document.createElement('div');c.className='card';
+ // v1.82: overskrift + én linje der siger hvad panelet er til (Ninas feedback smsd2kjkb928, Sunsama-mønsteret)
+ const _hd=document.createElement('div');_hd.className='panhead';
+ _hd.innerHTML='<h2 class="planh">Hent opgaver</h2><p class="hint">Fra din kalender, fra Todoist eller fra backloggen — træk dem over i dagens plan.</p>';
+ c.appendChild(_hd);
  const tog=document.createElement('div');tog.className='seg-toggle';
  tog.innerHTML='<button class="'+(tab==='cal'?'on':'')+'" data-p="cal">🗓 Kalender</button><button class="'+(tab==='td'?'on':'')+'" data-p="td">✓ Todoist</button><button class="'+(tab==='bk'?'on':'')+'" data-p="bk">💤 Backlog</button>';
  tog.querySelectorAll('button').forEach(b=>b.onclick=()=>{LS.s('fpanel',b.dataset.p);render();});
- c.appendChild(tog);
+ _hd.appendChild(tog);
  if(tab==='cal')sideCal(c);else if(tab==='bk'){c.id='bkDrop';sideBacklog(c);}else sideTodoist(c);// v67: id = sluppe-mål for træk
  return c;}
 function sideCal(c){
