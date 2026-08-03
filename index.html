@@ -1,4 +1,4 @@
-<!doctype html><!--LIFEOS 1.83 2026-08-03-->
+<!doctype html><!--LIFEOS 1.84 2026-08-03-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -111,6 +111,22 @@ h1{font-size:19px;margin:0;font-weight:600;letter-spacing:0}
 .objtask .d{width:7px;height:7px;border-radius:50%;background:#c8ccd1;flex:0 0 auto}
 .objtask.done{color:#a8adb4;text-decoration:line-through}
 .objtask.done .d{background:var(--home)}
+.objadd{display:flex;gap:6px;margin:0 0 12px}
+.objadd input{flex:1;min-width:0;border:1px solid var(--line);border-radius:9px;padding:9px 11px;font:inherit;font-size:13px;background:#fff}
+.objadd input:focus{outline:none;border-color:var(--accent)}
+.objadd .btn{min-height:38px}
+/* v1.84: kilde-vælgeren som lodret ikonstribe langs højre kant — Sunsama-mønsteret */
+.sidewrap{display:flex;gap:10px;align-items:flex-start}
+.sidebody{flex:1;min-width:0}
+.siderail{flex:0 0 auto;display:flex;flex-direction:column;gap:5px;position:sticky;top:0;
+ border-left:1px solid var(--line);padding-left:9px;margin-left:2px}
+.railbtn{width:42px;height:42px;border:1px solid transparent;background:none;border-radius:10px;
+ font-size:19px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;
+ padding:0;color:#5f6670;transition:background .12s}
+.railbtn:hover{background:#f3f5f7}
+/* aktiv = lys flade + accentkant. IKKE filter/invert — det gør emojis til sorte klatter. */
+.railbtn.on{background:#eef4fc;border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.railbtn span{display:block;line-height:1}
 .modal.tview{max-width:700px;position:relative}/* v65: to kolonner kræver bredde — .modal (380px) står senere i filen, så klassen skal være mere specifik */
 .tvclose{position:absolute;top:8px;right:8px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:none;background:none;font:inherit;font-size:17px;color:#8a8f98;cursor:pointer;border-radius:8px}
 .tvclose:hover{background:#f5f6f7;color:#3c4043}
@@ -295,7 +311,7 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 .row.exp .notetext{display:block}
 .hlbar{background:linear-gradient(135deg,#fffbe8,#fdf3e7);border:1px solid #f2e2b3;border-radius:9px;padding:9px 12px;font-size:13.5px;margin:0 0 10px}
 /* v29 planning page */
-.planwrap{display:grid;grid-template-columns:290px 1fr 320px;gap:16px;align-items:start}
+.planwrap{display:grid;grid-template-columns:290px 1fr 360px;gap:16px;align-items:start}
 /* v1.82: på bred skærm scroller hvert panel for sig, så toppen og de andre paneler bliver stående.
    Højden sættes i JS ud fra hvor griddet faktisk starter — så den følger med hvis headeren ændrer sig. */
 @media(min-width:961px){
@@ -305,7 +321,7 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
  .planwrap.panelscroll>div::-webkit-scrollbar-thumb{background:#dcdfe3;border-radius:4px}
  .planwrap.panelscroll>div::-webkit-scrollbar-track{background:transparent}
  /* overskriften bliver stående i toppen af sit eget panel — ellers scroller den væk med indholdet */
- .planwrap.panelscroll>div>.card>.panhead{position:sticky;top:-1px;z-index:3;background:var(--card);
+ .planwrap.panelscroll>div>.card>.panhead,.planwrap.panelscroll>div>.card>.sidewrap>.sidebody>.panhead{position:sticky;top:-1px;z-index:3;background:var(--card);
   margin:-16px -18px 8px;padding:16px 18px 8px;box-shadow:0 7px 7px -7px rgba(20,24,28,.13)}
  .planwrap.panelscroll>div>.card>.panhead .seg-toggle{margin-bottom:0}
 }
@@ -355,7 +371,7 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 <div class="wrap">
   <header>
     <h1>Nina's LifeOS</h1><span id="pageTitle"></span><span class="date" id="dateStr"></span><span id="pageActions" style="display:flex;gap:4px;margin-left:6px"></span>
-    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.83</span>
+    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.84</span>
     <span id="syncChip" style="margin-left:6px;font-size:12px;color:var(--muted)">⚪ ikke sat op</span>
     <button class="imp" id="undoBtn" title="Fortryd seneste ændring (⌘Z)" style="margin-left:0;opacity:.4">↩️</button>
     <button class="imp" id="ghBtn" style="margin-left:0">⚙️ Sync</button>
@@ -531,7 +547,7 @@ function dateActions(t){const out=[{k:'today',l:'I dag',d:TODAY},{k:'tom',l:'I m
  return out.filter(r=>{if(!r.d||seen.has(r.d))return false;seen.add(r.d);return true;});}
 document.getElementById('dateStr').textContent=today.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
 // ---------- v80: versionsnummer (1.80 = HOVEDVERSION.BYG, Ninas valg 3/8) ----------
-const APP={v:'1.83',d:'2026-08-03'};
+const APP={v:'1.84',d:'2026-08-03'};
 // Versionsmærket står som HTML-kommentar i filens første 100 bytes, så tjekket henter
 // kun et par hundrede bytes i stedet for hele appen (270 KB) hver gang.
 async function verRemote(){
@@ -766,7 +782,7 @@ function taskRow(t,opts){opts=opts||{};
    e.textContent=(typeof t.repLeft==='number')?(t.repLeft+'×'):('→ '+(+t.repEnd.slice(8,10))+'/'+(+t.repEnd.slice(5,7)));sy.appendChild(e);}}
  {if(t.objId){const o=objAll().find(x=>x.id===t.objId);
   if(o){const s=document.createElement('span');s.className='symtxt';s.style.cssText='cursor:default;white-space:nowrap';
-   s.title='Ugens fokus: '+o.t;s.textContent='🎯 '+(o.t.length>16?o.t.slice(0,15)+'…':o.t);sy.appendChild(s);}}}
+   s.title='Ugens målsætning: '+o.t;s.textContent='🎯 '+(o.t.length>16?o.t.slice(0,15)+'…':o.t);sy.appendChild(s);}}}
  if(t.tdid){const s=document.createElement('span');s.className='symtxt';s.title='Synkroniseret med Todoist';s.textContent='✓ Todoist';sy.appendChild(s);}
  {const _h=LS.g('highlight',null);if(_h&&_h.date===TODAY&&_h.id===t.id){const s=document.createElement('span');s.className='sym symc';s.style.cursor='default';s.title='Dagens højdepunkt';s.textContent='🌟';sy.appendChild(s);}}
  {const sl=document.createElement('div');sl.className='streamlbl';sl.title='Skift kategori';sl.style.cursor='pointer';sl.innerHTML='<span style="color:'+esc(p.color)+';font-weight:700"># </span>'+esc(p.name||'');sl.onclick=e=>{e.stopPropagation();catMenu(t,e);};sy.appendChild(sl);}
@@ -830,7 +846,7 @@ function buildProps(t,onChange){
   // v76: vises kun når opgaven faktisk gentages — ellers støjer den
   {k:'repend',l:'Slutter', val:()=>esc(repEndLabel(t,shortDate)), empty:()=>!t.repEnd&&typeof t.repLeft!=='number', add:'Aldrig', show:()=>!!t.rep, pick:repEndPick},
   // v1.83: knyt opgaven til et af ugens fokus
-  {k:'obj', l:'Ugens fokus', val:()=>'🎯 '+esc(objNameOf(t.objId)), empty:()=>!objNameOf(t.objId), add:'＋ Knyt til fokus', pick:objPick}
+  {k:'obj', l:'Målsætning', val:()=>'🎯 '+esc(objNameOf(t.objId)), empty:()=>!objNameOf(t.objId), add:'＋ Knyt til målsætning', pick:objPick}
  ];
  function objNameOf(id){if(!id)return '';const o=objAll().find(x=>x.id===id);return o?o.t:'';}
  function repLabelOf(v){const m={'1d':'Hver dag','1w':'Hver uge','2w':'Hver 14. dag','1m':'Hver måned','3m':'Hver 3. måned','6m':'Hvert halve år','1y':'Hvert år'};return m[v]||'Nej';}
@@ -912,12 +928,17 @@ function buildProps(t,onChange){
   bar.appendChild(x);bar.appendChild(g);box.appendChild(bar);});}
  function objPick(ev){popMenu(ev.clientX,ev.clientY,(box,cl)=>{
   const uge=weekMonday(TODAY);const mine=objsFor(objAll(),uge);
-  const hd=document.createElement('div');hd.className='pophd';hd.textContent='Ugens fokus:';box.appendChild(hd);
+  const hd=document.createElement('div');hd.className='pophd';hd.textContent='Ugens målsætninger:';box.appendChild(hd);
   mItem(box,'<span>Ingen</span>'+(!t.objId?'<span>✓</span>':''),()=>{delete t.objId;cl();afterChange();});
   if(!mine.length){const e=document.createElement('div');e.className='pophd';
-   e.textContent='Du har ikke sat fokus for denne uge endnu.';box.appendChild(e);}
+   e.textContent='Du har ikke sat målsætninger for denne uge endnu.';box.appendChild(e);}
   mine.forEach(o=>mItem(box,'<span>'+esc(o.t)+'</span>'+(t.objId===o.id?'<span>✓</span>':''),()=>{t.objId=o.id;cl();afterChange();}));
-  const nh=document.createElement('div');nh.className='pophd';nh.textContent='Nyt fokus:';box.appendChild(nh);
+  // v1.84: gør opgaven selv til en målsætning — som Sunsamas "Turn this into an objective"
+  {const h2=document.createElement('div');h2.className='pophd';h2.textContent='Eller:';box.appendChild(h2);
+   mItem(box,'<span>＋ Gør denne opgave til en målsætning</span>',()=>{
+    const a=objAll();const o={id:newObjId(),t:t.content,week:uge,done:false};a.push(o);objSave(a);
+    t.objId=o.id;cl();afterChange();toast('“'+o.t.slice(0,28)+'” er nu en målsætning 🎯');});}
+  const nh=document.createElement('div');nh.className='pophd';nh.textContent='Ny målsætning:';box.appendChild(nh);
   const r=document.createElement('div');r.className='popfld';
   const ni=document.createElement('input');ni.className='d';ni.type='text';ni.placeholder='fx Få styr på økonomien';ni.autocomplete='off';
   const b=document.createElement('button');b.className='set';b.textContent='Opret';
@@ -1044,7 +1065,7 @@ const GROUP_OF={all:'opgaver',timeline:'kalender',dates:'kalender'};
 const NAV_RIT=[
  {ic:'☀️',l:'Planlæg dagen',id:'planlaeg',done:()=>LS.g('lastplan','')===TODAY,run:()=>openPlanning()},
  {ic:'🌙',l:'Luk dagen',done:()=>LS.g('dayclosed','')===TODAY,run:()=>shutdownModal()},
- {ic:'🎯',l:'Ugens fokus',done:()=>objsFor(objAll(),weekMonday(TODAY)).length>0,run:()=>weekPlanModal()},
+ {ic:'🎯',l:'Ugens målsætninger',done:()=>objsFor(objAll(),weekMonday(TODAY)).length>0,run:()=>weekPlanModal()},
  {ic:'🧭',l:'Ugentlig gennemgang',done:()=>{const m=new Date(today);m.setDate(today.getDate()-((today.getDay()+6)%7));return LS.g('lastreview','')>=iso(m);},run:()=>weeklyModal()}
 ];
 function ritItem(it){const d=document.createElement('div');d.className='snav'+(it.id&&LS.g('tab','dash')===it.id?' active':'');d.innerHTML='<span class="ic">'+it.ic+'</span>'+it.l+(it.done()?'<span class="ritdone">✓</span>':'');d.onclick=()=>{document.getElementById('modalHost').innerHTML='';it.run();};return d;}
@@ -1090,13 +1111,13 @@ function dashP(w){
  const c1=card('⭐ Top 3 i dag','');if(top.length)top.forEach(t=>c1.appendChild(taskRow(t)));else c1.appendChild(emptyCTA('Ingen Top 3 endnu. Vælg de 3 vigtigste for i dag.','☀️ Vælg dagens Top 3',openPlanning));w.appendChild(c1);
  // v1.83: ugens fokus med de opgaver der hører til (Ninas feedback smsd3lpsb7837)
  {const _os=objsFor(objAll(),weekMonday(TODAY));
-  const co=card('🎯 Ugens fokus'+(_os.length?' — '+objWeekPct(_os,STORE)+' %':''),
-   _os.length?'Det der skal være sandt på søndag. Knyt opgaver til et fokus i opgavevinduet.':'');
+  const co=card('🎯 Ugens målsætninger'+(_os.length?' — '+objWeekPct(_os,STORE)+' %':''),
+   _os.length?'Det der skal være sandt på søndag. Knyt opgaver til en målsætning i opgavevinduet.':'');
   if(_os.length){const bb=document.createElement('div');bb.className='objbar';bb.style.margin='0 0 12px';
    bb.innerHTML='<i style="width:'+objWeekPct(_os,STORE)+'%"></i>';co.appendChild(bb);
    _os.forEach(o=>co.appendChild(objCard(o,STORE)));
-   const ed=document.createElement('button');ed.className='btn';ed.textContent='Redigér ugens fokus';ed.onclick=weekPlanModal;co.appendChild(ed);}
-  else co.appendChild(emptyCTA('Ingen fokus for denne uge endnu. Hvad skal være sandt på søndag?','🎯 Planlæg ugen',weekPlanModal));
+   const ed=document.createElement('button');ed.className='btn';ed.textContent='Redigér målsætninger';ed.onclick=weekPlanModal;co.appendChild(ed);}
+  else co.appendChild(emptyCTA('Ingen målsætninger for denne uge endnu. Hvad skal være sandt på søndag?','🎯 Sæt ugens målsætninger',weekPlanModal));
   w.appendChild(co);}
  const urg=active().filter(t=>['over','today'].includes(dueBucket(t))).sort((a,b)=>score(b)-score(a));
  const c2=card('🔥 Forfaldne & i dag — '+urg.length,'');
@@ -1160,11 +1181,7 @@ function planP(w){
   sd.innerHTML='<b style="font-size:13.5px">🌙 Hvornår slutter dagen?</b><p class="hint" style="margin:4px 0 8px">Tidslinjen og planen måles ærligt mod dette tidspunkt.</p>';
   const ti=document.createElement('input');ti.type='time';ti.value=dayEndGet();ti.style.cssText='width:100%;border:1px solid var(--line);border-radius:7px;padding:8px;font:inherit';ti.onchange=()=>{if(ti.value){LS.s('dayend',ti.value);toast('Gemt 🌙');}};
   sd.appendChild(ti);L.appendChild(sd);
-  {const _os=objsFor(objAll(),weekMonday(TODAY));const wp=document.createElement('div');wp.style.cssText='border:1px solid var(--line);border-radius:9px;padding:12px;margin-top:8px';
-   wp.innerHTML='<b style="font-size:13.5px">🎯 Ugens fokus</b>'+(_os.length?'<p class="hint" style="margin:3px 0 8px">'+objWeekPct(_os,STORE)+' % samlet fremdrift</p>':'<p class="hint" style="margin:4px 0 8px">Ikke sat endnu.</p>');
-   _os.forEach(o=>wp.appendChild(objCard(o,STORE,{kompakt:true})));
-   {const b=document.createElement('button');b.className='btn';b.style.marginTop=_os.length?'4px':'0';b.textContent=_os.length?'Redigér ugens fokus':'Planlæg ugen';b.onclick=weekPlanModal;wp.appendChild(b);}
-   L.appendChild(wp);}
+  // v1.84: den kompakte kopi er fjernet — målsætningerne bor i kilde-panelet nu.
   const nt=document.createElement('p');nt.className='hint';nt.style.marginTop='12px';nt.textContent='✓ Todoist synkroniseres automatisk hver morgen kl. 08:45 — opgaverne ligger klar i panelet til højre.';L.appendChild(nt);
  }else if(planStep===2){
   const pct=Math.min(100,cap?Math.round(sum/cap*100):0);const over=sum>cap;
@@ -1351,7 +1368,7 @@ function weeklyModal(){
  let step=1,i1=0;
  const undated=()=>active().filter(t=>!t.rec&&!t.due&&!t.parked).sort((a,b)=>score(b)-score(a));
  const parked=()=>active().filter(t=>!t.rec&&t.parked);
- function shell(inner,btns){host.innerHTML='<div class="mbg" id="wrBg"><div class="modal" style="max-width:480px"><h3>🧭 Ugentlig gennemgang <span style="font-weight:400;color:var(--muted);font-size:12px">trin '+step+' af 4</span></h3>'+inner+'<div class="mbtns" style="flex-wrap:wrap;gap:6px">'+btns+'</div></div></div>';document.getElementById('wrBg').onclick=e=>{if(e.target.id==='wrBg')host.innerHTML='';};}
+ function shell(inner,btns){host.innerHTML='<div class="mbg" id="wrBg"><div class="modal" style="max-width:480px"><h3>🧭 Ugentlig gennemgang <span style="font-weight:400;color:var(--muted);font-size:12px">trin '+step+' af 5</span></h3>'+inner+'<div class="mbtns" style="flex-wrap:wrap;gap:6px">'+btns+'</div></div></div>';document.getElementById('wrBg').onclick=e=>{if(e.target.id==='wrBg')host.innerHTML='';};}
  function renderStep(){
   if(step===1){
    const U=undated();
@@ -1385,6 +1402,43 @@ function weeklyModal(){
    PROJ.forEach((p,pi)=>{const st=LS.g('proj_'+pi,{});const ms=p.ms.map((x,i)=>({txt:typeof x==='string'?x:x.t,done:st[i]!==undefined?st[i]:(typeof x==='object'&&x.done)}));const next=ms.find(m=>!m.done);const r=document.createElement('div');r.className='row';const bd=document.createElement('div');bd.className='tbody';bd.innerHTML='<div class="ttl" style="font-size:13px"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+p.color+';margin-right:5px"></span>'+esc(p.name)+'</div><div class="meta"><span style="font-size:12px;color:var(--muted)">'+(next?'Næste: '+esc(next.txt):'Alle milepæle klaret 🎉')+'</span></div>';if(next){const b=document.createElement('button');b.className='btn';b.textContent='＋ Gør til opgave';b.onclick=()=>{const pid=p.name==='Job Search'||p.name.includes('Upskilling')?catByName('Work'):(p.name==='Greenhouse'?catByName('Home'):catByName('Family'));STORE.unshift({id:'t'+(UID++),content:next.txt,pid,due:null,rec:null,pri:null,q:null,imp:null,eff:null,done:false,star:false,src:'me'});save();b.textContent='✓ tilføjet';b.disabled=true;};bd.appendChild(b);}r.appendChild(bd);prw.appendChild(r);});
    document.getElementById('wB3').onclick=()=>{step=2;renderStep();};
    document.getElementById('wN3').onclick=()=>{step=4;renderStep();};
+  }else if(step===4){
+   // v1.84: sæt ugens målsætninger som et trin i gennemgangen (Ninas ønske, jf. Sunsamas Weekly planning)
+   const uge=weekMonday(TODAY);
+   const tegn=()=>{
+    const mine=objsFor(objAll(),uge);
+    const rest=objCarry(objAll(),prevWeek(uge),uge,i=>'x'+i);
+    shell('<p style="font-size:13px">🎯 <b>Ugens målsætninger</b> — hvad skal være sandt på søndag?</p>'
+     +(mine.length?'<div class="objbar" style="margin:6px 0 10px"><i style="width:'+objWeekPct(mine,STORE)+'%"></i></div>':'')
+     +'<div id="wO" style="max-height:240px;overflow:auto"></div>'
+     +'<div class="objadd" style="margin-top:10px"><input id="wONy" placeholder="＋ Tilføj målsætning…" autocomplete="off"><button class="btn" id="wOAdd">Tilføj</button></div>'
+     +(rest.length?'<button class="btn" id="wOCarry">↩︎ Hent '+rest.length+' uafsluttet'+(rest.length>1?'e':'')+' fra sidste uge</button>':''),
+     '<button class="cancel" id="wB4">← Tilbage</button><button class="save" id="wN4">Videre →</button>');
+    const ow=document.getElementById('wO');
+    if(!mine.length)ow.appendChild(empty('Ingen målsætninger endnu.'));
+    mine.forEach(o=>{const pr=objProgress(o,STORE);
+     const r=document.createElement('div');r.className='objrow';
+     const ck=document.createElement('div');ck.className='chk'+(o.done?' done':'');ck.title='Markér som nået';
+     ck.onclick=()=>{const a=objAll();const x=a.find(y=>y.id===o.id);if(x){x.done=!x.done;objSave(a);tegn();}};
+     const bd=document.createElement('div');bd.style.cssText='flex:1;min-width:0';
+     const nm=document.createElement('div');nm.style.cssText='font-size:13.5px;font-weight:600';nm.textContent=o.t;
+     const mt=document.createElement('div');mt.className='hint';mt.style.margin='2px 0 0';
+     mt.textContent=pr.total?(pr.done+' af '+pr.total+' opgaver færdige'):'Ingen opgaver knyttet endnu';
+     bd.appendChild(nm);bd.appendChild(mt);
+     const del=document.createElement('button');del.className='tvbtn';del.textContent='🗑';del.title='Slet';
+     del.onclick=()=>{objSave(objAll().filter(y=>y.id!==o.id));STORE.forEach(x=>{if(x.objId===o.id)delete x.objId;});save();tegn();};
+     r.appendChild(ck);r.appendChild(bd);r.appendChild(del);ow.appendChild(r);});
+    const tilf=()=>{const f=document.getElementById('wONy');const v=f.value.trim();if(!v)return;
+     const a=objAll();a.push({id:newObjId(),t:v,week:uge,done:false});objSave(a);tegn();
+     const nf=document.getElementById('wONy');if(nf)nf.focus();};
+    document.getElementById('wOAdd').onclick=tilf;
+    document.getElementById('wONy').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();tilf();}};
+    {const cb=document.getElementById('wOCarry');
+     if(cb)cb.onclick=()=>{const a=objAll();const nye=objCarry(a,prevWeek(uge),uge,()=>newObjId());
+      if(nye.length){objSave(a.concat(nye));toast(nye.length+' hentet fra sidste uge ↩︎');tegn();}};}
+    document.getElementById('wB4').onclick=()=>{step=3;renderStep();};
+    document.getElementById('wN4').onclick=()=>{step=5;renderStep();};};
+   tegn();
   }else{
    const day=s=>Math.round(new Date(s+'T12:00').getTime()/864e5);
    const wk=STORE.filter(t=>t.done&&t.doneAt&&(day(TODAY)-day(t.doneAt))<=6);
@@ -1393,7 +1447,7 @@ function weeklyModal(){
    const gd=LS.g('goaldefs',[]);let gTot=0,gDone=0;gd.forEach((x,gi)=>{const st=LS.g('goal_'+gi,{});x.ms.forEach((m,i)=>{gTot++;if(st[i])gDone++;});});
    let inner='<p style="font-size:14px">🎉 <b>Ugens sejre</b></p>';
    {const _os=objsFor(objAll(),weekMonday(TODAY));
-    if(_os.length)inner+='<p style="font-size:13px">🎯 <b>Ugens fokus ('+objWeekPct(_os,STORE)+' %):</b> '+_os.map(o=>{const pr=objProgress(o,STORE);return esc(o.t)+' — '+(o.done?'nået ✓':pr.total?(pr.done+'/'+pr.total+' opgaver'):'ingen opgaver knyttet');}).join('<br>')+'</p>';}
+    if(_os.length)inner+='<p style="font-size:13px">🎯 <b>Ugens målsætninger ('+objWeekPct(_os,STORE)+' %):</b> '+_os.map(o=>{const pr=objProgress(o,STORE);return esc(o.t)+' — '+(o.done?'nået ✓':pr.total?(pr.done+'/'+pr.total+' opgaver'):'ingen opgaver knyttet');}).join('<br>')+'</p>';}
    inner+='<p style="font-size:13px">✅ <b>'+wk.length+'</b> opgaver fuldført i denne uge.</p>';
    if(wk.length)inner+='<div style="font-size:12px;color:var(--muted);max-height:90px;overflow:auto;margin-bottom:6px">'+wk.slice(0,8).map(t=>'✓ '+esc(t.content)).join('<br>')+(wk.length>8?'<br>…og '+(wk.length-8)+' mere':'')+'</div>';
    inner+='<p style="font-size:13px">🔁 Vane-streaks: '+(streaks.length?streaks.map(s=>esc(s.name)+' '+s.n+'d').join(' · '):'ingen aktive endnu')+'</p>';
@@ -1573,7 +1627,7 @@ function objCard(o,tasks,opts){opts=opts||{};
    if(l.length>6){const m=document.createElement('div');m.className='hint';m.style.margin='4px 0 0';m.textContent='…og '+(l.length-6)+' mere';ul.appendChild(m);}
    c.appendChild(ul);}
   else{const e=document.createElement('div');e.className='hint';e.style.margin='7px 0 0';
-   e.textContent='Ingen opgaver knyttet endnu — åbn en opgave og vælg dette fokus.';c.appendChild(e);}}
+   e.textContent='Ingen opgaver knyttet endnu — åbn en opgave og vælg denne målsætning.';c.appendChild(e);}}
  return c;}
 function weekPlanModal(){const host=document.getElementById('modalHost');
  const uge=weekMonday(TODAY);
@@ -1581,17 +1635,17 @@ function weekPlanModal(){const host=document.getElementById('modalHost');
   const alle=objAll(),mine=objsFor(alle,uge),tasks=STORE;
   const forrige=objCarry(alle,prevWeek(uge),uge,i=>'x'+i);// kun til optælling
   const pct=objWeekPct(mine,tasks);
-  host.innerHTML='<div class="mbg" id="wpBg"><div class="modal" style="max-width:480px"><h3>🎯 Ugens fokus</h3>'
-   +'<p class="hint">Hvad skal være sandt på søndag, for at ugen var god? Knyt opgaver til hvert fokus, så du kan se om du rent faktisk rykker.</p>'
+  host.innerHTML='<div class="mbg" id="wpBg"><div class="modal" style="max-width:480px"><h3>🎯 Ugens målsætninger</h3>'
+   +'<p class="hint">Hvad skal være sandt på søndag, for at ugen var god? Knyt opgaver til hver målsætning, så du kan se om du rent faktisk rykker.</p>'
    +(mine.length?'<div class="objbar"><i style="width:'+pct+'%"></i></div><p class="hint" style="margin:4px 0 12px">'+pct+' % samlet fremdrift</p>':'')
    +'<div id="wpList"></div>'
    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">'
-   +'<input id="wpNy" style="flex:1;min-width:180px" placeholder="Nyt fokus…" autocomplete="off">'
+   +'<input id="wpNy" style="flex:1;min-width:180px" placeholder="Ny målsætning…" autocomplete="off">'
    +'<button class="btn" id="wpAdd">Tilføj</button></div>'
    +(forrige.length?'<button class="btn" id="wpCarry" style="margin-top:10px">↩︎ Hent '+forrige.length+' uafsluttet'+(forrige.length>1?'e':'')+' fra sidste uge</button>':'')
    +'<div class="mbtns"><button class="save" id="wpX">Færdig</button></div></div></div>';
   const lw=document.getElementById('wpList');
-  if(!mine.length)lw.appendChild(empty('Ingen fokus for denne uge endnu.'));
+  if(!mine.length)lw.appendChild(empty('Ingen målsætninger for denne uge endnu.'));
   mine.forEach(o=>{
    const pr=objProgress(o,tasks);
    const r=document.createElement('div');r.className='objrow';
@@ -1606,7 +1660,7 @@ function weekPlanModal(){const host=document.getElementById('modalHost');
    const meta=document.createElement('div');meta.className='hint';meta.style.margin='2px 0 0';
    meta.textContent=pr.total?(pr.done+' af '+pr.total+' opgaver færdige'):'Ingen opgaver knyttet endnu';
    bd.appendChild(meta);
-   const del=document.createElement('button');del.className='tvbtn';del.textContent='🗑';del.title='Slet fokus';
+   const del=document.createElement('button');del.className='tvbtn';del.textContent='🗑';del.title='Slet målsætning';
    del.onclick=()=>{const a=objAll().filter(y=>y.id!==o.id);objSave(a);
     STORE.forEach(t=>{if(t.objId===o.id)delete t.objId;});save();draw();render();};
    r.appendChild(ck);r.appendChild(bd);r.appendChild(del);lw.appendChild(r);});
@@ -1617,7 +1671,7 @@ function weekPlanModal(){const host=document.getElementById('modalHost');
   document.getElementById('wpNy').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();tilfoej();}};
   {const cb=document.getElementById('wpCarry');
    if(cb)cb.onclick=()=>{const a=objAll();const nye=objCarry(a,prevWeek(uge),uge,()=>newObjId());
-    if(!nye.length)return;objSave(a.concat(nye));toast(nye.length+' fokus hentet fra sidste uge ↩︎');draw();render();};}
+    if(!nye.length)return;objSave(a.concat(nye));toast(nye.length+' målsætninger hentet fra sidste uge ↩︎');draw();render();};}
   document.getElementById('wpBg').onclick=e=>{if(e.target.id==='wpBg')host.innerHTML='';};
   document.getElementById('wpX').onclick=()=>{host.innerHTML='';render();};
  }
@@ -1969,19 +2023,49 @@ function capModal(){const host=document.getElementById('modalHost');const cur=ca
  document.getElementById('cpBg').onclick=e=>{if(e.target.id==='cpBg')close();};
  document.getElementById('cpX').onclick=close;
  document.getElementById('cpOk').onclick=()=>{const v=parseFloat(document.getElementById('cpV').value);if(v>0){LS.s('capacity',Math.round(v*60));}LS.s('autoroll',document.getElementById('cpAuto').checked);close();render();};}
-function sidePanel(){ // v58: ét panel, altid tre tabs (Ninas rettelse af v57-item 5)
- const tab=LS.g('fpanel','cal');
+function sidePanel(){ // v1.84: fire kilder, og fanevælgeren er flyttet ud som en lodret ikonstribe
+ // langs højre kant — som i Sunsama. Det frigør den vandrette række navnene tog.
+ const KILDER=[
+  {p:'cal', ic:'🗓', navn:'Kalender',          und:'Dagens aftaler. Træk en opgave ind på tidslinjen for at give den et tidspunkt.'},
+  {p:'td',  ic:'✓',  navn:'Todoist',           und:'Hentes automatisk hver morgen. Træk over i dagens plan.'},
+  {p:'bk',  ic:'💤', navn:'Backlog',           und:'Uden dato, sorteret efter horisont. Træk ⠿ over i dagens plan.'},
+  {p:'obj', ic:'🎯', navn:'Ugens målsætninger',und:'Det der skal være sandt på søndag. Knyt opgaver til en målsætning, så du kan se om du rykker.'}
+ ];
+ let tab=LS.g('fpanel','cal');
+ if(!KILDER.some(k=>k.p===tab))tab='cal';
+ const valgt=KILDER.find(k=>k.p===tab);
  const c=document.createElement('div');c.className='card';
- // v1.82: overskrift + én linje der siger hvad panelet er til (Ninas feedback smsd2kjkb928, Sunsama-mønsteret)
- const _hd=document.createElement('div');_hd.className='panhead';
- _hd.innerHTML='<h2 class="planh">Hent opgaver</h2><p class="hint">Fra din kalender, fra Todoist eller fra backloggen — træk dem over i dagens plan.</p>';
- c.appendChild(_hd);
- const tog=document.createElement('div');tog.className='seg-toggle';
- tog.innerHTML='<button class="'+(tab==='cal'?'on':'')+'" data-p="cal">🗓 Kalender</button><button class="'+(tab==='td'?'on':'')+'" data-p="td">✓ Todoist</button><button class="'+(tab==='bk'?'on':'')+'" data-p="bk">💤 Backlog</button>';
- tog.querySelectorAll('button').forEach(b=>b.onclick=()=>{LS.s('fpanel',b.dataset.p);render();});
- _hd.appendChild(tog);
- if(tab==='cal')sideCal(c);else if(tab==='bk'){c.id='bkDrop';sideBacklog(c);}else sideTodoist(c);// v67: id = sluppe-mål for træk
+ const wrap=document.createElement('div');wrap.className='sidewrap';
+ const body=document.createElement('div');body.className='sidebody';
+ const hd=document.createElement('div');hd.className='panhead';
+ hd.innerHTML='<h2 class="planh">'+esc(valgt.navn)+'</h2><p class="hint">'+esc(valgt.und)+'</p>'
+  +(tab==='obj'?'<div class="objbar" style="margin-top:8px"><i style="width:'+objWeekPct(objsFor(objAll(),weekMonday(TODAY)),STORE)+'%"></i></div>':'');
+ body.appendChild(hd);
+ if(tab==='cal')sideCal(body);
+ else if(tab==='bk'){body.id='bkDrop';sideBacklog(body);}// v67: id = sluppe-mål for træk
+ else if(tab==='obj')sideObjectives(body);
+ else sideTodoist(body);
+ const rail=document.createElement('div');rail.className='siderail';
+ KILDER.forEach(k=>{const btn=document.createElement('button');btn.className='railbtn'+(k.p===tab?' on':'');
+  btn.innerHTML='<span>'+k.ic+'</span>';btn.title=k.navn;btn.setAttribute('aria-label',k.navn);
+  btn.onclick=()=>{LS.s('fpanel',k.p);render();};rail.appendChild(btn);});
+ wrap.appendChild(body);wrap.appendChild(rail);c.appendChild(wrap);
  return c;}
+// Målsætningerne som kilde i panelet — samme kort som alle andre steder.
+function sideObjectives(c){
+ const uge=weekMonday(TODAY);const mine=objsFor(objAll(),uge);
+ const add=document.createElement('div');add.className='objadd';
+ const inp=document.createElement('input');inp.placeholder='＋ Tilføj målsætning…';inp.autocomplete='off';
+ const gem=()=>{const v=inp.value.trim();if(!v)return;
+  const a=objAll();a.push({id:newObjId(),t:v,week:uge,done:false});objSave(a);inp.value='';render();
+  setTimeout(()=>{const f=document.querySelector('.objadd input');if(f)f.focus();},60);};
+ inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();gem();}};
+ const b=document.createElement('button');b.className='btn';b.textContent='Tilføj';b.onclick=gem;
+ add.appendChild(inp);add.appendChild(b);c.appendChild(add);
+ if(!mine.length){c.appendChild(empty('Ingen målsætninger for denne uge endnu.'));return;}
+ mine.forEach(o=>c.appendChild(objCard(o,STORE)));
+ const ed=document.createElement('button');ed.className='tvbtn';ed.style.marginTop='4px';
+ ed.textContent='⋯ Redigér målsætninger';ed.onclick=weekPlanModal;c.appendChild(ed);}
 function sideCal(c){
  const CAL=calToday();const timed=CAL.events.filter(e=>!e.a&&e.s&&e.e);const allday=CAL.events.filter(e=>e.a);
  if(allday.length){const eb=document.createElement('div');eb.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 8px';
@@ -2150,7 +2234,7 @@ function focusP(w){
   ab.querySelector('.go').onclick=addT;inp.onkeydown=e=>{if(e.key==='Enter')addT();};c1.appendChild(ab);}
  {const _hl=hlGet();if(_hl){const hb=document.createElement('div');hb.className='hlbar';hb.innerHTML='🌟 <b>Dagens højdepunkt:</b> '+esc(_hl.content);c1.appendChild(hb);}}
  {const _os=objsFor(objAll(),weekMonday(TODAY));if(_os.length){const wb=document.createElement('p');wb.className='hint';wb.style.margin='0 0 10px';
-   wb.innerHTML='🎯 <b>Ugens fokus ('+objWeekPct(_os,STORE)+' %):</b> '+_os.map(o=>esc(o.t)+' <span style="color:var(--muted)">'+objProgress(o,STORE).done+'/'+objProgress(o,STORE).total+'</span>').join(' · ');c1.appendChild(wb);}}
+   wb.innerHTML='🎯 <b>Ugens målsætninger ('+objWeekPct(_os,STORE)+' %):</b> '+_os.map(o=>esc(o.t)+' <span style="color:var(--muted)">'+objProgress(o,STORE).done+'/'+objProgress(o,STORE).total+'</span>').join(' · ');c1.appendChild(wb);}}
  if(plan.length){const pw=document.createElement('div');pw.id='planList';
   plan.forEach(t=>{const r=taskRow(t);
    const h=document.createElement('div');h.className='drag';h.textContent='⠿';h.title='Træk for at flytte';
