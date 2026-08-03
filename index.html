@@ -1,4 +1,4 @@
-<!doctype html>
+<!doctype html><!--LIFEOS 1.80 2026-08-03-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -81,6 +81,18 @@ h1{font-size:19px;margin:0;font-weight:600;letter-spacing:0}
 .popfld input.d{flex:1;min-width:134px}
 .popfld .set{border:1px solid var(--line);background:#fff;border-radius:7px;padding:6px 12px;min-height:36px;font:inherit;font-size:12.5px;cursor:pointer;color:#4a5057}
 .popfld .set:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+/* v80: valgpanel med radioknapper og ÉN Gem-knap — ikke en Sæt-knap pr. linje */
+.popopt{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:7px;cursor:pointer;font-size:13px;color:#3c4043;min-height:42px}
+.popopt.on{background:#f2f7fd}
+.popopt .rad{width:19px;height:19px;border:1.5px solid #c6cbd1;border-radius:50%;flex:0 0 auto;position:relative}
+.popopt.on .rad{border-color:var(--accent)}
+.popopt.on .rad:after{content:'';position:absolute;inset:4px;background:var(--accent);border-radius:50%}
+.popopt input{border:1px solid var(--line);border-radius:7px;padding:7px 8px;font:inherit;font-size:13px;background:#fff;min-height:36px}
+.popopt input.n{width:62px;text-align:center}
+.popopt input.d{flex:1;min-width:126px}
+.popbar{display:flex;gap:6px;justify-content:flex-end;padding:8px 10px 4px;margin-top:2px;border-top:1px solid var(--line)}
+.popbar .set{border:1px solid var(--line);background:#fff;border-radius:7px;padding:8px 14px;min-height:38px;font:inherit;font-size:12.5px;cursor:pointer;color:#4a5057}
+.popbar .set.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
 .modal.tview{max-width:700px;position:relative}/* v65: to kolonner kræver bredde — .modal (380px) står senere i filen, så klassen skal være mere specifik */
 .tvclose{position:absolute;top:8px;right:8px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:none;background:none;font:inherit;font-size:17px;color:#8a8f98;cursor:pointer;border-radius:8px}
 .tvclose:hover{background:#f5f6f7;color:#3c4043}
@@ -309,7 +321,8 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 <div class="wrap">
   <header>
     <h1>Nina's LifeOS</h1><span id="pageTitle"></span><span class="date" id="dateStr"></span><span id="pageActions" style="display:flex;gap:4px;margin-left:6px"></span>
-    <span id="syncChip" style="margin-left:auto;font-size:12px;color:var(--muted)">⚪ ikke sat op</span>
+    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.80</span>
+    <span id="syncChip" style="margin-left:6px;font-size:12px;color:var(--muted)">⚪ ikke sat op</span>
     <button class="imp" id="undoBtn" title="Fortryd seneste ændring (⌘Z)" style="margin-left:0;opacity:.4">↩️</button>
     <button class="imp" id="ghBtn" style="margin-left:0">⚙️ Sync</button>
   </header>
@@ -466,18 +479,57 @@ const TODAY=iso(today);
 const dPlus=n=>{const d=new Date(today);d.setDate(d.getDate()+n);return iso(d)};
 function nextWeekSun(){const d=new Date(today);const add=(7-d.getDay())%7;d.setDate(d.getDate()+add+7);return iso(d);}
 function nextSat(){const d=new Date(today);const add=(6-d.getDay()+7)%7;if(add===0)return null;d.setDate(d.getDate()+add);return iso(d);}
+// v80 (Ninas feedback smsd30uxx8787): "Denne weekend" peger på SØNDAG, ikke lørdag.
+// Er det allerede søndag, giver valget ingen mening — "I dag" dækker det.
+function weekendSun(){const d=new Date(today);const add=(7-d.getDay())%7;if(add===0)return null;d.setDate(d.getDate()+add);return iso(d);}
 const shortDate=s=>new Date(s+'T12:00').toLocaleDateString('da-DK',{weekday:'short',day:'numeric',month:'short'});
 // v63: ÉT sted definerer alle dato-genveje — bruges af 📅-menuen, opgavevinduets ▾,
 // Planlæg dagen og ugentlig gennemgang, så valgene er ens overalt (Ninas feedback 26/7).
+// v80: "Udsæt én uge" er slettet — "Næste uge" dækkede det samme (Ninas feedback smsd30uxx8787).
+// Til sidst fjernes dubletter: på en lørdag er "Denne weekend" (søndag) det samme som "I morgen",
+// og så skal valget kun stå én gang.
 function dateActions(t){const out=[{k:'today',l:'I dag',d:TODAY},{k:'tom',l:'I morgen',d:dPlus(1)}];
- const sa=nextSat();
- if(sa)out.push({k:'wknd',l:(today.getDay()===0?'Næste weekend (lør)':'Denne weekend (lør)'),d:sa});
+ const su=weekendSun();
+ if(su)out.push({k:'wknd',l:'Denne weekend',d:su});
  out.push({k:'nweek',l:'Næste uge (søn)',d:nextWeekSun()});
- const base=(t&&t.due&&t.due>TODAY)?new Date(t.due+'T12:00'):new Date(today);
- base.setDate(base.getDate()+7);
- out.push({k:'plus7',l:'Udsæt én uge',d:iso(base)});
- return out;}
+ const seen=new Set();
+ return out.filter(r=>{if(!r.d||seen.has(r.d))return false;seen.add(r.d);return true;});}
 document.getElementById('dateStr').textContent=today.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
+// ---------- v80: versionsnummer (1.80 = HOVEDVERSION.BYG, Ninas valg 3/8) ----------
+const APP={v:'1.80',d:'2026-08-03'};
+// Versionsmærket står som HTML-kommentar i filens første 100 bytes, så tjekket henter
+// kun et par hundrede bytes i stedet for hele appen (270 KB) hver gang.
+async function verRemote(){
+ const u=new URL('index.html?cb='+Date.now(),location.href).href;
+ const r=await fetch(u,{cache:'no-store',headers:{Range:'bytes=0-199'}});
+ const m=/<!--LIFEOS ([\d.]+) ([\d-]+)-->/.exec(await r.text());
+ return m?{v:m[1],d:m[2]}:null;}
+function verNewer(a,b){const p=x=>String(x||'0').split('.').map(Number);
+ const A=p(a),B=p(b);for(let i=0;i<Math.max(A.length,B.length);i++){const x=A[i]||0,y=B[i]||0;if(x!==y)return x>y;}return false;}
+let VERNEW=null;
+function verPaint(){const c=document.getElementById('verChip');if(!c)return;
+ if(VERNEW){c.textContent='v'+APP.v+' · ny version ▸';c.style.color='var(--accent)';c.style.fontWeight='600';c.title='Version '+VERNEW+' er klar — tryk for at hente';}
+ else{c.textContent='v'+APP.v;c.style.color='#a8adb4';c.style.fontWeight='';c.title='Version '+APP.v+' — tryk for detaljer';}}
+async function verCheck(silent){
+ try{const r=await verRemote();
+  VERNEW=(r&&verNewer(r.v,APP.v))?r.v:null;verPaint();return r;}
+ catch(e){if(!silent)toast('Kunne ikke tjekke for ny version');return null;}}
+function verModal(){const host=document.getElementById('modalHost');
+ const dk=x=>{try{return new Date(x+'T12:00').toLocaleDateString('da-DK',{day:'numeric',month:'long',year:'numeric'})}catch(e){return x}};
+ host.innerHTML='<div class="mbg" id="vrBg"><div class="modal" style="max-width:360px"><h3>Version</h3>'
+  +'<p style="font-size:14px;margin:0 0 4px"><b>LifeOS '+APP.v+'</b></p>'
+  +'<p class="hint" style="margin:0 0 12px">Bygget '+dk(APP.d)+'</p>'
+  +'<p id="vrSt" style="font-size:13px;color:var(--muted);margin:0 0 12px">Tjekker om der er en nyere version…</p>'
+  +'<div class="mbtns"><button class="cancel" id="vrX">Luk</button><button class="save" id="vrGet" style="display:none">Hent nyeste ⟳</button></div></div></div>';
+ const close=()=>host.innerHTML='';
+ document.getElementById('vrBg').onclick=e=>{if(e.target.id==='vrBg')close();};
+ document.getElementById('vrX').onclick=close;
+ document.getElementById('vrGet').onclick=()=>{location.replace(location.pathname+'?v='+Date.now());};
+ verCheck(true).then(r=>{const st=document.getElementById('vrSt');if(!st)return;
+  if(!r){st.textContent='Kunne ikke få fat i serveren lige nu.';return;}
+  if(VERNEW){st.innerHTML='<b style="color:var(--accent)">Version '+esc(VERNEW)+' er klar.</b><br>Tryk “Hent nyeste” — så henter telefonen den uden om cachen.';
+   const g=document.getElementById('vrGet');if(g)g.style.display='';}
+  else st.textContent='Du har den nyeste version. ✓';});}
 function toast(m){const t=document.getElementById('toast');t.classList.remove('act');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 const active=()=>STORE.filter(t=>!t.done&&!t.rec);
@@ -617,8 +669,8 @@ function mItem(box,html,fn){const b=document.createElement('button');b.className
 function moveMenu(t,ev){popMenu(ev.clientX,ev.clientY,(box,close)=>{
  const hd=document.createElement('div');hd.className='pophd';hd.textContent='Flyt:';box.appendChild(hd);
  dateActions(t).forEach(r=>{mItem(box,'<span>'+r.l+'</span><span style="color:var(--muted);font-size:11px;margin-left:8px">'+shortDate(r.d)+'</span>',()=>{t.due=r.d;t.parked=false;save();close();toast('Flyttet til '+fmtDue(r.d));render();});});
- mItem(box,'💤 Til backlog',()=>{t.due=null;t.parked=true;t.parkedAt=TODAY;t.star=false;save();close();toast('Lagt i backlog 💤');render();});
- mItem(box,'<span style="color:var(--over)">🗑 Slet</span>',()=>{close();delTasks([t]);});
+ mItem(box,'💤 Læg i backlog',()=>{t.due=null;t.parked=true;t.parkedAt=TODAY;t.star=false;save();close();toast('Lagt i backlog 💤');render();});
+ // v80: 🗑 Slet er fjernet herfra — det er en dato-menu, ikke et sted at slette fra (Ninas feedback smsd30uxx8787).
  const dh=document.createElement('div');dh.className='pophd';dh.textContent='Eller vælg en dato:';box.appendChild(dh);
  dateSetRow(box,t.due,v=>{t.due=v;t.parked=false;save();close();toast('Flyttet til '+fmtDue(v));render();});
 })}
@@ -776,27 +828,47 @@ function buildProps(t,onChange){
    .forEach(([v,l])=>mItem(box,'<span>'+l+'</span>'+(String(t.rep||'')===v?'<span>✓</span>':''),()=>{t.rep=v||null;if(!t.rep){delete t.repEnd;delete t.repLeft;}cl();afterChange();}));});}
  // v77: tre valg, ikke flere. Felterne skriver ALDRIG af sig selv — kun "Sæt" gemmer.
  // (Datofeltet fyrede et change-event ~2 sek. efter åbning og satte dagens dato uden at Nina rørte noget.)
+ // v80: ét panel med radioknapper og ÉN Gem-knap (Ninas feedback 3/8).
+ // Før havde hver linje sin egen Sæt-knap, og markeringen af "Aldrig" blev hængende.
  function repEndPick(ev){popMenu(ev.clientX,ev.clientY,(box,cl)=>{
-  const hasN=typeof t.repLeft==='number',hasD=!!t.repEnd,never=!hasN&&!hasD;
+  let mode=(typeof t.repLeft==='number')?'n':(t.repEnd?'d':'aldrig');
   const hd=document.createElement('div');hd.className='pophd';hd.textContent='Gentagelsen slutter:';box.appendChild(hd);
-  mItem(box,'<span>Aldrig</span>'+(never?'<span>✓</span>':''),()=>{delete t.repEnd;delete t.repLeft;cl();afterChange();});
-  const r1=document.createElement('div');r1.className='popfld'+(hasN?' on':'');
-  const s1=document.createElement('span');s1.textContent='Efter';r1.appendChild(s1);
-  const ni=document.createElement('input');ni.className='n';ni.type='text';ni.inputMode='numeric';ni.autocomplete='off';
-  ni.placeholder='10';ni.value=hasN?String(t.repLeft):'';
-  ni.oninput=()=>{const c=ni.value.replace(/\D/g,'').slice(0,3);if(c!==ni.value)ni.value=c;};
-  r1.appendChild(ni);
-  const s2=document.createElement('span');s2.textContent='gange'+(hasN?' ✓':'');r1.appendChild(s2);
-  const b1=document.createElement('button');b1.className='set';b1.textContent='Sæt';
-  const setN=()=>{const n=+ni.value;if(!(n>0)){ni.focus();return;}t.repLeft=n;delete t.repEnd;cl();afterChange();};
-  b1.onclick=setN;ni.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();setN();}};
-  r1.appendChild(b1);box.appendChild(r1);
-  const r2=document.createElement('div');r2.className='popfld'+(hasD?' on':'');
-  const s3=document.createElement('span');s3.textContent='Til og med'+(hasD?' ✓':'');r2.appendChild(s3);
-  const di=document.createElement('input');di.className='d';di.type='date';di.value=t.repEnd||'';r2.appendChild(di);
-  const b2=document.createElement('button');b2.className='set';b2.textContent='Sæt';
-  b2.onclick=()=>{if(!di.value){di.focus();return;}t.repEnd=di.value;delete t.repLeft;cl();afterChange();};
-  r2.appendChild(b2);box.appendChild(r2);});}
+  const rows={};
+  const opt=(key,build)=>{const r=document.createElement('div');r.className='popopt';
+   const rad=document.createElement('span');rad.className='rad';r.appendChild(rad);
+   build(r);
+   r.onclick=e=>{if(e.target.tagName==='INPUT')return;pick(key);};
+   box.appendChild(r);rows[key]=r;return r;};
+  const pick=k=>{mode=k;Object.keys(rows).forEach(x=>rows[x].classList.toggle('on',x===k));};
+
+  opt('aldrig',r=>{const s=document.createElement('span');s.textContent='Aldrig';r.appendChild(s);});
+
+  let ni;
+  opt('n',r=>{const a=document.createElement('span');a.textContent='Efter';r.appendChild(a);
+   ni=document.createElement('input');ni.className='n';ni.type='text';ni.inputMode='numeric';ni.autocomplete='off';
+   ni.placeholder='10';ni.value=(typeof t.repLeft==='number')?String(t.repLeft):'';
+   ni.oninput=()=>{const c=ni.value.replace(/\D/g,'').slice(0,3);if(c!==ni.value)ni.value=c;pick('n');};
+   ni.onfocus=()=>pick('n');
+   r.appendChild(ni);
+   const b=document.createElement('span');b.textContent='gange';r.appendChild(b);});
+
+  let di;
+  opt('d',r=>{const a=document.createElement('span');a.textContent='Til og med';r.appendChild(a);
+   di=document.createElement('input');di.className='d';di.type='date';di.value=t.repEnd||'';
+   di.onfocus=()=>pick('d');di.oninput=()=>pick('d');
+   r.appendChild(di);});
+
+  pick(mode);
+
+  const bar=document.createElement('div');bar.className='popbar';
+  const x=document.createElement('button');x.className='set';x.textContent='Annullér';x.onclick=cl;
+  const g=document.createElement('button');g.className='set primary';g.textContent='Gem';
+  g.onclick=()=>{
+   if(mode==='aldrig'){delete t.repEnd;delete t.repLeft;}
+   else if(mode==='n'){const n=+ni.value;if(!(n>0)){ni.focus();toast('Skriv et antal gange');return;}t.repLeft=n;delete t.repEnd;}
+   else{if(!di.value){di.focus();toast('Vælg en dato');return;}t.repEnd=di.value;delete t.repLeft;}
+   cl();afterChange();};
+  bar.appendChild(x);bar.appendChild(g);box.appendChild(bar);});}
  paint();
  wrap.repaint=paint;
  return wrap;}
@@ -1199,7 +1271,7 @@ function weeklyModal(){
    let inner='<p style="font-size:12px;color:var(--muted)">Ryd bunken · opgave '+(i1+1)+' af '+U.length+' uden dato</p>';
    inner+='<div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin:6px 0"><div class="ttl" style="font-size:14px">'+esc(t.content)+'</div><div class="meta"><span class="chip area" style="background:transparent;padding-left:0;color:'+esc(catOf(t.pid).color)+';font-weight:600"># '+esc(catOf(t.pid).name)+'</span></div></div>';
    inner+='<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:6px">Eller vælg en dato: <input type="date" id="wDate" style="flex:1 1 130px;min-width:0;border:1px solid var(--line);border-radius:8px;padding:7px;font:inherit;font-size:13px"><button class="btn" id="wDateSet" style="min-height:38px">Sæt</button></div>';
-   shell(inner,'<span id="wRel" style="display:contents"></span><button class="btn" id="wPark">💤 Parkér</button><button class="btn" id="wSkip">Spring over</button><button class="btn" id="wDel" style="color:var(--over)">Slet</button><button class="cancel" id="wEnough">Det er nok →</button>');
+   shell(inner,'<span id="wRel" style="display:contents"></span><button class="btn" id="wPark">💤 Læg i backlog</button><button class="btn" id="wSkip">Spring over</button><button class="btn" id="wDel" style="color:var(--over)">Slet</button><button class="cancel" id="wEnough">Det er nok →</button>');
    const nx=()=>{i1++;renderStep();};
    {const rh=document.getElementById('wRel');dateActions(t).forEach(r=>{const b=document.createElement('button');b.className='btn';
     b.innerHTML=esc(r.l)+' <span style="color:var(--muted);font-size:10.5px;margin-left:5px">'+shortDate(r.d)+'</span>';// v79: datoen lå kun i en tooltip
@@ -1212,7 +1284,7 @@ function weeklyModal(){
   }else if(step===2){
    const P=parked();
    if(!P.length){step=3;renderStep();return;}
-   shell('<p style="font-size:13px">💤 Parkerede opgaver ('+P.length+') — beslut hver enkelt:</p><div id="wP" style="max-height:240px;overflow:auto"></div>','<button class="cancel" id="wB2">← Tilbage</button><button class="save" id="wN2">Videre →</button>');
+   shell('<p style="font-size:13px">💤 I backlog ('+P.length+') — beslut hver enkelt:</p><div id="wP" style="max-height:240px;overflow:auto"></div>','<button class="cancel" id="wB2">← Tilbage</button><button class="save" id="wN2">Videre →</button>');
    const pw=document.getElementById('wP');
    P.forEach(t=>{const r=document.createElement('div');r.className='row';const bd=document.createElement('div');bd.className='tbody';bd.innerHTML='<div class="ttl" style="font-size:12.5px">'+esc(t.content)+'</div><div class="meta"><span class="chip area" style="background:transparent;padding-left:0;color:'+esc(catOf(t.pid).color)+';font-weight:600"># '+esc(catOf(t.pid).name)+'</span></div>';const a=document.createElement('div');a.className='acts';const b1=document.createElement('button');b1.className='btn';b1.textContent='Genaktivér (fre)';b1.onclick=()=>{t.due=fri;t.parked=false;save();r.remove();};const b2=document.createElement('button');b2.className='btn';b2.textContent='Behold 💤';b2.onclick=()=>{r.remove();};const b3=document.createElement('button');b3.className='btn';b3.style.color='var(--over)';b3.textContent='Slet';b3.onclick=()=>{pushTrash([{type:'task',item:t}]);STORE=STORE.filter(x=>x!==t);save();r.remove();};a.appendChild(b1);a.appendChild(b2);a.appendChild(b3);bd.appendChild(a);r.appendChild(bd);pw.appendChild(r);});
    document.getElementById('wB2').onclick=()=>{step=1;i1=0;renderStep();};
@@ -1869,7 +1941,7 @@ function sideBacklog(c){
     const b=document.createElement('button');b.className='btn';b.style.cssText='min-height:26px;padding:2px 8px;font-size:11px;flex:0 0 auto';b.textContent='+ I dag';b.onclick=()=>{t.due=TODAY;t.parked=false;save();toast('Lagt på dagens plan ✓');render();};
     r.appendChild(dh);r.appendChild(dot);r.appendChild(tx);if(ag)r.appendChild(ag);r.appendChild(hb);r.appendChild(b);sec.appendChild(r);});}
  });
- if(!list.length)c.appendChild(empty('Backloggen er tom. Park opgaver med 💤 — eller tilføj direkte med ＋ ovenfor.'));}
+ if(!list.length)c.appendChild(empty('Backloggen er tom. Læg opgaver i backlog med 💤 — eller tilføj direkte med ＋ ovenfor.'));}
 function focusP(w){
  const bar=document.createElement('div');bar.style.cssText='display:flex;justify-content:flex-end;margin:0 0 10px;gap:8px;align-items:center';
  if(LS.g('dayclosed','')===TODAY){bar.innerHTML='<span class="chip" style="background:#e8f5ee;color:#1a7f4b;padding:6px 12px;font-size:12px">🌙 Dagen er lukket ✓</span>';}
@@ -1916,14 +1988,14 @@ function focusP(w){
  const evu=evUpcoming(7);
  if(evu.length){const ce=card('🎂 Fødselsdage & datoer i denne uge','');evu.forEach(e=>{const r=document.createElement('div');r.className='row';r.innerHTML=`<div style="font-size:17px">${evIcon(e)}</div><div class="tbody"><div class="ttl">${esc(e.name)}${evAge(e)!=null?' (fylder '+evAge(e)+')':''}</div><div class="meta"><span class="chip ${evDays(e)===0?'today':'soon'}">${evWhen(e)}</span></div></div>`;r.querySelector('.ttl').onclick=()=>eventModal(e);ce.appendChild(r);});w.appendChild(ce);}
  const rot=active().filter(t=>{if(!t.due||t.rec||t.parked)return false;const dd=Math.round((today-new Date(t.due+'T12:00'))/864e5);return dd>7;}).sort((a,b)=>a.due<b.due?-1:1);
- if(rot.length){const cr=card('🍂 Rådner — forfaldet i mere end en uge','Beslut nu, så intet dør i stilhed: giv den en dato, parkér den til ugentlig gennemgang, eller slip den.');
+ if(rot.length){const cr=card('🍂 Rådner — forfaldet i mere end en uge','Beslut nu, så intet dør i stilhed: giv den en dato, læg den i backlog til ugentlig gennemgang, eller slip den.');
   rot.forEach(t=>{const r=document.createElement('div');r.className='row';r.innerHTML='<div style="font-size:15px">🍂</div>';
    const bd=document.createElement('div');bd.className='tbody';
    const tt=document.createElement('div');tt.className='ttl';tt.textContent=t.content;tt.onclick=()=>editModal(t);bd.appendChild(tt);
    const mm=document.createElement('div');mm.className='meta';mm.innerHTML='<span class="chip over">Forfaldt '+esc(t.due)+'</span><span class="chip area" style="background:transparent;padding-left:0;color:'+esc(catOf(t.pid).color)+';font-weight:600"># '+esc(catOf(t.pid).name)+'</span>';bd.appendChild(mm);
    const acts=document.createElement('div');acts.className='acts';
    const b1=document.createElement('button');b1.className='btn';b1.textContent='📅 Ny dato';b1.onclick=()=>editModal(t);
-   const b2=document.createElement('button');b2.className='btn';b2.textContent='💤 Park';b2.title='Fjerner datoen — dukker op igen ved ugentlig gennemgang';b2.onclick=()=>{t.due=null;t.parked=true;t.parkedAt=TODAY;save();toast('Parkeret 💤');render();};
+   const b2=document.createElement('button');b2.className='btn';b2.textContent='💤 Backlog';b2.title='Fjerner datoen — dukker op igen ved ugentlig gennemgang';b2.onclick=()=>{t.due=null;t.parked=true;t.parkedAt=TODAY;save();toast('Lagt i backlog 💤');render();};
    const b3=document.createElement('button');b3.className='btn';b3.textContent='🗑';b3.style.color='var(--over)';b3.onclick=()=>{delTasks([t]);};
    acts.appendChild(b1);acts.appendChild(b2);acts.appendChild(b3);bd.appendChild(acts);
    r.appendChild(bd);cr.appendChild(r);});
@@ -2595,6 +2667,7 @@ if(LS.g('autoroll',false)&&LS.g('lastroll','')!==TODAY){
 pruneTrash();render();
 {const _fb=document.getElementById('fbBtn');if(_fb)_fb.onclick=feedbackModal;fbBadge();}
 {const _bd=document.getElementById('bdBtn');if(_bd)_bd.onclick=braindumpModal;}
+{const _v=document.getElementById('verChip');if(_v){_v.onclick=verModal;verPaint();setTimeout(()=>verCheck(true),4000);}}
 {const _un=document.getElementById('undoBtn');if(_un)_un.onclick=doUndo;} // v59
 } /* end initApp */
 (function boot(){
