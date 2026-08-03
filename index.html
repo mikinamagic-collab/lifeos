@@ -1,4 +1,4 @@
-<!doctype html><!--LIFEOS 1.80 2026-08-03-->
+<!doctype html><!--LIFEOS 1.81 2026-08-03-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -129,8 +129,11 @@ h1{font-size:19px;margin:0;font-weight:600;letter-spacing:0}
 #fbBtn:hover{transform:scale(1.06)}
 #bdBtn{position:fixed;right:18px;bottom:72px;z-index:40;width:46px;height:46px;border-radius:50%;border:none;background:#fff;border:1px solid var(--line);font-size:19px;cursor:pointer;box-shadow:0 4px 14px rgba(20,24,28,.18)}
 #bdBtn:hover{transform:scale(1.06)}
+/* v1.81: fast ＋ nederst til højre (Ninas feedback smsd26pys9238) — øverst i stakken over 🧠 og 💬 */
+#addBtn{position:fixed;right:16px;bottom:126px;z-index:41;width:52px;height:52px;border-radius:50%;border:none;background:var(--accent);color:#fff;font-size:26px;line-height:1;cursor:pointer;box-shadow:0 5px 16px rgba(20,24,28,.30)}
+#addBtn:hover{transform:scale(1.06)}
 #fbBadge{position:absolute;top:-4px;right:-4px;background:#dd4b4b;color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;padding:0 4px}
-@media(max-width:560px){#fbBtn{bottom:76px;right:12px}#bdBtn{bottom:130px;right:12px}
+@media(max-width:560px){#fbBtn{bottom:76px;right:12px}#bdBtn{bottom:130px;right:12px}#addBtn{bottom:186px;right:12px}
 input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus på felter <16px — 16px forhindrer zoom helt */
 .fbpanel{position:fixed;right:18px;bottom:76px;z-index:45;background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;width:min(430px,92vw);box-shadow:0 14px 44px rgba(20,24,28,.28);max-height:82vh;overflow:auto}
 .fbhead{display:flex;align-items:center;gap:8px;cursor:grab;margin:0 0 6px;user-select:none;-webkit-user-select:none;touch-action:none}
@@ -321,7 +324,7 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 <div class="wrap">
   <header>
     <h1>Nina's LifeOS</h1><span id="pageTitle"></span><span class="date" id="dateStr"></span><span id="pageActions" style="display:flex;gap:4px;margin-left:6px"></span>
-    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.80</span>
+    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.81</span>
     <span id="syncChip" style="margin-left:6px;font-size:12px;color:var(--muted)">⚪ ikke sat op</span>
     <button class="imp" id="undoBtn" title="Fortryd seneste ændring (⌘Z)" style="margin-left:0;opacity:.4">↩️</button>
     <button class="imp" id="ghBtn" style="margin-left:0">⚙️ Sync</button>
@@ -334,6 +337,7 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 <div id="fbHost"></div>
 <div id="bdHost"></div>
 <div id="popHost"></div>
+<button id="addBtn" title="Ny opgave" aria-label="Ny opgave">＋</button>
 <button id="bdBtn" title="Braindump — tøm hovedet, jeg sorterer">🧠</button>
 <button id="fbBtn" title="Send feedback til Claude — gemmes i backloggen">💬<span id="fbBadge"></span></button>
 <nav id="botNav"></nav>
@@ -496,7 +500,7 @@ function dateActions(t){const out=[{k:'today',l:'I dag',d:TODAY},{k:'tom',l:'I m
  return out.filter(r=>{if(!r.d||seen.has(r.d))return false;seen.add(r.d);return true;});}
 document.getElementById('dateStr').textContent=today.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
 // ---------- v80: versionsnummer (1.80 = HOVEDVERSION.BYG, Ninas valg 3/8) ----------
-const APP={v:'1.80',d:'2026-08-03'};
+const APP={v:'1.81',d:'2026-08-03'};
 // Versionsmærket står som HTML-kommentar i filens første 100 bytes, så tjekket henter
 // kun et par hundrede bytes i stedet for hele appen (270 KB) hver gang.
 async function verRemote(){
@@ -2174,8 +2178,7 @@ function allP(w){
  {const lb=document.createElement('label');lb.style.cssText='display:flex;gap:5px;align-items:center;font-size:12.5px;color:var(--muted);cursor:pointer';
   lb.innerHTML='<input type="checkbox" style="width:auto"'+(AFLTDONE?' checked':'')+'> Vis fuldførte';
   lb.querySelector('input').onchange=e=>{AFLTDONE=e.target.checked;render();};fbar.appendChild(lb);}
- {const ab=document.createElement('button');ab.className='addtask';ab.innerHTML='Tilføj opgave <b>＋</b>';
-  ab.title='Ny opgave';ab.onclick=()=>addTaskModal();fbar.appendChild(ab);}// v69: højrestillet i filterbaren
+ // v1.81: "Tilføj opgave" er flyttet ud af filterbaren til den faste ＋ nederst til højre.
  w.appendChild(fbar);
  {const chips=[];AFILTERS.forEach(f=>(AFLT[f.key]||[]).forEach(v=>{const o=f.options(all).find(o=>o[0]===v);const l=o?o[1]:(f.labelOf?f.labelOf(v):esc(v));chips.push({f,v,l});}));
   if(chips.length||AFLTDONE){const cr=document.createElement('div');cr.style.cssText='display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 10px';
@@ -2667,6 +2670,7 @@ if(LS.g('autoroll',false)&&LS.g('lastroll','')!==TODAY){
 pruneTrash();render();
 {const _fb=document.getElementById('fbBtn');if(_fb)_fb.onclick=feedbackModal;fbBadge();}
 {const _bd=document.getElementById('bdBtn');if(_bd)_bd.onclick=braindumpModal;}
+{const _ab=document.getElementById('addBtn');if(_ab)_ab.onclick=()=>addTaskModal();}
 {const _v=document.getElementById('verChip');if(_v){_v.onclick=verModal;verPaint();setTimeout(()=>verCheck(true),4000);}}
 {const _un=document.getElementById('undoBtn');if(_un)_un.onclick=doUndo;} // v59
 } /* end initApp */
