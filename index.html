@@ -1,4 +1,4 @@
-<!doctype html><!--LIFEOS 1.87 2026-08-03-->
+<!doctype html><!--LIFEOS 1.88 2026-08-17-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -377,7 +377,7 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 <div class="wrap">
   <header>
     <h1>Nina's LifeOS</h1><span id="pageTitle"></span><span class="date" id="dateStr"></span><span id="pageActions" style="display:flex;gap:4px;margin-left:6px"></span>
-    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.87</span>
+    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.88</span>
     <span id="syncChip" style="margin-left:6px;font-size:12px;color:var(--muted)">⚪ ikke sat op</span>
     <button class="imp" id="undoBtn" title="Fortryd seneste ændring (⌘Z)" style="margin-left:0;opacity:.4">↩️</button>
     <button class="imp" id="ghBtn" style="margin-left:0">⚙️ Sync</button>
@@ -553,7 +553,7 @@ function dateActions(t){const out=[{k:'today',l:'I dag',d:TODAY},{k:'tom',l:'I m
  return out.filter(r=>{if(!r.d||seen.has(r.d))return false;seen.add(r.d);return true;});}
 document.getElementById('dateStr').textContent=today.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
 // ---------- v80: versionsnummer (1.80 = HOVEDVERSION.BYG, Ninas valg 3/8) ----------
-const APP={v:'1.87',d:'2026-08-03'};
+const APP={v:'1.88',d:'2026-08-17'};
 // Versionsmærket står som HTML-kommentar i filens første 100 bytes, så tjekket henter
 // kun et par hundrede bytes i stedet for hele appen (270 KB) hver gang.
 async function verRemote(){
@@ -1929,7 +1929,7 @@ function bdOrganise(raw){
 }
 function bdRecommend(line,r,ctxCat){
  const lc=line.toLowerCase();
- let dest,hor='s';
+ let dest,hor='s',due=null;
  if(/hver (dag|anden dag|uge|anden uge|morgen|aften|mandag|tirsdag|onsdag|torsdag|fredag|lørdag|søndag|tredje måned|måned)|dagligt|ugentligt|en gang om (ugen|måneden)|hver eneste dag|\bvane\b/.test(lc))dest='vane';
  else if(r.due===TODAY||/\bi dag\b|\bi aften\b|straks|med det samme/.test(lc))dest='idag';
  else if(r.due)dest='dato';
@@ -1937,11 +1937,12 @@ function bdRecommend(line,r,ctxCat){
  else if(/næste år|til næste sommer|inden jul|om et år/.test(lc)){dest='bk';hor='y';}
  else if(/kvartal|inden fødslen|til efteråret|til sommer|inden vinteren|inden efteråret|uge \d\d/.test(lc)){dest='bk';hor='q';}
  else if(/denne måned|i måneden|om en måned|næste måned|inden en måned/.test(lc)){dest='bk';hor='m';}
- else if(/(denne|næste) uge|snart|i denne uge|om et par uger|inden længe/.test(lc)){dest='bk';hor='w';}
+ else if(/om et par uger/.test(lc)){dest='dato';due=dPlus(14);}// v1.88: "et par uger" = rigtig dato, ikke backlog
+ else if(/(denne|næste) uge|snart|i denne uge|inden længe/.test(lc)){dest='dato';due=dPlus(7);}
  else if(/engang|en dag|på et tidspunkt|når (vi|jeg) får tid|drøm|langt sigt/.test(lc)){dest='bk';hor='s';}
- else {dest='bk';hor=line.split(/\s+/).length<=6?'w':'m';}
+ else {dest='dato';due=dPlus(7);}// v1.88: intet tidssignal → inden for den kommende uge, ikke backlog (Ninas feedback smsdqnru43960)
  let pid=r.pid||bdCatFromText(line)||ctxCat||null;
- return {dest,hor,pid:pid||(PROJECTS[0]&&PROJECTS[0].id)};
+ return {dest,hor,due,pid:pid||(PROJECTS[0]&&PROJECTS[0].id)};
 }
 function braindumpModal(){
  const host=document.getElementById('bdHost');
@@ -1972,7 +1973,7 @@ function braindumpModal(){
    if(!org.items.length){toast('Kunne ikke finde nogen opgaver i den 🙂');return;}
    BDITEMS=org.items.map(it=>{const r=parseQuickAdd(it.title,false);const rec=bdRecommend(it.raw,r,org.ctxCat);
     const title=(r.content||it.title||'').trim()||it.title;
-    return {txt:title,dest:rec.dest,hor:rec.hor,due:r.due||'',time:r.time||'',pri:r.pri,est:r.est,pid:rec.pid};});
+    return {txt:title,dest:rec.dest,hor:rec.hor,due:r.due||rec.due||'',time:r.time||'',pri:r.pri,est:r.est,pid:rec.pid};});
    renderTriage(raw);};
   document.getElementById('bdClaude').onclick=()=>{const raw=ta.value.trim();if(!raw){toast('Skriv eller diktér lidt først 🙂');return;}
    const l=LS.g('braindump',[]);l.push({id:newSid(),text:raw,at:new Date().toISOString(),status:'ny'});LS.s('braindump',l);
