@@ -1,4 +1,4 @@
-<!doctype html><!--LIFEOS 1.88 2026-08-17-->
+<!doctype html><!--LIFEOS 1.89 2026-08-19-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -377,7 +377,7 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 <div class="wrap">
   <header>
     <h1>Nina's LifeOS</h1><span id="pageTitle"></span><span class="date" id="dateStr"></span><span id="pageActions" style="display:flex;gap:4px;margin-left:6px"></span>
-    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.88</span>
+    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.89</span>
     <span id="syncChip" style="margin-left:6px;font-size:12px;color:var(--muted)">⚪ ikke sat op</span>
     <button class="imp" id="undoBtn" title="Fortryd seneste ændring (⌘Z)" style="margin-left:0;opacity:.4">↩️</button>
     <button class="imp" id="ghBtn" style="margin-left:0">⚙️ Sync</button>
@@ -553,7 +553,7 @@ function dateActions(t){const out=[{k:'today',l:'I dag',d:TODAY},{k:'tom',l:'I m
  return out.filter(r=>{if(!r.d||seen.has(r.d))return false;seen.add(r.d);return true;});}
 document.getElementById('dateStr').textContent=today.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
 // ---------- v80: versionsnummer (1.80 = HOVEDVERSION.BYG, Ninas valg 3/8) ----------
-const APP={v:'1.88',d:'2026-08-17'};
+const APP={v:'1.89',d:'2026-08-19'};
 // Versionsmærket står som HTML-kommentar i filens første 100 bytes, så tjekket henter
 // kun et par hundrede bytes i stedet for hele appen (270 KB) hver gang.
 async function verRemote(){
@@ -1959,7 +1959,6 @@ function braindumpModal(){
    const mv=ev=>{panel.style.left=Math.max(4,Math.min(ev.clientX-ox,innerWidth-80))+'px';panel.style.top=Math.max(4,Math.min(ev.clientY-oy,innerHeight-50))+'px';};
    const up=()=>{document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);document.removeEventListener('pointercancel',up);};
    document.addEventListener('pointermove',mv);document.addEventListener('pointerup',up);document.addEventListener('pointercancel',up);};}
- const HORLBL={w:'💤 Uge eller to',m:'💤 Måned',q:'💤 Kvartal',y:'💤 År',s:'💤 Engang',n:'💤 Aldrig'};
  const renderWrite=()=>{BDITEMS=null;
   let draft='';try{draft=localStorage.getItem('bd_draft')||'';}catch(e){}
   body.innerHTML='<p class="hint" style="margin:0 0 8px">Skriv eller dikter (🎤 på tastaturet) alt hvad der fylder — jeg deler det op og foreslår, hvor tingene hører til. Intet oprettes før du bekræfter.</p>'
@@ -1991,15 +1990,19 @@ function braindumpModal(){
    t1.appendChild(inp);t1.appendChild(rm);r.appendChild(t1);
    const t2=document.createElement('div');t2.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:center';
    const ds=document.createElement('select');ds.style.cssText='font:inherit;font-size:11.5px;border:1px solid var(--line);border-radius:7px;padding:3px 5px';
-   ds.innerHTML='<option value="idag">☀️ I dag</option><option value="dato">📅 Dato…</option>'+Object.keys(HORLBL).map(k=>'<option value="bk-'+k+'">'+HORLBL[k]+'</option>').join('')+'<option value="vane">🔁 Vane (hver dag)</option>';
-   ds.value=it.dest==='bk'?'bk-'+it.hor:it.dest;
+   // v1.89: samme hurtigvalg som 📅-menuen (dateActions), og backlog er bare backlog (Ninas feedback smsztbt8f2816)
+   const hurtige=dateActions({}).filter(r=>r.k!=='today');
+   ds.innerHTML='<option value="idag">☀️ I dag</option>'
+    +hurtige.map(r=>'<option value="d:'+r.d+'">'+esc(r.l)+'</option>').join('')
+    +'<option value="dato">📅 Dato…</option><option value="bk">💤 Backlog</option><option value="vane">🔁 Vane (hver dag)</option>';
+   ds.value=it.dest==='bk'?'bk':(it.dest==='dato'&&it.due&&hurtige.some(r=>r.d===it.due)?'d:'+it.due:it.dest);
    const di=document.createElement('input');di.type='date';di.value=it.due;di.style.cssText='font:inherit;font-size:11.5px;border:1px solid var(--line);border-radius:7px;padding:2px 4px;display:'+(ds.value==='dato'?'':'none');
    // v79: her er der ingen Sæt-knap (rækken er for tæt), så i stedet rulles et change tilbage
    // som brugeren ikke har udløst — det er præcis det datovælgeren gør når den åbner.
    di.onpointerdown=di.onkeydown=()=>{di.dataset.rort='1';};
    di.onchange=()=>{if(di.dataset.rort)it.due=di.value;else di.value=it.due||'';};
    ds.onchange=()=>{const v=ds.value;di.style.display=v==='dato'?'':'none';
-    if(v==='idag')it.dest='idag';else if(v==='dato')it.dest='dato';else if(v==='vane')it.dest='vane';else{it.dest='bk';it.hor=v.slice(3);}};
+    if(v==='idag')it.dest='idag';else if(v.startsWith('d:')){it.dest='dato';it.due=v.slice(2);}else if(v==='dato')it.dest='dato';else if(v==='vane')it.dest='vane';else{it.dest='bk';it.hor=it.hor||'s';}};
    const cs=document.createElement('select');cs.style.cssText='font:inherit;font-size:11.5px;border:1px solid var(--line);border-radius:7px;padding:3px 5px';
    cs.innerHTML=PROJECTS.map(p=>'<option value="'+p.id+'"'+(p.id===it.pid?' selected':'')+'># '+esc(p.name)+'</option>').join('');
    cs.onchange=()=>{it.pid=cs.value;};
