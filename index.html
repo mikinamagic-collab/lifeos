@@ -1,4 +1,4 @@
-<!doctype html><!--LIFEOS 1.89 2026-08-19-->
+<!doctype html><!--LIFEOS 1.90 2026-08-19-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -377,7 +377,7 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 <div class="wrap">
   <header>
     <h1>Nina's LifeOS</h1><span id="pageTitle"></span><span class="date" id="dateStr"></span><span id="pageActions" style="display:flex;gap:4px;margin-left:6px"></span>
-    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.89</span>
+    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.90</span>
     <span id="syncChip" style="margin-left:6px;font-size:12px;color:var(--muted)">⚪ ikke sat op</span>
     <button class="imp" id="undoBtn" title="Fortryd seneste ændring (⌘Z)" style="margin-left:0;opacity:.4">↩️</button>
     <button class="imp" id="ghBtn" style="margin-left:0">⚙️ Sync</button>
@@ -407,7 +407,11 @@ let UID=1;
 const LS={g(k,d){try{return JSON.parse(localStorage.getItem('cc2_'+k))??d}catch(e){return d}},s(k,v){localStorage.setItem('cc2_'+k,JSON.stringify(v))}};
 /* ===== GitHub sync layer ===== */
 const NOSYNC=new Set(['cc2_tab','cc2_pmode','cc2_tlview','cc2_catopen','cc2_navlast','cc2_tcollapse']);// v72: sammenklap er en visnings-præference
-const GH={cfg:JSON.parse(localStorage.getItem('lifeos_gh')||'null'),sha:null,timer:null,status:'off',lastSync:0};
+const GH={cfg:JSON.parse(localStorage.getItem('lifeos_gh')||'null'),sha:null,timer:null,status:'off',lastSync:0,dirty:false};
+// v1.90: GitHubs API svarer 'Cache-Control: private, max-age=60'. Uden no-store kan browseren
+// servere et op til et minut gammelt svar — en fane tror den har hentet nyeste, men har det ikke.
+// Det er præcis den fælde der kostede to opgaver 17/8. Alle LÆSNINGER går nu udenom cachen.
+function ghGet(url){return fetch(url,{headers:ghHdr(),cache:'no-store'});}
 function ghUrl(){return 'https://api.github.com/repos/'+GH.cfg.owner+'/'+GH.cfg.repo+'/contents/data.json';}
 function ghHdr(){return {Authorization:'Bearer '+GH.cfg.token,Accept:'application/vnd.github+json'};}
 function b64e(s){return btoa(unescape(encodeURIComponent(s)));}
@@ -417,7 +421,7 @@ function ghBlobText(j){
  try{if(j&&j.content&&j.content.length)return Promise.resolve(b64d(j.content));}catch(e){return Promise.resolve(null);}
  const m=ghUrl().match(/repos\/([^/]+)\/([^/]+)\//);
  if(!m||!j||!j.sha)return Promise.resolve(null);
- return fetch('https://api.github.com/repos/'+m[1]+'/'+m[2]+'/git/blobs/'+j.sha,{headers:ghHdr()})
+ return ghGet('https://api.github.com/repos/'+m[1]+'/'+m[2]+'/git/blobs/'+j.sha)
   .then(r=>r.ok?r.json():null)
   .then(b=>{try{return b&&b.content?b64d(b.content):null;}catch(e){return null;}})
   .catch(()=>null);}
@@ -431,20 +435,30 @@ function updateChip(){const c=document.getElementById('syncChip');if(!c)return;
  const map={off:'⚪ ikke sat op',ok:'🟢 synk.',sync:'🔄 synkroniserer…',pend:'🟠 gemmer…',err:'🔴 synk-fejl',new:'🟡 første synk. venter',conflict:'⚠️ konflikt — vælg version'};
  c.textContent=map[GH.status]||GH.status;}
 // ---------- v35: push-guard + auto-opfriskning (rene beslutningsfunktioner) ----------
-function conflictChoiceNeeded(st,retry,hasRemoteTasks){return (st===409||st===422)&&!retry&&!!hasRemoteTasks;}
+// v1.90: en 409 er som regel bare to enheder der gemmer i samme sekund. Nina skal kun
+// spørges, hvis denne skærm har egne ugemte ændringer, eller skyen har poster vi mangler.
+function conflictChoiceNeeded(st,retry,dirty,lossCount){return (st===409||st===422)&&!retry&&(!!dirty||lossCount>0);}
 // v64: en fane hvis boot-hentning fejlede har FORÆLDEDE data — den må aldrig skrive til skyen.
 // (27/7: en gammel åben fane overskrev remote og slettede to feedback-poster.)
 function pushBlocked(hasCfg,pullOk){return !!hasCfg && !pullOk;}
-// v64: hvilke nøgler ville TABE poster hvis vi skrev lokal tilstand over remote?
-function remoteLossKeys(rk,lk){const out=[];if(!rk)return out;
- Object.keys(rk).forEach(k=>{const r=rk[k];if(!Array.isArray(r))return;
-  const l=lk?lk[k]:null;if(r.length>(Array.isArray(l)?l.length:0))out.push(k);});
+// v1.90: id-baseret tabs-tjek. Antal kan lyve: 17/8 forsvandt to opgaver mens listen så
+// uændret ud, fordi der var kommet lige så mange nye til. Vi sammenligner nu id'er.
+function keyIds(a){const s=new Set();if(Array.isArray(a))a.forEach(x=>{if(x&&typeof x==='object'&&x.id!=null)s.add(String(x.id));});return s;}
+// En post Nina selv har slettet ligger i papirkurven — den er ikke tabt.
+function trashIds(lk){const s=new Set();const tr=lk&&lk.cc2_trash;if(Array.isArray(tr))tr.forEach(e=>{if(e&&e.item&&e.item.id!=null)s.add(String(e.item.id));});return s;}
+// Hvilke poster ville forsvinde, hvis denne skærms data skrev over skyens?
+function lostRecords(rk,lk){const out={};if(!rk)return out;const binned=trashIds(lk);
+ Object.keys(rk).forEach(k=>{const r=rk[k];if(!Array.isArray(r)||!r.length)return;
+  const l=Array.isArray(lk&&lk[k])?lk[k]:[];const ri=keyIds(r);
+  if(ri.size===r.length){const li=keyIds(l);const miss=[];ri.forEach(id=>{if(!li.has(id)&&!binned.has(id))miss.push(id);});if(miss.length)out[k]=miss;}
+  else if(r.length>l.length)out[k]=['?'+(r.length-l.length)];});
  return out;}
+function remoteLossKeys(rk,lk){return Object.keys(lostRecords(rk,lk));}
 function wakeNeedsCheck(lastSyncMs,nowMs,status){return status==='ok'&&(nowMs-lastSyncMs)>=600000;}
 function ghPullAsync(){ // async pull at boot with the same safety guards (incl. empty-over-full)
  if(!GH.cfg)return Promise.resolve();
  const timeout=new Promise(res=>setTimeout(()=>res('timeout'),12000));
- const go=fetch(ghUrl(),{headers:ghHdr()}).then(r=>r.ok?r.json().then(j=>({st:200,j})):{st:r.status}).catch(()=>null);
+ const go=ghGet(ghUrl()).then(r=>r.ok?r.json().then(j=>({st:200,j})):{st:r.status}).catch(()=>null);
  return Promise.race([go,timeout]).then(res=>{
   if(res==='timeout'||!res){GH.status='err';return;}
   if(res.st===200){const j=res.j;GH.sha=j.sha;GH.lastSync=Date.now();
@@ -452,7 +466,9 @@ function ghPullAsync(){ // async pull at boot with the same safety guards (incl.
     if(txt===null){GH.status='err';return;}
     const data=JSON.parse(txt);const rk=data&&data.keys?data.keys:null;const rTasks=rk&&rk.cc2_tasks&&rk.cc2_tasks.length;const lTasks=(LS.g('tasks',[])||[]).length;
     GH.pullOk=true;// v64: hentning lykkedes — først nu må denne fane skrive
-    if(rk&&(rTasks||!lTasks)){applyKeys(rk);GH.status='ok';if(trimFeedbackImgs()){GH.status='pend';setTimeout(()=>ghPush(false),1500);}}
+    if(rk&&(rTasks||!lTasks)){applyKeys(rk);GH.status='ok';GH.dirty=false;
+     // oprydning i skærmbilleder er ikke Ninas ændring — fanen tæller stadig som ren
+     if(trimFeedbackImgs()){GH.status='pend';GH.dirty=false;setTimeout(()=>ghPush(false),1500);}}
     else if(rk){GH.status='pend';setTimeout(()=>ghPush(false),1200);}else{GH.status='ok';}});}
   else if(res.st===404){GH.pullOk=true;GH.status='new';}
   else GH.status='err';
@@ -466,26 +482,33 @@ function ghPush(retry){if(!GH.cfg)return;
  fetch(ghUrl(),{method:'PUT',headers:ghHdr(),body:JSON.stringify(body)})
  .then(r=>r.json().then(j=>({ok:r.ok,st:r.status,j})))
  .then(({ok,st,j})=>{
-  if(ok){GH.sha=j.content.sha;GH.status='ok';GH.lastSync=Date.now();updateChip();}
+  if(ok){GH.sha=j.content.sha;GH.status='ok';GH.dirty=false;GH.lastSync=Date.now();updateChip();}
   else if((st===409||st===422)&&!retry){
-   fetch(ghUrl(),{headers:ghHdr()}).then(r=>r.json()).then(k=>ghBlobText(k).then(txt=>{
+   ghGet(ghUrl()).then(r=>r.json()).then(k=>ghBlobText(k).then(txt=>{
     let rk=null;try{rk=JSON.parse(txt).keys;}catch(e){}
-    if(conflictChoiceNeeded(st,retry,rk&&rk.cc2_tasks)||(rk&&remoteLossKeys(rk,collectKeys()).length)){GH.status='conflict';updateChip();conflictModal({sha:k.sha,keys:rk});}
+    const lossN=rk?remoteLossKeys(rk,collectKeys()).length:0;
+    if(conflictChoiceNeeded(st,retry,GH.dirty,lossN)){GH.status='conflict';updateChip();conflictModal({sha:k.sha,keys:rk});}
+    // v1.90: ingen egne ændringer og intet at tabe → hent stille nyeste i stedet for at spørge
+    else if(rk&&!GH.dirty){applyKeys(rk);GH.sha=k.sha;GH.dirty=false;location.reload();}
     else{GH.sha=k.sha;ghPush(true);}}));}
   else{GH.status='err';updateChip();}})
  .catch(()=>{GH.status='err';updateChip();});}
+// v1.90: sync-laget har sin egen escape. conflictModal kaldte esc(), der bor inde i
+// initApp — så tabs-advarslen kastede en fejl og dialogen udeblev, netop når det gjaldt.
+function escSync(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function conflictModal(remote){ // v35 push-guard: en anden enhed har gemt nyere data
  const host=document.getElementById('modalHost');if(!host)return;
  const rT=(remote.keys.cc2_tasks||[]).length,lT=(LS.g('tasks',[])||[]).length;
  const LOSSNAMES={cc2_tasks:'opgaver',cc2_feedback:'feedback',cc2_braindump:'braindump',cc2_trash:'papirkurv',cc2_events:'begivenheder',cc2_journal:'journal'};
- const loss=remoteLossKeys(remote.keys,collectKeys()).map(k=>{const r=remote.keys[k].length,l=(collectKeys()[k]||[]).length;return (LOSSNAMES[k]||k.replace('cc2_',''))+' ('+r+' → '+l+')';});
- const lossHtml=loss.length?'<p style="font-size:13px;color:var(--over)">⚠️ Overskriver du, mister du poster i: <b>'+loss.map(esc).join('</b>, <b>')+'</b></p>':'';
+ const lr=lostRecords(remote.keys,collectKeys());
+ const loss=Object.keys(lr).map(k=>(LOSSNAMES[k]||k.replace('cc2_',''))+' ('+lr[k].length+(lr[k].length>1?' poster':' post')+')');
+ const lossHtml=loss.length?'<p style="font-size:13px;color:var(--over)">⚠️ Overskriver du, mister du poster i: <b>'+loss.map(escSync).join('</b>, <b>')+'</b></p>':'';
  host.innerHTML='<div class="mbg" id="cfBg"><div class="modal"><h3>⚠️ Nyere data findes</h3><p style="font-size:13px">En anden enhed har gemt nyere data siden denne skærm sidst blev opdateret (<b>'+rT+'</b> opgaver dér · <b>'+lT+'</b> her).</p>'+lossHtml+'<p class="hint">Anbefalet: hent nyeste. Kun denne skærms allerseneste ændring går tabt — og intet slettes fra historikken (🕘 Gendan tidligere version).</p><div class="mbtns"><button class="cancel" id="cfOver">Overskriv med denne skærms data</button><button class="save" id="cfPull">🔄 Hent nyeste (anbefalet)</button></div></div></div>';
  document.getElementById('cfPull').onclick=()=>{applyKeys(remote.keys);GH.sha=remote.sha;host.innerHTML='';location.reload();};
  document.getElementById('cfOver').onclick=()=>{host.innerHTML='';GH.sha=remote.sha;GH.pullOk=true;ghPush(true);};
 }
 const _lss=LS.s.bind(LS);
-LS.s=(k,v)=>{_lss(k,v);if(GH.cfg&&!NOSYNC.has('cc2_'+k)){GH.status='pend';updateChip();clearTimeout(GH.timer);GH.timer=setTimeout(()=>ghPush(false),2500);}};
+LS.s=(k,v)=>{_lss(k,v);if(GH.cfg&&!NOSYNC.has('cc2_'+k)){GH.dirty=true;GH.status='pend';updateChip();clearTimeout(GH.timer);GH.timer=setTimeout(()=>ghPush(false),2500);}};
 // ---------- v59: automatisk fortryd-stak (↩️ / ⌘Z) ----------
 let UNDO=[],UNDO_LAST=0,UNDO_FRESH=0,UNDOING=false;
 const UNDOKEYS=k=>k==='tasks'||k==='hlog'||k==='trash'||k==='taskorder'||k.startsWith('dayorder_');
@@ -505,7 +528,7 @@ function wakeCheck(){
  const fh=document.getElementById('fbHost');if(fh&&fh.innerHTML)return;
  const bh=document.getElementById('bdHost');if(bh&&bh.innerHTML)return;
  GH.lastSync=Date.now();
- fetch(ghUrl(),{headers:ghHdr()}).then(r=>r.ok?r.json():null)
+ ghGet(ghUrl()).then(r=>r.ok?r.json():null)
  .then(j=>{if(j&&j.sha&&GH.sha&&j.sha!==GH.sha)location.reload();}).catch(()=>{});}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')wakeCheck();});
 window.addEventListener('focus',()=>wakeCheck());
@@ -553,7 +576,7 @@ function dateActions(t){const out=[{k:'today',l:'I dag',d:TODAY},{k:'tom',l:'I m
  return out.filter(r=>{if(!r.d||seen.has(r.d))return false;seen.add(r.d);return true;});}
 document.getElementById('dateStr').textContent=today.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
 // ---------- v80: versionsnummer (1.80 = HOVEDVERSION.BYG, Ninas valg 3/8) ----------
-const APP={v:'1.89',d:'2026-08-19'};
+const APP={v:'1.90',d:'2026-08-19'};
 // Versionsmærket står som HTML-kommentar i filens første 100 bytes, så tjekket henter
 // kun et par hundrede bytes i stedet for hele appen (270 KB) hver gang.
 async function verRemote(){
@@ -2892,7 +2915,7 @@ function restoreModal(){
 }
 function restorePreview(sha,d){
  const host=document.getElementById('modalHost');
- fetch(ghUrl()+'?ref='+sha,{headers:ghHdr()})
+ ghGet(ghUrl()+'?ref='+sha)
  .then(r=>{if(!r.ok)throw 0;return r.json();})
  .then(j=>ghBlobText(j))
  .then(txt=>{const data=JSON.parse(txt);const keys=data&&data.keys;if(!keys)throw 0;
@@ -3034,8 +3057,10 @@ pruneTrash();render();
  if(GH.cfg){
   appEl.innerHTML='<div class="empty" style="padding:24px;text-align:center">🔄 Henter dine data…</div>';
   GH.status='sync';updateChip();
-  ghPullAsync().then(()=>{if(GH.status==='new'&&Object.keys(collectKeys()).length)setTimeout(()=>ghPush(false),1500);if(GH.status==='sync')GH.status='ok';updateChip();start();});
- }else{trimFeedbackImgs();start();}
+  ghPullAsync().then(()=>{if(GH.status==='new'&&Object.keys(collectKeys()).length)setTimeout(()=>ghPush(false),1500);if(GH.status==='sync')GH.status='ok';updateChip();start();
+  // v1.90: opstartens egen oprydning (migreringer, papirkurv) er ikke Ninas ændringer
+  GH.dirty=false;});
+ }else{trimFeedbackImgs();start();GH.dirty=false;}
 })();
 </script>
 </body>
