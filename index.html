@@ -1,4 +1,4 @@
-<!doctype html><!--LIFEOS 1.90 2026-08-19-->
+<!doctype html><!--LIFEOS 1.91 2026-08-22-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -377,7 +377,7 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 <div class="wrap">
   <header>
     <h1>Nina's LifeOS</h1><span id="pageTitle"></span><span class="date" id="dateStr"></span><span id="pageActions" style="display:flex;gap:4px;margin-left:6px"></span>
-    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.90</span>
+    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.91</span>
     <span id="syncChip" style="margin-left:6px;font-size:12px;color:var(--muted)">⚪ ikke sat op</span>
     <button class="imp" id="undoBtn" title="Fortryd seneste ændring (⌘Z)" style="margin-left:0;opacity:.4">↩️</button>
     <button class="imp" id="ghBtn" style="margin-left:0">⚙️ Sync</button>
@@ -576,7 +576,7 @@ function dateActions(t){const out=[{k:'today',l:'I dag',d:TODAY},{k:'tom',l:'I m
  return out.filter(r=>{if(!r.d||seen.has(r.d))return false;seen.add(r.d);return true;});}
 document.getElementById('dateStr').textContent=today.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
 // ---------- v80: versionsnummer (1.80 = HOVEDVERSION.BYG, Ninas valg 3/8) ----------
-const APP={v:'1.90',d:'2026-08-19'};
+const APP={v:'1.91',d:'2026-08-22'};
 // Versionsmærket står som HTML-kommentar i filens første 100 bytes, så tjekket henter
 // kun et par hundrede bytes i stedet for hele appen (270 KB) hver gang.
 async function verRemote(){
@@ -624,7 +624,6 @@ function evAge(e){if(e.type!=='bday'||!e.y)return null;const n=evNext(e);return 
 function evByDate(ds){return EVENTS.filter(e=>{const n=evNext(e);return n&&iso(n)===ds;});}
 function evIcon(e){return e.type==='bday'?'🎂':'📌';}
 function evUpcoming(days){return EVENTS.filter(e=>{const d=evDays(e);return d>=0&&d<=days;}).sort((a,b)=>evDays(a)-evDays(b));}
-
 
 // ---------- task row ----------
 function chAllDone(t){return t.children&&t.children.length&&t.children.every(c=>c.done);}
@@ -1852,22 +1851,50 @@ const BD_CTX=/\b(det (er|var) alt ?sammen|alle de her|alt det her|det hele|ovens
 // Fyldord i starten af en opgave — skæres væk så titlen bliver kort som Ninas egne
 const BD_FILLER=/^(og\s+|så\s+|derudover\s+|desuden\s+|derefter\s+|bagefter\s+|nå\s+|øh+\s+|altså\s+|ja\s+|men\s+|nu\s+|lige\s+|også\s+|nej vent\s+|vent\s+|i øvrigt\s+|jeg (skal|vil|bør|må|tænkte|tænker)( gerne| lige| altså| også| have| nu)*\s+|vi (skal|vil|skulle)( lige| også| have)*\s+|husk (lige )?(at|på)\s+|jeg skal (lige )?huske (at|på)\s+|få\s+(nu\s+)?|der er (også )?lige det med at\s+|skal (jeg|vi|du)( lige| også| altså| nu| have| gerne)*\s+|(vil|skulle|ville) (jeg|vi)( gerne| lige| også)*\s+|til sidst(e)?\s+|først\s+|for det (første|andet|tredje)\s+|(jeg|vi) (har|skal have)( lige| også)?\s+)/i;
 // Emneord -> kategorinavn. Slås op mod Ninas FAKTISKE kategorier; findes navnet ikke, springes det over.
+// [kategori, mønster, vægt] — v1.91: højeste samlede vægt vinder. Uafgjort → intet forslag.
+// Vægt 3 = utvetydigt signal · 2 = stærkt · 1 = svagt. Rækkefølgen betyder ikke længere noget.
 const BD_CATWORDS=[
- ['Work',/\b(job|jobs\w*|ansøgning|ansøgninger|cv|linkedin|samtale|rekrutter\w*|arbejde|arbejds\w*|kollega|chef|karriere|stilling|opslag|netværk|kursus|kurser|produktleder|produktledelse)\b/i],
- ['Finance',/\b(penge|pengene|budget|løn|regning|regninger|betal\w*|bank|banken|lån|lånet|rente\w*|forsikring\w*|opsparing|abonnement\w*|opsig\w*|investering\w*|overfør\w*|konto|kontoen|dagpenge|økonomi|skat|testamente|pension)\b/i],
- ['Sundhed',/\b(læge|lægen|jordemoder\w*|tandlæge\w*|scanning|skanning|kontrol|vitamin\w*|jern\w*|blodtryk|medicin|apotek\w*|træning|yoga|løbe|gå tur|motion|vand|søvn|prøvesvar|sygehus|fødsel\w*|gravid\w*)\b/i],
- ['Family',/\b(lily|lilly|barn|barnet|børn|børne\w*|vuggestue|dagpleje|barnedåb|fødselsdag|autostol|barnevogn|hospitalstask\w*|ammepude|bleer|sutteflask\w*|far|mor til|svigermor|mikkels (mor|far|forældre|søster))\b/i],
- ['Home',/\b(hus|huset|hjem|hjemme|have|haven|skur|skuret|loft|loftet|male|maling|håndværker|murer|skorstensfejer|tagrende|vindue|vinduer|emhætte|bryggers|køkken|badeværelse|soveværelse|gildesal|terrasse|genbrugsplads|storskrald|vasketøj|vaske|rydde op|oprydning|møbel|møbler|bord|reol|hylde\w*|skraldespand|dækskift|bil(en)?\b)/i],
- ['Shopping',/\b(køb|købe|bestil\w*|handle ind|indkøb|gave|gaver|gavekort|butik|matas|ikea|apotek\.dk)\b/i],
- ['Relationer',/\b(mor|far|søster|bror|veninde|ven|vennerne|skriv til|ring til (mor|far|sofie|line|camilla|trine|rie|sara|stine)|brunch|frokost|date|besøg|tak for)\b/i],
- ['Myself',/\b(me-?tid|mig selv|læs|læse|bog|bogen|meditation|meditér|meditere|frisør|klip|strikke|hobby|fotobog|fotoalbum|kørekort)\b/i]
+ // ---- Work
+ ['Work',/\b(job|jobs\w*|jobsøgning\w*|ansøgning\w*|cv|linkedin|rekrutter\w*|karriere|stilling|sidehustle|side ?hustle)\b/i,3],
+ ['Work',/\b(arbejde|arbejds\w*|kollega|chef|opslag|samtale|produktleder|produktledelse)\b/i,1],
+ // ---- Finance
+ ['Finance',/\b(testamente\w*|børnetestamente|forsikring\w*|budget\w*|pension\w*|opsparing|aldersopsparing|beskatning|investering\w*|dagpenge|økonomi)\b/i,3],
+ ['Finance',/\b(penge|pengene|løn|regning\w*|betal\w*|bank|banken|lån|lånet|rente\w*|abonnement\w*|opsig\w*|overfør\w*|skat)\b/i,2],
+ ['Finance',/\bskriv til (advokat|revisor|banken?)\b|\bring til (advokat|revisor|danske bank|banken)\b|\bkonto\b/i,3],
+ // ---- Sundhed  (fødsel ≠ fødselsdag — den fejl kostede kategorien fire forkerte gæt)
+ ['Sundhed',/\b(jordemoder\w*|scanning|skanning|vitamin\w*|blodtryk|medicin|apotek\w*|yoga|fodbad|prøvesvar|sygehus|gravid\w*)\b/i,3],
+ ['Sundhed',/\bfødsel(en|s?len)?\b|\binden fødslen\b/i,3],
+ ['Sundhed',/\b(læge|lægen|tandlæge\w*|motion|søvn)\b/i,1],
+ // ---- Family
+ ['Family',/\b(lily|lilly|lils|barnedåb|vuggestue|dagpleje|pasning|bleer|sutteflask\w*|ammepude|børne\w*|barnet|barnedåb)\b/i,3],
+ ['Family',/\bfødselsdag\w*/i,3],
+ ['Family',/\b(bil|bilen|sommerdæk|vinterdæk|dæk|bil til service)\b/i,2],
+ ['Family',/\b(familie\w*|svigermor|mikkels? (mor|far|forældre|søster)|feriemappe|ferie)\b/i,2],
+ // ---- Home
+ ['Home',/\b(indretning|have|haven|ukrudt|efeu|bed|krukker|hæk|græs|terrasse|skur|skuret|carport|repos|bryggers|gildesal|mellemgang|gæsteværelse|gæstetoilet)\b/i,3],
+ ['Home',/\b(vindue\w*|vindueskarm|gardin\w*|knagerække\w*|spejl|lyspære|pære|emhætte|tagrende|skorstensfejer|murer|håndværker|fuge\w*|male|maling|trælim|lister)\b/i,3],
+ ['Home',/\b(køkken|badeværelse|soveværelse|stue|kontor|entre|loft|loftet|fryser\w*|frysemad|køleskab|vasketøj|udekøkken|hængetelt)\b/i,2],
+ ['Home',/\b(hus|huset|hjem|hjemme|møbel|møbler|reol|hylde\w*|storskrald|genbrugsplads|skraldespand)\b/i,1],
+ // ---- Shopping
+ ['Shopping',/\b(indkøb|handle ind|købe?|køb|bestil\w*|butik|matas|ikea|prepper\w*)\b/i,2],
+ ['Shopping',/\b(klapvogn|barnevogn|autostol|creme|dagcreme|renser|deo|shampoo|bukser|regnbukser|tøj|sko|morgenbrød|eddike|husholdningseddike|tape|vækkeur|toiletbørste\w*|havesække)\b/i,3],
+ // ---- Relationer  (men ikke fagfolk — dem fører Nina under Finance)
+ ['Relationer',/\bskriv til (?!advokat|revisor|banken?)\w+/i,3],
+ ['Relationer',/\b(veninde|vennerne|brunch|frokost|besøg|tak for|hold kontakt)\b/i,2],
+ // ---- Myself
+ ['Myself',/\b(me-?tid|mig selv|meditation|meditér|meditere|frisør|strikke|hobby|kørekort|pas\b|nyt pas)\b/i,3],
+ ['Myself',/\b(læs|læse|bog|bogen|kursus|kurser|gå tur)\b/i,1]
 ];
 function bdCatFromText(txt){
- for(const [name,re] of BD_CATWORDS){
-  if(re.test(txt)){const p=PROJECTS.find(x=>x.name.toLowerCase()===name.toLowerCase());if(p)return p.id;}
- }
- return null;
+ const sc={};
+ for(const [name,re,w] of BD_CATWORDS){if(re.test(txt))sc[name]=(sc[name]||0)+(w||1);}
+ const e=Object.entries(sc).sort((a,b)=>b[1]-a[1]);
+ if(!e.length)return null;
+ if(e.length>1&&e[0][1]===e[1][1])return null; // uafgjort → lad Nina vælge selv
+ const p=PROJECTS.find(x=>x.name.toLowerCase()===e[0][0].toLowerCase());
+ return p?p.id:null;
 }
+
 // v74: Nina skriver bydeform ("Ring til…", "Køb…"). Dikterede dumps er i datid/tillægsform.
 const BD_VERBS=[['opdateret','Opdater'],['bestilt','Bestil'],['ringet','Ring'],['betalt','Betal'],['købt','Køb'],['sendt','Send'],['pakket','Pak'],['ryddet','Ryd'],['skrevet','Skriv'],['flyttet','Flyt'],['booket','Book'],['lavet','Lav'],['taget','Tag'],['kigget','Kig'],['fundet','Find'],['svaret','Svar'],['spurgt','Spørg'],['vasket','Vask'],['malet','Mal'],['renset','Rens'],['opsagt','Opsig'],['undersøgt','Undersøg'],['tjekket','Tjek'],['meldt','Meld'],['læst','Læs'],['afleveret','Aflever'],['overført','Overfør']];
 // infinitiv -> bydeform: "Bestille kage" -> "Bestil kage", "Købe gave" -> "Køb gave"
@@ -2884,7 +2911,6 @@ function goalP(w){const pr=document.createElement('div');pr.className='principle
  const g=LS.g('goaldefs',[]);
  g.forEach((x,gi)=>{const st=LS.g('goal_'+gi,{});const done=x.ms.filter((m,i)=>st[i]).length,pct=Math.round(done/x.ms.length*100);const el=document.createElement('div');el.className='pj';el.innerHTML=`<div class="pj-h"><span style="width:11px;height:11px;border-radius:50%;background:${esc(x.c)};display:inline-block"></span><b>${esc(x.n)}</b><span style="margin-left:auto;color:var(--muted);font-size:12px">${done}/${x.ms.length}</span></div><div class="pj-note">${esc(x.note)}</div><div class="prog"><i style="width:${pct}%"></i></div>`;x.ms.forEach((m,i)=>{const r=document.createElement('div');r.className='ms';const c=document.createElement('div');c.className='chk sq'+(st[i]?' done':'');c.onclick=()=>{st[i]=!st[i];LS.s('goal_'+gi,st);render();};const tx=document.createElement('div');tx.className='txt'+(st[i]?' done':'');tx.textContent=m;tx.style.flex='1';r.appendChild(c);r.appendChild(tx);el.appendChild(r);});w.appendChild(el);});
  const big=card('🌅 Det store billede (1–3 år)','');const bg=document.createElement('div');bg.className='gbig';['Sundt familieliv','Sikker nok indkomst i familievenligt job','Flere børn (1–2)','Blive i huset i Roskilde'].forEach(t=>{const s=document.createElement('span');s.textContent=t;bg.appendChild(s);});big.appendChild(bg);w.appendChild(big);}
-
 
 /* ===== Sync settings / import / export UI ===== */
 function exportJson(){const out={exported:new Date().toISOString(),app:'lifeos',keys:collectKeys()};return JSON.stringify(out,null,1);}
