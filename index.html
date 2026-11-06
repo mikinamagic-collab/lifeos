@@ -1,4 +1,4 @@
-<!doctype html><!--LIFEOS 1.94 2026-11-06-->
+<!doctype html><!--LIFEOS 1.95 2026-11-06-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -266,7 +266,7 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 .homeseg .pill{border:1px solid var(--line);background:#fff;color:var(--muted);cursor:pointer;min-height:30px;padding:4px 12px;font-size:12px}
 .homeseg .pill.active{background:#e7f6ee;color:#177245;border-color:#cfe8dd}
 .homeh{font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:14px 2px 4px}.homeh.over{color:var(--over)}
-.homerow.hdone{opacity:.55}.pill.top{background:#fdeceb;color:#c0392b}.pill.hold{background:#f0f0f0;color:#777}.pill.new{background:#eef2ff;color:#3949ab}
+.homerow.hdone{opacity:.55}.sdrow .remchk{width:22px;height:22px;margin-right:2px}.pill.top{background:#fdeceb;color:#c0392b}.pill.hold{background:#f0f0f0;color:#777}.pill.new{background:#eef2ff;color:#3949ab}
 .pj-note{color:var(--muted);font-size:12.5px;margin:5px 0 9px}
 .prog{height:5px;background:#eef0f2;border-radius:99px;overflow:hidden;margin:6px 0 10px}.prog i{display:block;height:100%;background:var(--home);border-radius:99px}
 .ms{display:flex;align-items:center;gap:9px;padding:5px 2px;font-size:13px}.ms .txt.done{text-decoration:line-through;color:var(--muted)}
@@ -385,7 +385,7 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 <div class="wrap">
   <header>
     <h1>Nina's LifeOS</h1><span id="pageTitle"></span><span class="date" id="dateStr"></span><span id="pageActions" style="display:flex;gap:4px;margin-left:6px"></span>
-    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.94</span>
+    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.95</span>
     <span id="syncChip" style="margin-left:6px;font-size:12px;color:var(--muted)">⚪ ikke sat op</span>
     <button class="imp" id="undoBtn" title="Fortryd seneste ændring (⌘Z)" style="margin-left:0;opacity:.4">↩️</button>
     <button class="imp" id="ghBtn" style="margin-left:0">⚙️ Sync</button>
@@ -414,7 +414,7 @@ const RAW={};
 let UID=1;
 const LS={g(k,d){try{return JSON.parse(localStorage.getItem('cc2_'+k))??d}catch(e){return d}},s(k,v){localStorage.setItem('cc2_'+k,JSON.stringify(v))}};
 /* ===== GitHub sync layer ===== */
-const NOSYNC=new Set(['cc2_tab','cc2_pmode','cc2_tlview','cc2_catopen','cc2_navlast','cc2_tcollapse']);// v72: sammenklap er en visnings-præference
+const NOSYNC=new Set(['cc2_tab','cc2_pmode','cc2_tlview','cc2_catopen','cc2_navlast','cc2_tcollapse','cc2_homegrp']);// v72: sammenklap er en visnings-præference
 const GH={cfg:JSON.parse(localStorage.getItem('lifeos_gh')||'null'),sha:null,timer:null,status:'off',lastSync:0,dirty:false};
 // v1.90: GitHubs API svarer 'Cache-Control: private, max-age=60'. Uden no-store kan browseren
 // servere et op til et minut gammelt svar — en fane tror den har hentet nyeste, men har det ikke.
@@ -584,7 +584,7 @@ function dateActions(t){const out=[{k:'today',l:'I dag',d:TODAY},{k:'tom',l:'I m
  return out.filter(r=>{if(!r.d||seen.has(r.d))return false;seen.add(r.d);return true;});}
 document.getElementById('dateStr').textContent=today.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
 // ---------- v80: versionsnummer (1.80 = HOVEDVERSION.BYG, Ninas valg 3/8) ----------
-const APP={v:'1.94',d:'2026-11-06'};
+const APP={v:'1.95',d:'2026-11-06'};
 // Versionsmærket står som HTML-kommentar i filens første 100 bytes, så tjekket henter
 // kun et par hundrede bytes i stedet for hele appen (270 KB) hver gang.
 async function verRemote(){
@@ -637,6 +637,7 @@ function evUpcoming(days){return EVENTS.filter(e=>{const d=evDays(e);return d>=0
 function chAllDone(t){return t.children&&t.children.length&&t.children.every(c=>c.done);}
 function newSid(){return 's'+Date.now().toString(36)+Math.floor(Math.random()*10000);}
 function completeTask(t){t.done=true;t.doneAt=TODAY;t.star=false;
+ if(t.remid&&typeof remCloseGet==='function'&&!remCloseGet().some(x=>x.k===t.remid))LS.s('remclose',remCloseToggle(remCloseGet(),remRowFromKey(t.remid),new Date().toISOString())); // v1.95
  if(!t.rep)return null;
  const nd=repNext(t.due,t.rep,TODAY);
  if(repStop(t,nd))return null; // v76: sidste gang i rækken — ingen ny kopi
@@ -646,6 +647,7 @@ function completeTask(t){t.done=true;t.doneAt=TODAY;t.star=false;
  if(t.children&&t.children.length)cp.children=t.children.map(c=>({id:newSid(),txt:c.txt,done:false}));
  STORE.unshift(cp);t.repNext=cp.id;return nd;}
 function uncompleteTask(t){t.done=false;delete t.doneAt;
+ if(t.remid&&typeof remCloseGet==='function'&&remCloseGet().some(x=>x.k===t.remid))LS.s('remclose',remCloseGet().filter(x=>x.k!==t.remid)); // v1.95
  if(t.repNext){const i=STORE.findIndex(x=>x.id===t.repNext&&!x.done);if(i>=0)STORE.splice(i,1);delete t.repNext;}}
 function chToggle(t,c){c.done=!c.done;if(chAllDone(t)){const nd=completeTask(t);toast('Alle deltrin fuldført ✓'+(nd?' — næste: '+fmtDue(nd):''));}save();}
 function chAdd(t,txt){if(!t.children)t.children=[];t.children.push({id:newSid(),txt:txt,done:false});save();}
@@ -1159,9 +1161,9 @@ function homeFeed(o){
  (o.cal||[]).forEach((e,i)=>{const it={k:'cal',id:'cal'+i,title:e.t||'',area:'Kalender',time:e.a?null:(e.s||null),end:e.e||null,done:false,over:false};(e.a||!e.s?allday:timed).push(it);});
  (o.tasks||[]).forEach(t=>{const isOver=!!t.due&&t.due<TODAY;const it={k:'task',id:t.id,title:t.content,area:o.catName(t.pid),time:t.time||null,done:!!t.done,over:isOver,due:t.due||null,ref:t};
   if(isOver)over.push(it);else(it.time?timed:untimed).push(it);});
- const used=new Set(o.usedRem||[]);
+ const used=new Set(o.usedRem||[]);const closed=new Set(o.remClosed||[]);
  (o.rems||[]).forEach(r=>{if(!r.day||r.day>TODAY||used.has(r.key))return;
-  const it={k:'rem',id:r.key,title:r.title,area:'Påmindelser',time:(!r.allDay&&r.due&&r.due.length>10)?r.due.slice(11,16):null,done:false,over:r.day<TODAY,due:r.day,list:r.list};
+  const it={k:'rem',id:r.key,title:r.title,area:'Påmindelser',time:(!r.allDay&&r.due&&r.due.length>10)?r.due.slice(11,16):null,done:closed.has(r.key),over:r.day<TODAY,due:r.day,dueFull:r.due,list:r.list};
   if(it.over)over.push(it);else(it.time?timed:rems).push(it);});
  (o.habits||[]).forEach(t=>{const log=(o.hlog||{})[t.id]||[];if(!habitDueToday(t.rec,log,TODAY))return;
   habs.push({k:'habit',id:t.id,title:t.content,area:'Vaner',time:null,done:log.includes(TODAY),over:false,rec:t.rec,ref:t});});
@@ -1170,7 +1172,7 @@ function homeFeed(o){
  (o.doneTasks||[]).forEach(t=>dn.push({k:'task',id:t.id,title:t.content,area:o.catName(t.pid),time:t.time||null,done:true,over:false,ref:t}));
  timed.sort((a,b)=>String(a.time).localeCompare(String(b.time)));
  tod.push(...allday,...timed,...untimed,...rems,...habs,...hlth,...dn);
- const open=[...over,...tod].filter(i=>i.k!=='cal'&&i.k!=='rem'&&!i.done).length;
+ const open=[...over,...tod].filter(i=>i.k!=='cal'&&!i.done).length;
  const doneN=[...over,...tod].filter(i=>i.done).length;
  return {over,today:tod,open,done:doneN};}
 function homeGroups(F,mode,catOrder){
@@ -1182,7 +1184,7 @@ function homeTodoCard(w){
  const mode=LS.g('homegrp','tid');
  const h=healthGet();const wk=iso(weekStart(today));const L=h.log[wk]||{done:{}};
  const F=homeFeed({TODAY,tasks:planTasks(),doneTasks:planDone(),habits:habitsAll(),hlog:LS.g('hlog',{}),plan:h.plan,hdone:L.done||{},
-  rems:remRows(LS.g('reminders',null),TODAY).rows,usedRem:STORE.filter(t=>t.remid).map(t=>t.remid),cal:calToday().events,catName:id=>catOf(id).name});
+  rems:remRows(LS.g('reminders',null),TODAY).rows,usedRem:STORE.filter(t=>t.remid).map(t=>t.remid),remClosed:remCloseGet().map(x=>x.k),cal:calToday().events,catName:id=>catOf(id).name});
  const tot=F.open+F.done;
  const c=card('✅ I dag',F.open?(F.open+' tilbage · '+F.done+' klaret'):(tot?'Alt klaret i dag 🎉':''));c.classList.add('homecard');
  const tg=document.createElement('div');tg.className='homeseg';
@@ -1205,13 +1207,16 @@ function homeRow(it,mode,nowHM){
  if(it.k==='habit')sub='🔁 '+esc(it.rec||'');
  if(sub){const dv=document.createElement('div');dv.className='duesub';dv.innerHTML=sub;body.appendChild(dv);}
  const sy=document.createElement('div');sy.className='symrow';
- if(it.k==='habit'||it.k==='health'){const chk=document.createElement('div');chk.className='cchk'+(it.done?' done':'');chk.title=it.done?'Fortryd':'Klaret i dag';
+ if(it.k==='rem'){const chk=document.createElement('div');chk.className='cchk'+(it.done?' done':'');chk.title=it.done?'Fortryd — lad påmindelsen være åben':'Luk påmindelsen (også i Påmindelser-appen)';
+  chk.onclick=()=>remCloseFlip({key:it.id,list:it.list,title:it.title,due:it.dueFull});sy.appendChild(chk);
+  if(it.done){const p=document.createElement('span');p.className='symtxt';p.style.cursor='default';p.textContent='lukkes i Påmindelser…';p.title='Lukkes i Påmindelser-appen, næste gang din Mac tjekker (hvert 15. min)';sy.appendChild(p);}}
+ else if(it.k==='habit'||it.k==='health'){const chk=document.createElement('div');chk.className='cchk'+(it.done?' done':'');chk.title=it.done?'Fortryd':'Klaret i dag';
   chk.onclick=()=>{if(it.k==='habit'){const l=LS.g('hlog',{});const a=l[it.id]||[];const ix=a.indexOf(TODAY);if(ix>=0)a.splice(ix,1);else a.push(TODAY);l[it.id]=a;LS.s('hlog',l);}
    else{const h=healthGet();const wk=iso(weekStart(today));h.log[wk]=h.log[wk]||{done:{},note:{}};h.log[wk].done[it.id]=!h.log[wk].done[it.id];healthSet(h);}
    toast(it.done?'Fortrudt':'Klaret ✓');render();};sy.appendChild(chk);
   ttl.onclick=()=>goto(it.k==='habit'?'habits':'health');}
- else{const s=document.createElement('span');s.className='sym';s.style.cursor='default';s.textContent=it.k==='cal'?'🗓':'🔔';s.title=it.k==='cal'?'Aftale fra din kalender':'Påmindelse — fuldføres i Påmindelser-appen';sy.appendChild(s);
-  ttl.onclick=()=>{if(it.k==='cal')goto('timeline');else toast('Påmindelser fuldføres i Påmindelser-appen 🔔');};}
+ else{const s=document.createElement('span');s.className='sym';s.style.cursor='default';s.textContent='🗓';s.title='Aftale fra din kalender';sy.appendChild(s);
+  ttl.onclick=()=>goto('timeline');}
  if(mode!=='omraade'||it.k==='rem'){const sl=document.createElement('div');sl.className='streamlbl';sl.textContent=it.k==='rem'&&it.list?it.list:it.area;sy.appendChild(sl);}
  body.appendChild(sy);el.appendChild(body);return el;}
 function dashP(w){
@@ -2182,7 +2187,7 @@ function sidePanel(){ // v1.84: fire kilder, og fanevælgeren er flyttet ud som 
   {p:'bk',  ic:'💤', navn:'Backlog',           und:'Uden dato, sorteret efter horisont. Træk ⠿ over i dagens plan.'},
   {p:'app', ic:'📋', navn:'Dine opgaver',      und:'Alt du har oprettet i LifeOS. Søg, og hent det du vil nå i dag.'},
   {p:'obj', ic:'🎯', navn:'Ugens målsætninger',und:'Det der skal være sandt på søndag. Knyt opgaver til en målsætning, så du kan se om du rykker.'},
-  {p:'rem', ic:'🔔', navn:'Påmindelser',       und:'Fra iPhonens Påmindelser — læses fra din Mac, når den er tændt. ＋ lægger den på dagens plan.'}
+  {p:'rem', ic:'🔔', navn:'Påmindelser',       und:'Fra iPhonens Påmindelser — læses fra din Mac. Sæt flueben for at lukke den, også i Påmindelser-appen. ＋ lægger den på dagens plan.'}
  ];
  let tab=LS.g('fpanel','cal');
  if(!KILDER.some(k=>k.p===tab))tab='cal';
@@ -2246,13 +2251,34 @@ function remRows(data,TODAY){
    notes:r.n||null,over:!!day&&day<TODAY};});
  rows.sort((a,b)=>((a.due===null)-(b.due===null))||String(a.due||'').localeCompare(String(b.due||''))||a.title.toLowerCase().localeCompare(b.title.toLowerCase()));
  return {rows:rows,updated:data.updated||null};}
+// v1.95: luk påmindelser fra LifeOS (Ninas ønske 6/11). Lukningen lægges i køen cc2_remclose, som synkes til
+// lifeos-data. Et job på Ninas Mac (reminders-close.py, hvert 15. min) lukker dem i Påmindelser-appen.
+// En post fjernes fra køen, når en nyere eksport fra Mac'en ikke længere har påmindelsen.
+function remCloseToggle(q,r,nowIso){q=(q||[]).slice();const i=q.findIndex(x=>x.k===r.key);
+ if(i>=0){q.splice(i,1);return q;}
+ q.push({k:r.key,l:r.list,t:r.title,d:r.due||null,at:nowIso});return q;}
+function remClosePrune(q,data,nowIso){q=q||[];
+ const upd=data&&data.updated?String(data.updated):'';const items=(data&&Array.isArray(data.items))?data.items:[];
+ const open=new Set(items.map(r=>(r.l||'')+'|'+(r.t||'')));
+ const old=new Date(new Date(nowIso).getTime()-14*864e5).toISOString();
+ return q.filter(x=>{if(x.at<old)return false; // sikkerhedsnet: ingen post hænger evigt
+  if(upd&&new Date(upd)>new Date(x.at)&&!open.has(x.k))return false; // Mac'en har lukket den
+  return true;});}
+function remCloseGet(){const q=LS.g('remclose',[]);const p=remClosePrune(q,LS.g('reminders',null),new Date().toISOString());
+ if(p.length!==q.length)LS.s('remclose',p);return p;}
+function remCloseFlip(r){const was=remCloseGet().some(x=>x.k===r.key);LS.s('remclose',remCloseToggle(remCloseGet(),r,new Date().toISOString()));
+ toast(was?'Fortrudt — påmindelsen forbliver åben':'Lukket ✓ — lukkes i Påmindelser-appen inden for 15 min');render();}
+function remRowFromKey(key){const i=String(key).indexOf('|');return {key:key,list:i>=0?key.slice(0,i):'',title:i>=0?key.slice(i+1):key,due:null};}
 function sideReminders(c){
  const R=remRows(LS.g('reminders',null),TODAY);
  const brugt=new Set(STORE.filter(t=>t.remid).map(t=>t.remid));
+ const lukket=new Set(remCloseGet().map(x=>x.k)); // v1.95
  if(!R.rows.length)c.appendChild(empty(R.updated?'Ingen åbne påmindelser 🎉':'Ingen påmindelser endnu — de læses fra din Mac, når den er tændt.'));
  R.rows.slice(0,60).forEach(r=>{
   const row=document.createElement('div');row.className='sdrow';
-  const tx=document.createElement('div');tx.style.cssText='flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+  const isL=lukket.has(r.key);
+  const ck=document.createElement('div');ck.className='cchk remchk'+(isL?' done':'');ck.title=isL?'Fortryd — lad påmindelsen være åben':'Luk påmindelsen (også i Påmindelser-appen)';ck.onclick=()=>remCloseFlip(r);row.appendChild(ck);
+  const tx=document.createElement('div');tx.style.cssText='flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'+(isL?';text-decoration:line-through;color:var(--muted)':'');
   tx.textContent=r.title;tx.title=r.title+(r.notes?' — '+r.notes:'');
   const dv=document.createElement('span');dv.style.cssText='font-size:10.5px;flex:0 0 auto;white-space:nowrap;color:'+(r.over?'var(--over)':'var(--muted)');
   dv.textContent=r.day?(shortDate(r.day)+(!r.allDay&&r.due.length>10?' '+r.due.slice(11,16):'')):'– dato';
@@ -2266,7 +2292,7 @@ function sideReminders(c){
   row.appendChild(tx);row.appendChild(dv);row.appendChild(b);c.appendChild(row);});
  if(R.rows.length>60)c.appendChild(empty('…og '+(R.rows.length-60)+' mere.'));
  if(R.updated){const fresh=document.createElement('p');fresh.className='hint';fresh.style.margin='10px 0 0';
-  fresh.textContent='Læst '+new Date(R.updated).toLocaleString('da-DK',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+' fra din Mac. Fuldfør dem i Påmindelser-appen — her kan kun læses.';
+  fresh.textContent='Læst '+new Date(R.updated).toLocaleString('da-DK',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+' fra din Mac. Lukker du en her, lukkes den også i Påmindelser-appen inden for 15 min, når din Mac er vågen.';
   c.appendChild(fresh);}}
 // Målsætningerne som kilde i panelet — samme kort som alle andre steder.
 function sideObjectives(c){
