@@ -1,4 +1,4 @@
-<!doctype html><!--LIFEOS 1.97 2026-11-12-->
+<!doctype html><!--LIFEOS 1.98 2026-11-12-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -344,6 +344,13 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 .idag .chips{display:flex;flex-wrap:wrap;gap:6px;padding:0 16px 12px}
 .idag .chip{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border-radius:999px;background:var(--t);border:1px solid var(--l);color:var(--a);font-size:13px;font-weight:500}
 @media (max-width:600px){.idag .chip{min-height:44px}}
+.idag .iprg{font-size:13px;font-weight:600;color:var(--a);font-variant-numeric:tabular-nums;white-space:nowrap}
+.idag button.iprg{min-width:44px;min-height:32px;border-radius:999px;background:var(--t);border:1px solid var(--l);text-align:center;padding:0 10px}
+.idag .irow.isub{min-height:40px;padding-left:50px;font-size:13.5px;border-top:0}.idag .irow.isub .t{padding:6px 0;cursor:default}
+.idag .irow.dragging{opacity:.4}.idag .blk.dropok{outline:2px dashed var(--a2);outline-offset:3px}
+.hdays{display:flex;gap:6px;margin-top:8px}.hdays button{flex:1;min-height:40px;border:1px solid var(--line);border-radius:9px;background:#fff;font:inherit;font-size:13.5px;font-weight:600;color:#8a9099;cursor:pointer;padding:0}
+.hdays button.on{background:#2b3036;color:#fff;border-color:#2b3036}
+.modal textarea.hsubs{width:100%;min-height:70px;border:1px solid var(--line);border-radius:9px;padding:8px 10px;font:inherit}
 .idag .bcar{color:var(--itext2);display:inline-flex;margin-left:2px}
 .idag .iempty{padding:20px 16px;font-size:14px;color:var(--itext2);border-top:1px solid var(--iline);text-align:center}
 .idag .iomr{padding:6px 12px 12px}
@@ -474,7 +481,7 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 <div class="wrap">
   <header>
     <h1>Nina's LifeOS</h1><span id="pageTitle"></span><span class="date" id="dateStr"></span><span id="pageActions" style="display:flex;gap:4px;margin-left:6px"></span>
-    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.97</span>
+    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.98</span>
     <span id="syncChip" style="margin-left:6px;font-size:12px;color:var(--muted)">⚪ ikke sat op</span>
     <button class="imp" id="undoBtn" title="Fortryd seneste ændring (⌘Z)" style="margin-left:0;opacity:.4">↩️</button>
     <button class="imp" id="ghBtn" style="margin-left:0">⚙️ Sync</button>
@@ -673,7 +680,7 @@ function dateActions(t){const out=[{k:'today',l:'I dag',d:TODAY},{k:'tom',l:'I m
  return out.filter(r=>{if(!r.d||seen.has(r.d))return false;seen.add(r.d);return true;});}
 document.getElementById('dateStr').textContent=today.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
 // ---------- v80: versionsnummer (1.80 = HOVEDVERSION.BYG, Ninas valg 3/8) ----------
-const APP={v:'1.97',d:'2026-11-12'};
+const APP={v:'1.98',d:'2026-11-12'};
 // Versionsmærket står som HTML-kommentar i filens første 100 bytes, så tjekket henter
 // kun et par hundrede bytes i stedet for hele appen (270 KB) hver gang.
 async function verRemote(){
@@ -1144,26 +1151,35 @@ function habitModal(t,isNew){
      <option value="hverdage"${t.rec==='hverdage'?' selected':''}>Hverdage</option>
      <option value="hver 2 dage"${t.rec==='hver 2 dage'?' selected':''}>Hver 2. dag</option>
      <option value="hver uge"${t.rec==='hver uge'?' selected':''}>Hver uge</option>
+     <option value="__days__">Bestemte ugedage</option>
      <option value="__custom__">Tilpasset…</option>
    </select>
+   <div class="hdays" id="h_days" style="display:none" role="group" aria-label="Ugedage">${['M','T','O','T','F','L','S'].map((l,i)=>`<button type="button" data-d="${i}" aria-label="${['Mandag','Tirsdag','Onsdag','Torsdag','Fredag','Lørdag','Søndag'][i]}">${l}</button>`).join('')}</div>
    <input id="h_rc" placeholder="Tilpasset hyppighed (f.eks. hver mandag)" style="width:100%;margin-top:6px;display:none">
    <div class="mrow"><div><label>Blok på I dag</label><select id="h_b">${[['morgen','Morgen'],['dag','Dag'],['aften','Aften']].map(b=>`<option value="${b[0]}"${(t.blk||'dag')===b[0]?' selected':''}>${b[1]}</option>`).join('')}</select></div>
    <div><label>Senest kl. (valgfri)</label><input id="h_by" type="time" value="${esc(t.by||'')}"></div></div>
    <p class="hint" style="margin:6px 0 0">Er vanen ikke krydset af til tiden, bliver den markeret som manglende på Forsiden. Uden tidspunkt gælder blokkens slutning (Morgen 9 · Dag 17 · Aften 23).</p>
+   <div class="mrow"><div><label>Antal gange pr. dag (valgfri)</label><input id="h_n" type="number" min="1" max="50" inputmode="numeric" placeholder="fx 8" value="${+t.n>1?+t.n:''}"></div><div></div></div>
+   <label>Underpunkter — ét pr. linje (valgfri)</label><textarea id="h_s" class="hsubs" placeholder="fx&#10;Vitamin D&#10;Magnesium">${esc((t.subs||[]).map(x=>x.t).join('\n'))}</textarea>
+   <p class="hint" style="margin:6px 0 0">Med et antal hakker du vanen af pr. gang (6/8). Med underpunkter er vanen klaret, når alle er hakket af.</p>
    ${isNew?'':'<div class="mrow" style="margin-top:10px"><button type="button" class="btn" id="h_up">↑ Flyt op</button><button type="button" class="btn" id="h_dn">↓ Flyt ned</button></div>'}
    <div class="mbtns">${isNew?'':'<button class="del">Slet</button>'}<button class="cancel">Annullér</button><button class="save">${isNew?'Opret vane':'Gem'}</button></div>
  </div></div>`;
  const close=()=>host.innerHTML='';
  const discard=()=>{const i=STORE.indexOf(t);if(i>=0)STORE.splice(i,1);save();close();render();}; // v49: Annullér på ny vane = fortryd oprettelse
  const sel=document.getElementById('h_r'),cust=document.getElementById('h_rc');
- if(!['hver dag','hverdage','hver 2 dage','hver uge'].includes(t.rec)){sel.value='__custom__';cust.style.display='block';cust.value=t.rec||'';}
- sel.onchange=()=>{cust.style.display=sel.value==='__custom__'?'block':'none';};
+ const dayBox=document.getElementById('h_days');const dset=new Set(daysFromRec(t.rec));
+ const paintDays=()=>dayBox.querySelectorAll('button').forEach(b=>{const on=dset.has(+b.dataset.d);b.classList.toggle('on',on);b.setAttribute('aria-pressed',on?'true':'false');});
+ dayBox.querySelectorAll('button').forEach(b=>b.onclick=()=>{const d=+b.dataset.d;if(dset.has(d))dset.delete(d);else dset.add(d);paintDays();});paintDays();
+ if(!['hver dag','hverdage','hver 2 dage','hver uge'].includes(t.rec)){if(dset.size){sel.value='__days__';dayBox.style.display='flex';}else{sel.value='__custom__';cust.style.display='block';cust.value=t.rec||'';}}
+ sel.onchange=()=>{cust.style.display=sel.value==='__custom__'?'block':'none';dayBox.style.display=sel.value==='__days__'?'flex':'none';};
  host.querySelector('.mbg').onclick=e=>{if(e.target===host.querySelector('.mbg'))(isNew?discard:close)();};
  host.querySelector('.cancel').onclick=isNew?discard:close;
  const delBtn=host.querySelector('.del');if(delBtn)delBtn.onclick=()=>{const l=LS.g('hlog',{});delete l[t.id];LS.s('hlog',l);close();delTasks([t],'Vane slettet');};
  const mv=dir=>{const blk=t.blk||'dag';habitMove(habitsAll().filter(x=>(x.blk||'dag')===blk),t.id,dir).forEach(o=>{const h=STORE.find(x=>x.id===o.id);if(h)h.ho=o.ho;});save();render();toast(dir<0?'Flyttet op':'Flyttet ned');};
  const up=document.getElementById('h_up');if(up){up.onclick=()=>mv(-1);document.getElementById('h_dn').onclick=()=>mv(1);}
- host.querySelector('.save').onclick=()=>{t.content=document.getElementById('h_c').value.trim()||t.content;t.rec=sel.value==='__custom__'?(cust.value.trim()||t.rec):sel.value;
+ host.querySelector('.save').onclick=()=>{t.content=document.getElementById('h_c').value.trim()||t.content;t.rec=sel.value==='__custom__'?(cust.value.trim()||t.rec):sel.value==='__days__'?(recFromDays([...dset])||t.rec||'hver dag'):sel.value;
+  {const nv=parseInt(document.getElementById('h_n').value,10);t.n=nv>1?Math.min(nv,50):null;const sb=subsParse(document.getElementById('h_s').value,t.subs,Date.now());t.subs=sb.length?sb:null;}
   const nb=document.getElementById('h_b').value;if(nb!==(t.blk||'dag')&&!isNew)t.ho=habitsAll().filter(x=>x!==t&&(x.blk||'dag')===nb).reduce((m,x)=>Math.max(m,x.ho||0),0)+10;t.blk=nb;t.by=document.getElementById('h_by').value||null;save();close();toast(isNew?'Vane oprettet 🔁':'Gemt');render();};
  setTimeout(()=>{const i=document.getElementById('h_c');if(i&&isNew){i.focus();i.select();}},50);
 }
@@ -1262,7 +1278,9 @@ function homeFeed(o){
   const it={k:'rem',id:r.key,title:r.title,area:'Påmindelser',time:(!r.allDay&&r.due&&r.due.length>10)?r.due.slice(11,16):null,done:closed.has(r.key),over:r.day<TODAY,due:r.day,dueFull:r.due,list:r.list};
   if(it.over)over.push(it);else(it.time?timed:rems).push(it);});
  (o.habits||[]).forEach(t=>{const log=(o.hlog||{})[t.id]||[];if(!habitDueToday(t.rec,log,TODAY))return;
-  habs.push({k:'habit',id:t.id,title:t.content,area:'Vaner',time:null,done:log.includes(TODAY),over:false,rec:t.rec,ref:t,blk:t.blk||'dag',by:t.by||null,ho:t.ho||0});});
+  const dn_=log.includes(TODAY);const n_=(+t.n>1)?+t.n:0;const sd_=(((o.hsub||{})[t.id]||{})[TODAY])||[];
+  habs.push({k:'habit',id:t.id,title:t.content,area:'Vaner',time:null,done:dn_,over:false,rec:t.rec,ref:t,blk:t.blk||'dag',by:t.by||null,ho:t.ho||0,
+   n:n_,cnt:dn_&&n_?n_:Math.min(n_,(((o.hcount||{})[t.id]||{})[TODAY])||0),subs:(t.subs||[]).map(x=>({id:x.id,t:x.t,done:dn_||sd_.includes(x.id)}))});});
  // v1.96: ugens aftaler fra søndagsmødet (Ninas egne kan krydses af; Mikkels vises som information)
  const RL={aflever:['Aflevér Lily','Mikkel afleverer Lily','morgen',50],hent:['Hent Lily','Mikkel henter Lily','dag',90],mad:['Lav aftensmad','Mikkel laver aftensmad','aften',5],put:['Put Lily','Mikkel putter Lily','aften',45]};
  const rl=[];(o.roles||[]).forEach(r=>{const d=RL[r.role];if(!d)return;const mine=r.who==='n'||r.who==='b';
@@ -1272,6 +1290,7 @@ function homeFeed(o){
  (o.doneTasks||[]).forEach(t=>dn.push({k:'task',id:t.id,title:t.content,area:o.catName(t.pid),time:t.time||null,done:true,over:false,ref:t,blk:t.blk||null}));
  timed.sort((a,b)=>String(a.time).localeCompare(String(b.time)));
  tod.push(...allday,...timed,...untimed,...rems,...habs,...rl,...hlth,...dn);
+ const mv_=o.dayblk||{};tod.forEach(i=>{if(i.k!=='cal'&&mv_[i.id])i.mv=mv_[i.id];}); // v1.98: flyttet til en anden blok, kun i dag
  const open=[...over,...tod].filter(i=>i.k!=='cal'&&i.k!=='info'&&!i.done).length;
  const doneN=[...over,...tod].filter(i=>i.done).length;
  return {over,today:tod,open,done:doneN};}
@@ -1282,11 +1301,20 @@ function homeGroups(F,mode,catOrder){
  return names.map(n=>({h:n,items:all.filter(i=>i.area===n)}));}
 // v1.96: I dag-siden — dagen i tre blokke (Morgen · Dag · Aften), markering af det der mangler, og ugens aftaler.
 function blkOfTime(hm){return !hm?'dag':hm<'09:00'?'morgen':hm<'17:00'?'dag':'aften';}
-function itemBlk(it){if(it.k==='habit'||it.k==='role'||it.k==='info')return it.blk||'dag';if(it.k==='health')return 'dag';return it.time?blkOfTime(it.time):(it.blk||'dag');} // klokkeslæt bestemmer; ellers den blok, opgaven blev oprettet i
+function itemBlk(it){if(it.mv)return it.mv;if(it.k==='habit'||it.k==='role'||it.k==='info')return it.blk||'dag';if(it.k==='health')return 'dag';return it.time?blkOfTime(it.time):(it.blk||'dag');} // klokkeslæt bestemmer; ellers den blok, opgaven blev oprettet i
 function itemDeadline(it){
- if(it.k==='habit'||it.k==='role')return it.by||({morgen:'09:00',dag:'17:00',aften:'23:00'})[it.blk||'dag'];
+ const END={morgen:'09:00',dag:'17:00',aften:'23:00'};
+ if(it.mv&&(it.k==='habit'||it.k==='role'||it.time))return END[it.mv]; // flyttet i dag: fristen følger den nye blok
+ if(it.k==='habit'||it.k==='role')return it.by||END[it.blk||'dag'];
  if((it.k==='task'||it.k==='rem')&&it.time)return it.time;
  return null;}
+// v1.98: ren logik til vaner — ugedage, underpunkter og fremdrift
+function daysFromRec(rec){const D=['mandag','tirsdag','onsdag','torsdag','fredag','lørdag','søndag'];const r=String(rec||'').toLowerCase();return D.map((n,i)=>r.includes(n)?i:-1).filter(i=>i>=0);}
+function recFromDays(days){const D=['mandag','tirsdag','onsdag','torsdag','fredag','lørdag','søndag'];const d=[...new Set(days||[])].filter(i=>i>=0&&i<7).sort((a,b)=>a-b);
+ if(!d.length)return '';if(d.length===7)return 'hver dag';if(d.length===5&&d.join('')==='01234')return 'hverdage';return d.map(i=>D[i]).join(', ');}
+function subsParse(text,old,stamp){const seen=new Set();const out=[];String(text||'').split('\n').map(x=>x.trim()).filter(Boolean).forEach((x,i)=>{if(seen.has(x.toLowerCase()))return;seen.add(x.toLowerCase());
+ const o=(old||[]).find(y=>y.t.toLowerCase()===x.toLowerCase());out.push({id:o?o.id:'s'+(stamp||0)+'_'+i,t:x});});return out;}
+function habitProg(it){if(it.subs&&it.subs.length)return {cur:it.subs.filter(x=>x.done).length,max:it.subs.length};if(it.n>1)return {cur:it.cnt||0,max:it.n};return null;}
 function itemLate(it,nowHM){if(!it||it.done||!nowHM)return false;const d=itemDeadline(it);return !!d&&nowHM>d;}
 function dayBlocks(F,nowHM){
  // v1.97 (designet): 1) heldags 2) alt med klokkeslæt 3) opgaver/aftaler uden tid 4) vaner og træning 5) klaret. Mikkels aftaler står for sig (partner).
@@ -1309,6 +1337,11 @@ function habitMove(list,id,dir){
  return a.map((x,n)=>({id:x.id,ho:(n+1)*10}));}
 function roleDoneFlip(role){const all=LS.g('roledone',{});const a=all[TODAY]||[];const ix=a.indexOf(role);if(ix>=0)a.splice(ix,1);else a.push(role);all[TODAY]=a;
  const lim=new Date(today);lim.setDate(lim.getDate()-14);const lk=iso(lim);Object.keys(all).forEach(k=>{if(k<lk)delete all[k];});LS.s('roledone',all);}
+function dayPrune(m,days){const lim=new Date(today);lim.setDate(lim.getDate()-days);const lk=iso(lim);Object.keys(m).forEach(k=>{if(k<lk)delete m[k];});return m;}
+function habitSetDone(id,on){const l=LS.g('hlog',{});const a=l[id]||[];const ix=a.indexOf(TODAY);if(on&&ix<0)a.push(TODAY);if(!on&&ix>=0)a.splice(ix,1);l[id]=a;LS.s('hlog',l);}
+function habitCountAdd(it,delta){const all=LS.g('hcount',{});const m=all[it.id]||{};const c=Math.max(0,Math.min(it.n,(it.cnt||0)+delta));m[TODAY]=c;all[it.id]=dayPrune(m,60);LS.s('hcount',all);habitSetDone(it.id,c>=it.n);return c;}
+function habitSubSet(it,ids){const all=LS.g('hsub',{});const m=all[it.id]||{};m[TODAY]=ids;all[it.id]=dayPrune(m,60);LS.s('hsub',all);habitSetDone(it.id,ids.length>=it.subs.length);}
+function dayBlkSet(id,blk){const all=dayPrune(LS.g('dayblk',{}),7);const m=all[TODAY]||{};if(blk)m[id]=blk;else delete m[id];all[TODAY]=m;LS.s('dayblk',all);}
 function newHabit(blk){const hs=habitsAll().filter(x=>(x.blk||'dag')===blk);
  const nt={id:'t'+(UID++),content:'Ny vane',pid:catByName('Sundhed')||catByName('Family'),due:TODAY,rec:'hver dag',pri:null,q:null,imp:null,eff:null,done:false,star:false,src:'me',blk:blk,by:null,ho:hs.reduce((m,x)=>Math.max(m,x.ho||0),0)+10};
  STORE.push(nt);save();habitModal(nt,true);}
@@ -1325,10 +1358,13 @@ function idagRow(it,nowHM,blkId){
   b.onclick=()=>{
    if(it.k==='task'){const t=it.ref;if(t.done){uncompleteTask(t);save();toast('Genåbnet');}else{const nd=completeTask(t);save();toast(nd?'Færdig ✓ — næste: '+fmtDue(nd):'Færdig ✓');}render();return;}
    if(it.k==='rem'){remCloseFlip({key:it.id,list:it.list,title:it.title,due:it.dueFull});return;}
-   if(it.k==='habit'){const l=LS.g('hlog',{});const a=l[it.id]||[];const ix=a.indexOf(TODAY);if(ix>=0)a.splice(ix,1);else a.push(TODAY);l[it.id]=a;LS.s('hlog',l);}
+   if(it.k==='habit'&&it.subs.length){habitSubSet(it,it.done?[]:it.subs.map(x=>x.id));toast(it.done?'Fortrudt':'Klaret ✓');render();return;}
+   if(it.k==='habit'&&it.n>1){const c=habitCountAdd(it,it.done?-1:1);toast(c>=it.n?'Klaret ✓':c+' af '+it.n);render();return;}
+   if(it.k==='habit'){habitSetDone(it.id,!it.done);}
    else if(it.k==='role'){roleDoneFlip(it.role);}
    else{const h=healthGet();const wk=iso(weekStart(today));h.log[wk]=h.log[wk]||{done:{},note:{}};h.log[wk].done[it.id]=!h.log[wk].done[it.id];healthSet(h);}
    toast(it.done?'Fortrudt':'Klaret ✓');render();};
+  if(it.k==='habit'&&it.n>1&&!it.done)b.setAttribute('aria-label','Tæl én gang mere ('+it.cnt+' af '+it.n+')');
   el.appendChild(b);}
  // v1.97 trin 4: titlen er en rigtig knap (kan nås med tastatur). På telefon viser første tryk på en opgave handlingerne, næste tryk åbner den.
  const touch=!!(window.matchMedia&&window.matchMedia('(hover:none)').matches);const hasActs=it.k==='task'&&!it.done;const actOn=hasActs&&IDAGUI.act===it.id;
@@ -1344,6 +1380,11 @@ function idagRow(it,nowHM,blkId){
  else if(it.k==='habit'&&it.by)r='senest '+it.by;
  else if(it.k==='role'&&it.both)r='med Mikkel';
  else if(it.time)r=it.time;
+ const pg=it.k==='habit'?habitProg(it):null;
+ if(pg){const cnt=it.n>1&&!it.subs.length;const c=document.createElement(cnt&&pg.cur>0&&!it.done?'button':'span');c.className='iprg';c.textContent=pg.cur+'/'+pg.max;
+  if(c.tagName==='BUTTON'){c.type='button';c.title='Træk én fra';c.setAttribute('aria-label','Træk én fra ('+pg.cur+' af '+pg.max+')');c.onclick=()=>{habitCountAdd(it,-1);render();};}
+  el.appendChild(c);if(!pill&&r&&r.charAt(0)!=='<'&&it.k==='habit'&&!it.by)r='';}
+ if(!pill&&!r&&it.mv)r='kun i dag';
  if(pill){const p=document.createElement('span');p.className='ipill';p.textContent=pill;el.appendChild(p);}
  else if(r){if(r.charAt(0)==='<'){const h=document.createElement('span');h.innerHTML=r;el.appendChild(h.firstChild);}else{const x=document.createElement('span');x.className='r';x.textContent=r;el.appendChild(x);}}
  if(hasActs){const ac=document.createElement('div');ac.className='acts';
@@ -1351,12 +1392,23 @@ function idagRow(it,nowHM,blkId){
    const b=document.createElement('button');b.type='button';b.setAttribute('aria-label',lb);b.title=lb;b.innerHTML=phIcon(ic);b.onclick=e=>{e.stopPropagation();fn(e);};ac.appendChild(b);});
   el.appendChild(ac);}
  if(it.k==='task'&&it.ref&&it.ref.star){const st=document.createElement('span');st.className='istar';st.title='Top 3';st.setAttribute('role','img');st.setAttribute('aria-label','Top 3');st.innerHTML=phIcon('star-fill');el.appendChild(st);}
+ // v1.98: træk et punkt til en anden blok (kun Mac, gælder kun i dag)
+ if(!touch&&it.k!=='cal'&&!it.over&&blkId!=='over'){el.draggable=true;el.title='Træk til en anden blok for at flytte — kun i dag';
+  el.ondragstart=e=>{IDAGUI.drag={id:it.id,nat:itemBlk(Object.assign({},it,{mv:null})),from:blkId};try{e.dataTransfer.setData('text/plain',it.id);e.dataTransfer.effectAllowed='move';}catch(_){ }el.classList.add('dragging');};
+  el.ondragend=()=>{el.classList.remove('dragging');IDAGUI.drag=null;document.querySelectorAll('.idag .dropok').forEach(x=>x.classList.remove('dropok'));};}
+ // v1.98: underpunkter vises under vanen, til den er klaret
+ if(it.k==='habit'&&it.subs.length&&!it.done){const fr=document.createDocumentFragment();fr.appendChild(el);
+  it.subs.forEach(x=>{const sr=document.createElement('div');sr.className='irow hab isub'+(x.done?' done':'');
+   const b=document.createElement('button');b.type='button';b.className='slot';b.setAttribute('aria-label',(x.done?'Fortryd: ':'Markér som klaret: ')+x.t);b.innerHTML='<span class="bx'+(x.done?' on':'')+'">'+(x.done?phIcon('check'):'')+'</span>';
+   b.onclick=()=>{const cur=it.subs.filter(y=>y.done).map(y=>y.id);habitSubSet(it,x.done?cur.filter(y=>y!==x.id):cur.concat(x.id));render();};sr.appendChild(b);
+   const tt=document.createElement('span');tt.className='t';tt.textContent=x.t;sr.appendChild(tt);fr.appendChild(sr);});
+  return fr;}
  return el;}
 function untilText(nowHM,startHM){ // "om 3 t 20 min" — bruges på sammenklappede, kommende blokke
  const m=x=>(+x.slice(0,2))*60+(+x.slice(3,5));const d=m(startHM)-m(nowHM);if(!(d>0))return '';
  const h=Math.floor(d/60),r=d%60;return 'om '+(h?h+' t':'')+(h&&r?' ':'')+(r?r+' min':'');}
 function blkPhase(id,cur){const o=['morgen','dag','aften'];const a=o.indexOf(id),b=o.indexOf(cur);return a<b?'past':a>b?'next':'cur';}
-const IDAGUI={fold:{},add:null,open:{},mq:null,act:null}; // hvad der er foldet ud lige nu (huskes kun, til siden genindlæses)
+const IDAGUI={fold:{},add:null,open:{},mq:null,act:null,drag:null}; // hvad der er foldet ud lige nu (huskes kun, til siden genindlæses)
 function idagCard(w,F,nowHM,mode){
  const root=document.createElement('div');root.className='idag';
  const lateN=[...F.over,...F.today].filter(it=>itemLate(it,nowHM)).length,overN=F.over.length,tot=F.open+F.done;
@@ -1386,6 +1438,10 @@ function idagCard(w,F,nowHM,mode){
    s.innerHTML='<div class="overdue-label">'+phIcon('warning-circle')+'Forfaldent</div>';g.items.forEach(it=>s.appendChild(idagRow(it,nowHM,'over')));root.appendChild(s);return;}
   const s=document.createElement('section');s.className='blk '+g.id+(g.cur?' cur':'');s.setAttribute('aria-label',g.h+(g.cur?', nu':''));
   const isDone=it=>it.done&&it.k!=='cal';const open=g.items.filter(it=>!isDone(it)),dn=g.items.filter(isDone);
+  const NAMES={morgen:'Morgen',dag:'Dag',aften:'Aften'};
+  s.ondragover=e=>{if(IDAGUI.drag&&IDAGUI.drag.from!==g.id){e.preventDefault();s.classList.add('dropok');}};
+  s.ondragleave=e=>{if(!s.contains(e.relatedTarget))s.classList.remove('dropok');};
+  s.ondrop=e=>{const d=IDAGUI.drag;IDAGUI.drag=null;if(!d||d.from===g.id)return;e.preventDefault();dayBlkSet(d.id,g.id===d.nat?null:g.id);toast(g.id===d.nat?'Flyttet tilbage til '+NAMES[g.id]:'Flyttet til '+NAMES[g.id]+' — kun i dag');render();};
   const phase=blkPhase(g.id,curId);const shut=phone&&(g.id in IDAGUI.open?!IDAGUI.open[g.id]:phase!=='cur');
   const sub=(shut&&phase==='next')?(open.length+' '+(open.length===1?'punkt':'punkter')+(untilText(nowHM,START[g.id])?' · '+untilText(nowHM,START[g.id]):'')):RANGE[g.id];
   const bh=document.createElement('div');bh.className='blk-head';
@@ -1410,7 +1466,8 @@ function homeTodoCard(w){
  const mode=LS.g('homegrp','tid');
  const h=healthGet();const wk=iso(weekStart(today));const L=h.log[wk]||{done:{}};
  const F=homeFeed({TODAY,tasks:planTasks(),doneTasks:planDone(),habits:habitsAll(),hlog:LS.g('hlog',{}),plan:h.plan,hdone:L.done||{},
-  rems:remRows(LS.g('reminders',null),TODAY).rows,usedRem:STORE.filter(t=>t.remid).map(t=>t.remid),remClosed:remCloseGet().map(x=>x.k),cal:calToday().events,catName:id=>catOf(id).name,
+  rems:remRows(LS.g('reminders',null),TODAY).rows,usedRem:STORE.filter(t=>t.remid).map(t=>t.remid),remClosed:remCloseGet().map(x=>x.k),cal:calToday().events.filter(e=>!e.a&&e.s),catName:id=>catOf(id).name, // v1.98: heldagsbegivenheder vises ikke på Forsiden
+  hcount:LS.g('hcount',{}),hsub:LS.g('hsub',{}),dayblk:LS.g('dayblk',{})[TODAY]||{},
   roles:rolesForDay(LS.g('weekroles',{}),TODAY),roleDone:(LS.g('roledone',{})[TODAY])||[]});
  const tot=F.open+F.done;
  const _n=new Date();const nowHM=String(_n.getHours()).padStart(2,'0')+':'+String(_n.getMinutes()).padStart(2,'0');
