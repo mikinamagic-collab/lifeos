@@ -1,4 +1,4 @@
-<!doctype html><!--LIFEOS 1.96 2026-11-11-->
+<!doctype html><!--LIFEOS 1.97 2026-11-12-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -8,6 +8,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="LifeOS">
 <meta name="theme-color" content="#f7f7f5">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
 <style>
 :root{color-scheme:light;
  --bg:#f8f9f8;--card:#fff;--ink:#2b3036;--muted:#9aa1a9;--line:#eceef0;
@@ -268,6 +270,85 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 .hlate{box-shadow:inset 3px 0 0 var(--over)}.homerow.hinfo{opacity:.7}.homelate{color:var(--over);margin-left:6px}
 .homeh.blk{display:flex;align-items:center;gap:6px;margin-top:18px}.homeh.blk .sp{flex:1}
 .homeadd{font:inherit;font-size:13px;font-weight:600;letter-spacing:0;text-transform:none;border:1px solid var(--line);background:#fff;color:#4a5057;border-radius:8px;min-height:36px;padding:6px 12px;cursor:pointer}
+.homerow.hc{display:flex;align-items:center;gap:2px;background:#fff;border:1px solid #f0f0f0;border-radius:4px;box-shadow:0 1px 1px rgba(0,0,0,.1);margin:2px 2px 6px;padding:1px 10px 1px 2px;min-height:44px}
+.homerow.hc.hlate{box-shadow:inset 3px 0 0 var(--over),0 1px 1px rgba(0,0,0,.1)}
+.hchit{flex:0 0 42px;height:42px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px}.hinfo .hchit{cursor:default}
+.hcmid{flex:1;min-width:0;padding:5px 0}.hc .ttl{font-weight:500;color:#413f39;line-height:1.3}.hcsub{font-size:11.5px;color:var(--muted);margin-top:1px}
+@media(min-width:1000px){
+ .daycols,.overgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 20px;align-items:start}
+ .wrcols{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:0 16px;align-items:start}}
+.daycol{border-radius:12px;padding:2px 8px 8px;margin-top:12px}
+.daycol.blk-morgen{background:#fff5e1;--blkc:#a86200}.daycol.blk-dag{background:#e8f3fc;--blkc:#1c68a6}.daycol.blk-aften{background:#eeebfa;--blkc:#5a44ad}
+.daycol>.homeh.blk{margin:6px 2px 6px;font-size:12.5px}.daycol .blkn,.daycol .blkic{color:var(--blkc)}.blkic{display:inline-flex}
+/* v1.97: "I dag" — design fra Claude Design (retning D). Alt er afgrænset til .idag, så resten af appen er urørt. */
+.idag{--ibg:#F7F7F5;--isurf:#FFFFFF;--iline:#ECEBE7;--itext:#1F2328;--itext2:#5F6670;--ictl:#BFC4CB;--ired:#B42318;
+ font-family:Inter,system-ui,-apple-system,sans-serif;color:var(--itext);-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;gap:20px;margin:6px 0 24px;line-height:1.35}
+.idag .morgen{--a:#94600F}.idag .dag{--a:#2B7A50}.idag .aften{--a:#2A65A3}.idag .overdue,.idag .ipill{--a:var(--ired)}
+.idag .morgen,.idag .dag,.idag .aften,.idag .overdue,.idag .ipill{--a2:color-mix(in srgb,var(--a) 55%,#fff);--t:color-mix(in srgb,var(--a) 7%,#fff);--l:color-mix(in srgb,var(--a) 16%,#fff)}
+.idag button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;text-align:left}
+.idag .ic{width:16px;height:16px;flex:none;fill:currentColor}
+.idag .ihd{display:flex;align-items:flex-end;gap:12px}.idag .ihd>div:first-child{flex:1;min-width:0}
+.idag h1{margin:2px 0 0;font-size:30px;font-weight:600;letter-spacing:-.02em;line-height:1.15}
+.idag .date{font-size:13px;font-weight:500;color:var(--itext2)}.idag .date::first-letter{text-transform:uppercase}
+.idag .iseg{display:flex;gap:4px}.idag .iseg button{font-size:13px;font-weight:500;color:var(--itext2);border:1px solid var(--iline);background:var(--isurf);border-radius:999px;min-height:36px;padding:0 14px}
+.idag .iseg button.on{color:var(--itext);border-color:var(--ictl)}
+.idag .istats{font-size:13px;color:var(--itext2)}.idag .istats .m,.idag .istats .o{color:var(--ired);font-weight:600}
+.idag .iprog{height:6px;border-radius:999px;background:var(--iline);overflow:hidden}.idag .iprog>span{display:block;height:100%;background:var(--itext2);border-radius:999px}
+.idag .ihdr{display:flex;flex-direction:column;gap:8px}
+.idag .cols{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
+.idag .cols>.blk{flex:1 1 320px;min-width:0}.idag .cols>.blk.cur{flex:1.3 1 360px}
+.idag .blk{background:var(--isurf);border:1px solid var(--iline);border-radius:16px;overflow:hidden}
+.idag .blk.cur{border-color:var(--a2);box-shadow:0 0 0 1px var(--a2),0 14px 30px -20px rgba(31,60,100,.4)}
+.idag .blk-head{background:var(--t)}
+.idag .bh{display:flex;align-items:center;gap:10px;padding:12px 16px;min-height:52px;width:100%}
+.idag .bi{width:28px;height:28px;border-radius:8px;background:var(--l);color:var(--a);display:grid;place-items:center;flex:none}
+.idag .bn{font-size:15px;font-weight:600;color:var(--a)}.idag .br{font-size:12px;color:var(--itext2)}
+.idag .partner{display:flex;align-items:center;gap:6px;padding:0 16px 10px 54px;margin-top:-4px;font-size:13px;color:var(--itext2)}
+.idag .partner+.partner{margin-top:-6px}
+.idag .now{font-size:12px;font-weight:600;color:#fff;background:var(--a);border-radius:999px;padding:3px 9px}
+.idag .irow{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 16px;border-top:1px solid var(--iline);font-size:15px}
+.idag .irow .t{flex:1;min-width:0;line-height:1.35;padding:10px 0;cursor:pointer;word-break:break-word}
+.idag .irow.hab{font-size:14px}.idag .irow.iev{font-size:14px}
+.idag .irow .r{font-size:13px;color:var(--itext2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.idag .irow.done .t{color:var(--itext2);text-decoration:line-through;text-decoration-color:var(--ictl)}
+.idag .irow.iev.done .t{text-decoration:none}
+.idag .istar{color:var(--a);display:inline-flex}
+.idag .slot{width:22px;height:22px;flex:none;display:grid;place-items:center;position:relative}
+.idag .slot::after{content:"";position:absolute;inset:-11px}
+.idag .ck{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--ictl);background:#fff}
+.idag .bx{width:17px;height:17px;border-radius:5px;border:1.5px solid var(--ictl);background:#fff}
+.idag .ck.on,.idag .bx.on{background:var(--a2);border-color:var(--a2);color:#fff;display:grid;place-items:center}
+.idag .ck.on .ic,.idag .bx.on .ic{width:12px;height:12px}
+.idag .evic{color:var(--itext2)}
+.idag .acts{display:none;gap:2px;color:var(--itext2);margin-right:-8px}
+.idag .acts button{width:32px;height:32px;border-radius:8px;display:grid;place-items:center}
+.idag .irow.acton{background:var(--ibg)}.idag .irow.acton .acts{display:flex}.idag .irow.acton .acts button{width:44px;height:44px}
+.idag .irow button.t{display:block}
+.idag button:focus-visible{outline:2px solid var(--itext);outline-offset:2px;border-radius:6px}
+@media (hover:hover){.idag .irow:hover{background:var(--ibg)}.idag .irow:hover .acts{display:flex}.idag .acts button:hover{background:var(--iline)}}
+/* v1.97 trin 4: resten af Forsiden i samme stil (kun .fsd = Forsiden) */
+.fsd{font-family:Inter,system-ui,-apple-system,sans-serif;color:#1F2328;-webkit-font-smoothing:antialiased}
+.fsd>.card{border:1px solid #ECEBE7;border-radius:16px;box-shadow:none;padding:16px 16px 14px;background:#fff}
+.fsd>.card>h2{font-size:15px;font-weight:600;letter-spacing:0;margin:0 0 6px;color:#1F2328}
+.fsd>.card .hint{color:#5F6670;font-size:13px}
+.fsd>.card .btn{border:1px solid #ECEBE7;border-radius:999px;background:#fff;color:#1F2328;font-size:13px;font-weight:500;box-shadow:none;padding:0 14px;min-height:36px}
+.fsd>.card .prog{background:#ECEBE7;height:6px;border-radius:999px}.fsd>.card .prog>i{background:#5F6670;border-radius:999px}
+.fsd>.card.fhero{border:0;background:none;padding:0 0 2px;margin-bottom:10px}.fsd>.card.fhero>h2{font-size:15px;font-weight:500;color:#5F6670}
+@media(max-width:600px){.fsd>.card .btn{min-height:44px}}
+.idag .ipill{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--ired);background:var(--t);border-radius:999px;padding:2px 8px;white-space:nowrap}
+.idag .blk.overdue{background:var(--t);border-color:var(--l)}.idag .blk.overdue .irow{border-color:var(--l)}.idag .blk.overdue .irow:first-of-type{border-top:0}.idag .blk.overdue .ck{border-color:var(--a2)}
+.idag .overdue-label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ired);padding:12px 16px 2px}
+.idag .irow .overdue-when{color:var(--ired);font-weight:500}
+.idag .addv{display:flex;align-items:center;gap:8px;width:100%;min-height:44px;padding:0 16px;border-top:1px solid var(--iline);font-size:13px;font-weight:500;color:var(--a)}
+.idag .fold{display:flex;align-items:center;gap:8px;width:100%;min-height:44px;padding:0 16px;border-top:1px solid var(--iline);font-size:13px;color:var(--itext2)}
+.idag .chips{display:flex;flex-wrap:wrap;gap:6px;padding:0 16px 12px}
+.idag .chip{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border-radius:999px;background:var(--t);border:1px solid var(--l);color:var(--a);font-size:13px;font-weight:500}
+@media (max-width:600px){.idag .chip{min-height:44px}}
+.idag .bcar{color:var(--itext2);display:inline-flex;margin-left:2px}
+.idag .iempty{padding:20px 16px;font-size:14px;color:var(--itext2);border-top:1px solid var(--iline);text-align:center}
+.idag .iomr{padding:6px 12px 12px}
+@media(min-width:1000px){.wrap.wide{max-width:1360px}}
+@media (max-width:600px){.idag{gap:14px}.idag h1{font-size:26px}.idag .cols{gap:14px}}
 .homenone{font-size:12.5px;color:var(--muted);padding:4px 2px 2px}
 .wr{display:grid;grid-template-columns:auto repeat(4,minmax(0,1fr));gap:6px;align-items:center;margin-top:6px}
 .wr .hd{font-size:12px;font-weight:700;color:#4a5057;text-align:center;position:sticky;top:var(--wrtop,0px);z-index:3;background:var(--card);padding:9px 0 7px;border-bottom:1px solid var(--line)}.wr .dl{font-size:13px;font-weight:600;padding-right:4px}.wr .dl.tdy{color:var(--home)}
@@ -393,7 +474,7 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 <div class="wrap">
   <header>
     <h1>Nina's LifeOS</h1><span id="pageTitle"></span><span class="date" id="dateStr"></span><span id="pageActions" style="display:flex;gap:4px;margin-left:6px"></span>
-    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.96</span>
+    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.97</span>
     <span id="syncChip" style="margin-left:6px;font-size:12px;color:var(--muted)">⚪ ikke sat op</span>
     <button class="imp" id="undoBtn" title="Fortryd seneste ændring (⌘Z)" style="margin-left:0;opacity:.4">↩️</button>
     <button class="imp" id="ghBtn" style="margin-left:0">⚙️ Sync</button>
@@ -592,7 +673,7 @@ function dateActions(t){const out=[{k:'today',l:'I dag',d:TODAY},{k:'tom',l:'I m
  return out.filter(r=>{if(!r.d||seen.has(r.d))return false;seen.add(r.d);return true;});}
 document.getElementById('dateStr').textContent=today.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
 // ---------- v80: versionsnummer (1.80 = HOVEDVERSION.BYG, Ninas valg 3/8) ----------
-const APP={v:'1.96',d:'2026-11-11'};
+const APP={v:'1.97',d:'2026-11-12'};
 // Versionsmærket står som HTML-kommentar i filens første 100 bytes, så tjekket henter
 // kun et par hundrede bytes i stedet for hele appen (270 KB) hver gang.
 async function verRemote(){
@@ -1174,7 +1255,7 @@ function homeFeed(o){
  const DAYS=['mandag','tirsdag','onsdag','torsdag','fredag','lørdag','søndag'];
  const allday=[],timed=[],untimed=[],rems=[],habs=[],hlth=[],dn=[];
  (o.cal||[]).forEach((e,i)=>{const it={k:'cal',id:'cal'+i,title:e.t||'',area:'Kalender',time:e.a?null:(e.s||null),end:e.e||null,done:false,over:false};(e.a||!e.s?allday:timed).push(it);});
- (o.tasks||[]).forEach(t=>{const isOver=!!t.due&&t.due<TODAY;const it={k:'task',id:t.id,title:t.content,area:o.catName(t.pid),time:t.time||null,done:!!t.done,over:isOver,due:t.due||null,ref:t};
+ (o.tasks||[]).forEach(t=>{const isOver=!!t.due&&t.due<TODAY;const it={k:'task',id:t.id,title:t.content,area:o.catName(t.pid),time:t.time||null,done:!!t.done,over:isOver,due:t.due||null,ref:t,blk:t.blk||null};
   if(isOver)over.push(it);else(it.time?timed:untimed).push(it);});
  const used=new Set(o.usedRem||[]);const closed=new Set(o.remClosed||[]);
  (o.rems||[]).forEach(r=>{if(!r.day||r.day>TODAY||used.has(r.key))return;
@@ -1188,7 +1269,7 @@ function homeFeed(o){
   rl.push({k:mine?'role':'info',id:'role_'+r.role,role:r.role,both:r.who==='b',title:mine?d[0]:d[1],area:'Ugeaftaler',time:null,done:mine&&(o.roleDone||[]).includes(r.role),over:false,blk:d[2],ho:d[3],by:null});});
  const pd=o.plan&&(o.plan.week||[]).find(d=>String(d.day||'').toLowerCase()===DAYS[dow]);
  if(pd&&!pd.rest)(pd.items||[]).forEach(x=>{const key=pd.id+'.'+x.id;hlth.push({k:'health',id:key,title:x.t,area:'Træning & sundhed',time:null,done:!!(o.hdone||{})[key],over:false});});
- (o.doneTasks||[]).forEach(t=>dn.push({k:'task',id:t.id,title:t.content,area:o.catName(t.pid),time:t.time||null,done:true,over:false,ref:t}));
+ (o.doneTasks||[]).forEach(t=>dn.push({k:'task',id:t.id,title:t.content,area:o.catName(t.pid),time:t.time||null,done:true,over:false,ref:t,blk:t.blk||null}));
  timed.sort((a,b)=>String(a.time).localeCompare(String(b.time)));
  tod.push(...allday,...timed,...untimed,...rems,...habs,...rl,...hlth,...dn);
  const open=[...over,...tod].filter(i=>i.k!=='cal'&&i.k!=='info'&&!i.done).length;
@@ -1201,19 +1282,22 @@ function homeGroups(F,mode,catOrder){
  return names.map(n=>({h:n,items:all.filter(i=>i.area===n)}));}
 // v1.96: I dag-siden — dagen i tre blokke (Morgen · Dag · Aften), markering af det der mangler, og ugens aftaler.
 function blkOfTime(hm){return !hm?'dag':hm<'09:00'?'morgen':hm<'17:00'?'dag':'aften';}
-function itemBlk(it){if(it.k==='habit'||it.k==='role'||it.k==='info')return it.blk||'dag';if(it.k==='health')return 'dag';return blkOfTime(it.time);}
+function itemBlk(it){if(it.k==='habit'||it.k==='role'||it.k==='info')return it.blk||'dag';if(it.k==='health')return 'dag';return it.time?blkOfTime(it.time):(it.blk||'dag');} // klokkeslæt bestemmer; ellers den blok, opgaven blev oprettet i
 function itemDeadline(it){
  if(it.k==='habit'||it.k==='role')return it.by||({morgen:'09:00',dag:'17:00',aften:'23:00'})[it.blk||'dag'];
  if((it.k==='task'||it.k==='rem')&&it.time)return it.time;
  return null;}
 function itemLate(it,nowHM){if(!it||it.done||!nowHM)return false;const d=itemDeadline(it);return !!d&&nowHM>d;}
 function dayBlocks(F,nowHM){
- const rank=it=>(it.k==='task'&&it.done)?6:(it.k==='cal'&&!it.time)?0:(it.k==='habit'||it.k==='role'||it.k==='info')?1:it.time?2:it.k==='task'?3:it.k==='rem'?4:5;
+ // v1.97 (designet): 1) heldags 2) alt med klokkeslæt 3) opgaver/aftaler uden tid 4) vaner og træning 5) klaret. Mikkels aftaler står for sig (partner).
+ const rank=it=>(it.done&&it.k!=='cal')?6:(it.k==='cal'&&!it.time)?0:(it.k==='habit'||it.k==='health')?3:it.time?1:2;
  const out=[];if(F.over.length)out.push({id:'over',h:'Forfaldent',over:true,items:F.over,late:0});
+ const cur=blkOfTime(nowHM);
  [['morgen','Morgen'],['dag','Dag'],['aften','Aften']].forEach(([id,h])=>{
-  const items=F.today.map((it,i)=>({it,i})).filter(x=>itemBlk(x.it)===id).sort((a,b)=>{const ra=rank(a.it),rb=rank(b.it);if(ra!==rb)return ra-rb;
-   if(ra===1)return ((a.it.ho||0)-(b.it.ho||0))||(a.i-b.i);if(ra===2)return String(a.it.time).localeCompare(String(b.it.time))||(a.i-b.i);return a.i-b.i;}).map(x=>x.it);
-  out.push({id,h,items,late:items.filter(it=>itemLate(it,nowHM)).length});});
+  const all=F.today.map((it,i)=>({it,i})).filter(x=>itemBlk(x.it)===id);
+  const items=all.filter(x=>x.it.k!=='info').sort((a,b)=>{const ra=rank(a.it),rb=rank(b.it);if(ra!==rb)return ra-rb;
+   if(ra===3)return ((a.it.ho||0)-(b.it.ho||0))||(a.i-b.i);if(ra===1)return String(a.it.time).localeCompare(String(b.it.time))||(a.i-b.i);return a.i-b.i;}).map(x=>x.it);
+  out.push({id,h,items,partner:all.filter(x=>x.it.k==='info').map(x=>x.it),late:items.filter(it=>itemLate(it,nowHM)).length,cur:!!nowHM&&cur===id});});
  return out;}
 function rolesForDay(wr,TODAY){
  const d=new Date(TODAY+'T12:00');const dow=(d.getDay()+6)%7;const W=(wr||{})[weekMonday(TODAY)];if(!W||!W.r)return [];
@@ -1228,6 +1312,100 @@ function roleDoneFlip(role){const all=LS.g('roledone',{});const a=all[TODAY]||[]
 function newHabit(blk){const hs=habitsAll().filter(x=>(x.blk||'dag')===blk);
  const nt={id:'t'+(UID++),content:'Ny vane',pid:catByName('Sundhed')||catByName('Family'),due:TODAY,rec:'hver dag',pri:null,q:null,imp:null,eff:null,done:false,star:false,src:'me',blk:blk,by:null,ho:hs.reduce((m,x)=>Math.max(m,x.ho||0),0)+10};
  STORE.push(nt);save();habitModal(nt,true);}
+// v1.97: Phosphor-ikoner (regular) til I dag-designet
+function phIcon(n){const P={'caret-up':'<path d="M213.66,165.66a8,8,0,0,1-11.32,0L128,91.31,53.66,165.66a8,8,0,0,1-11.32-11.32l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,213.66,165.66Z"/>','barbell':'<path d="M248,120h-8V88a16,16,0,0,0-16-16H208V64a16,16,0,0,0-16-16H168a16,16,0,0,0-16,16v56H104V64A16,16,0,0,0,88,48H64A16,16,0,0,0,48,64v8H32A16,16,0,0,0,16,88v32H8a8,8,0,0,0,0,16h8v32a16,16,0,0,0,16,16H48v8a16,16,0,0,0,16,16H88a16,16,0,0,0,16-16V136h48v56a16,16,0,0,0,16,16h24a16,16,0,0,0,16-16v-8h16a16,16,0,0,0,16-16V136h8a8,8,0,0,0,0-16ZM32,168V88H48v80Zm56,24H64V64H88V192Zm104,0H168V64h24V175.82c0,.06,0,.12,0,.18s0,.12,0,.18V192Zm32-24H208V88h16Z"/>','bell':'<path d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z"/>','calendar-blank':'<path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Z"/>','calendar-dots':'<path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-68-76a12,12,0,1,1-12-12A12,12,0,0,1,140,132Zm44,0a12,12,0,1,1-12-12A12,12,0,0,1,184,132ZM96,172a12,12,0,1,1-12-12A12,12,0,0,1,96,172Zm44,0a12,12,0,1,1-12-12A12,12,0,0,1,140,172Zm44,0a12,12,0,1,1-12-12A12,12,0,0,1,184,172Z"/>','caret-down':'<path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/>','check-circle':'<path d="M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34ZM232,128A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z"/>','check':'<path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/>','clock':'<path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/>','flag':'<path d="M42.76,50A8,8,0,0,0,40,56V224a8,8,0,0,0,16,0V179.77c26.79-21.16,49.87-9.75,76.45,3.41,16.4,8.11,34.06,16.85,53,16.85,13.93,0,28.54-4.75,43.82-18a8,8,0,0,0,2.76-6V56A8,8,0,0,0,218.76,50c-28,24.23-51.72,12.49-79.21-1.12C111.07,34.76,78.78,18.79,42.76,50ZM216,172.25c-26.79,21.16-49.87,9.74-76.45-3.41-25-12.35-52.81-26.13-83.55-8.4V59.79c26.79-21.16,49.87-9.75,76.45,3.4,25,12.35,52.82,26.13,83.55,8.4Z"/>','moon-stars':'<path d="M240,96a8,8,0,0,1-8,8H216v16a8,8,0,0,1-16,0V104H184a8,8,0,0,1,0-16h16V72a8,8,0,0,1,16,0V88h16A8,8,0,0,1,240,96ZM144,56h8v8a8,8,0,0,0,16,0V56h8a8,8,0,0,0,0-16h-8V32a8,8,0,0,0-16,0v8h-8a8,8,0,0,0,0,16Zm72.77,97a8,8,0,0,1,1.43,8A96,96,0,1,1,95.07,37.8a8,8,0,0,1,10.6,9.06A88.07,88.07,0,0,0,209.14,150.33,8,8,0,0,1,216.77,153Zm-19.39,14.88c-1.79.09-3.59.14-5.38.14A104.11,104.11,0,0,1,88,64c0-1.79,0-3.59.14-5.38A80,80,0,1,0,197.38,167.86Z"/>','plus':'<path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"/>','repeat':'<path d="M24,128A72.08,72.08,0,0,1,96,56H204.69L194.34,45.66a8,8,0,0,1,11.32-11.32l24,24a8,8,0,0,1,0,11.32l-24,24a8,8,0,0,1-11.32-11.32L204.69,72H96a56.06,56.06,0,0,0-56,56,8,8,0,0,1-16,0Zm200-8a8,8,0,0,0-8,8,56.06,56.06,0,0,1-56,56H51.31l10.35-10.34a8,8,0,0,0-11.32-11.32l-24,24a8,8,0,0,0,0,11.32l24,24a8,8,0,0,0,11.32-11.32L51.31,200H160a72.08,72.08,0,0,0,72-72A8,8,0,0,0,224,120Z"/>','star-fill':'<path d="M234.29,114.85l-45,38.83L203,211.75a16.4,16.4,0,0,1-24.5,17.82L128,198.49,77.47,229.57A16.4,16.4,0,0,1,53,211.75l13.76-58.07-45-38.83A16.46,16.46,0,0,1,31.08,86l59-4.76,22.76-55.08a16.36,16.36,0,0,1,30.27,0l22.75,55.08,59,4.76a16.46,16.46,0,0,1,9.37,28.86Z"/>','star':'<path d="M239.18,97.26A16.38,16.38,0,0,0,224.92,86l-59-4.76L143.14,26.15a16.36,16.36,0,0,0-30.27,0L90.11,81.23,31.08,86a16.46,16.46,0,0,0-9.37,28.86l45,38.83L53,211.75a16.38,16.38,0,0,0,24.5,17.82L128,198.49l50.53,31.08A16.4,16.4,0,0,0,203,211.75l-13.76-58.07,45-38.83A16.43,16.43,0,0,0,239.18,97.26Zm-15.34,5.47-48.7,42a8,8,0,0,0-2.56,7.91l14.88,62.8a.37.37,0,0,1-.17.48c-.18.14-.23.11-.38,0l-54.72-33.65a8,8,0,0,0-8.38,0L69.09,215.94c-.15.09-.19.12-.38,0a.37.37,0,0,1-.17-.48l14.88-62.8a8,8,0,0,0-2.56-7.91l-48.7-42c-.12-.1-.23-.19-.13-.5s.18-.27.33-.29l63.92-5.16A8,8,0,0,0,103,91.86l24.62-59.61c.08-.17.11-.25.35-.25s.27.08.35.25L153,91.86a8,8,0,0,0,6.75,4.92l63.92,5.16c.15,0,.24,0,.33.29S224,102.63,223.84,102.73Z"/>','sun-horizon':'<path d="M240,152H199.55a73.54,73.54,0,0,0,.45-8,72,72,0,0,0-144,0,73.54,73.54,0,0,0,.45,8H16a8,8,0,0,0,0,16H240a8,8,0,0,0,0-16ZM72,144a56,56,0,1,1,111.41,8H72.59A56.13,56.13,0,0,1,72,144Zm144,56a8,8,0,0,1-8,8H48a8,8,0,0,1,0-16H208A8,8,0,0,1,216,200ZM72.84,43.58a8,8,0,0,1,14.32-7.16l8,16a8,8,0,0,1-14.32,7.16Zm-56,48.84a8,8,0,0,1,10.74-3.57l16,8a8,8,0,0,1-7.16,14.31l-16-8A8,8,0,0,1,16.84,92.42Zm192,15.16a8,8,0,0,1,3.58-10.73l16-8a8,8,0,1,1,7.16,14.31l-16,8a8,8,0,0,1-10.74-3.58Zm-48-55.16,8-16a8,8,0,0,1,14.32,7.16l-8,16a8,8,0,1,1-14.32-7.16Z"/>','sun':'<path d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z"/>','users-three':'<path d="M244.8,150.4a8,8,0,0,1-11.2-1.6A51.6,51.6,0,0,0,192,128a8,8,0,0,1-7.37-4.89,8,8,0,0,1,0-6.22A8,8,0,0,1,192,112a24,24,0,1,0-23.24-30,8,8,0,1,1-15.5-4A40,40,0,1,1,219,117.51a67.94,67.94,0,0,1,27.43,21.68A8,8,0,0,1,244.8,150.4ZM190.92,212a8,8,0,1,1-13.84,8,57,57,0,0,0-98.16,0,8,8,0,1,1-13.84-8,72.06,72.06,0,0,1,33.74-29.92,48,48,0,1,1,58.36,0A72.06,72.06,0,0,1,190.92,212ZM128,176a32,32,0,1,0-32-32A32,32,0,0,0,128,176ZM72,120a8,8,0,0,0-8-8A24,24,0,1,1,87.24,82a8,8,0,1,0,15.5-4A40,40,0,1,0,37,117.51,67.94,67.94,0,0,0,9.6,139.19a8,8,0,1,0,12.8,9.61A51.6,51.6,0,0,1,64,128,8,8,0,0,0,72,120Z"/>','warning-circle':'<path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-80V80a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,172Z"/>'};return P[n]?'<svg class="ic" viewBox="0 0 256 256" aria-hidden="true">'+P[n]+'</svg>':'';}
+// v1.97: "I dag" i det nye design. Række for alle slags punkter.
+function idagRow(it,nowHM,blkId){
+ const late=itemLate(it,nowHM),dl=itemDeadline(it);const past=it.k==='cal'&&it.end&&it.end<nowHM;
+ const sq=it.k==='habit'||it.k==='health';
+ const el=document.createElement('div');el.className='irow'+(sq?' hab':'')+(it.k==='cal'?' iev':'')+((it.done||past)?' done':'');
+ if(it.k==='cal'){const s=document.createElement('span');s.className='slot evic';s.innerHTML=phIcon('calendar-dots');el.appendChild(s);}
+ else{const b=document.createElement('button');b.className='slot';b.type='button';b.setAttribute('aria-label',it.done?'Fortryd klaret':(sq?'Markér vane som klaret':'Markér som klaret'));
+  b.innerHTML='<span class="'+(sq?'bx':'ck')+(it.done?' on':'')+'">'+(it.done?phIcon('check'):'')+'</span>';
+  b.onclick=()=>{
+   if(it.k==='task'){const t=it.ref;if(t.done){uncompleteTask(t);save();toast('Genåbnet');}else{const nd=completeTask(t);save();toast(nd?'Færdig ✓ — næste: '+fmtDue(nd):'Færdig ✓');}render();return;}
+   if(it.k==='rem'){remCloseFlip({key:it.id,list:it.list,title:it.title,due:it.dueFull});return;}
+   if(it.k==='habit'){const l=LS.g('hlog',{});const a=l[it.id]||[];const ix=a.indexOf(TODAY);if(ix>=0)a.splice(ix,1);else a.push(TODAY);l[it.id]=a;LS.s('hlog',l);}
+   else if(it.k==='role'){roleDoneFlip(it.role);}
+   else{const h=healthGet();const wk=iso(weekStart(today));h.log[wk]=h.log[wk]||{done:{},note:{}};h.log[wk].done[it.id]=!h.log[wk].done[it.id];healthSet(h);}
+   toast(it.done?'Fortrudt':'Klaret ✓');render();};
+  el.appendChild(b);}
+ // v1.97 trin 4: titlen er en rigtig knap (kan nås med tastatur). På telefon viser første tryk på en opgave handlingerne, næste tryk åbner den.
+ const touch=!!(window.matchMedia&&window.matchMedia('(hover:none)').matches);const hasActs=it.k==='task'&&!it.done;const actOn=hasActs&&IDAGUI.act===it.id;
+ const go=it.k==='task'?()=>editModal(it.ref):it.k==='habit'?()=>habitModal(it.ref):it.k==='role'?()=>goto('ugemoede'):it.k==='health'?()=>goto('health'):it.k==='cal'?()=>goto('timeline'):null;
+ const t=document.createElement(go?'button':'span');t.className='t';t.textContent=it.title;if(go){t.type='button';
+  t.onclick=()=>{if(hasActs&&touch&&!actOn){IDAGUI.act=it.id;render();return;}IDAGUI.act=null;go();};}
+ el.appendChild(t);if(actOn)el.classList.add('acton');
+ let r='',pill='';
+ if(it.over)r='<span class="r overdue-when">Forfaldt '+esc(fmtDue(it.due))+'</span>';
+ else if(late)pill='Mangler · '+dl;
+ else if(it.k==='cal')r=it.time?(it.time+(it.end?'–'+it.end:'')):'Hele dagen';
+ else if(it.k==='rem'&&it.done)r='lukkes i Påmindelser…';
+ else if(it.k==='habit'&&it.by)r='senest '+it.by;
+ else if(it.k==='role'&&it.both)r='med Mikkel';
+ else if(it.time)r=it.time;
+ if(pill){const p=document.createElement('span');p.className='ipill';p.textContent=pill;el.appendChild(p);}
+ else if(r){if(r.charAt(0)==='<'){const h=document.createElement('span');h.innerHTML=r;el.appendChild(h.firstChild);}else{const x=document.createElement('span');x.className='r';x.textContent=r;el.appendChild(x);}}
+ if(hasActs){const ac=document.createElement('div');ac.className='acts';
+  [['calendar-blank','Vælg dato',e=>moveMenu(it.ref,e)],['clock','Planlagt tid',e=>estPicker(it.ref,e)],['flag','Prioritet',e=>priPicker(it.ref,e)]].forEach(([ic,lb,fn])=>{
+   const b=document.createElement('button');b.type='button';b.setAttribute('aria-label',lb);b.title=lb;b.innerHTML=phIcon(ic);b.onclick=e=>{e.stopPropagation();fn(e);};ac.appendChild(b);});
+  el.appendChild(ac);}
+ if(it.k==='task'&&it.ref&&it.ref.star){const st=document.createElement('span');st.className='istar';st.title='Top 3';st.setAttribute('role','img');st.setAttribute('aria-label','Top 3');st.innerHTML=phIcon('star-fill');el.appendChild(st);}
+ return el;}
+function untilText(nowHM,startHM){ // "om 3 t 20 min" — bruges på sammenklappede, kommende blokke
+ const m=x=>(+x.slice(0,2))*60+(+x.slice(3,5));const d=m(startHM)-m(nowHM);if(!(d>0))return '';
+ const h=Math.floor(d/60),r=d%60;return 'om '+(h?h+' t':'')+(h&&r?' ':'')+(r?r+' min':'');}
+function blkPhase(id,cur){const o=['morgen','dag','aften'];const a=o.indexOf(id),b=o.indexOf(cur);return a<b?'past':a>b?'next':'cur';}
+const IDAGUI={fold:{},add:null,open:{},mq:null,act:null}; // hvad der er foldet ud lige nu (huskes kun, til siden genindlæses)
+function idagCard(w,F,nowHM,mode){
+ const root=document.createElement('div');root.className='idag';
+ const lateN=[...F.over,...F.today].filter(it=>itemLate(it,nowHM)).length,overN=F.over.length,tot=F.open+F.done;
+ const hd=document.createElement('div');hd.className='ihdr';
+ const top=document.createElement('div');top.className='ihd';
+ top.innerHTML='<div><div class="date">'+esc(today.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'}))+'</div><h1>I dag</h1></div>';
+ const seg=document.createElement('div');seg.className='iseg';seg.setAttribute('role','group');seg.setAttribute('aria-label','Visning');
+ [['tid','Tid'],['omraade','Område']].forEach(([k,l])=>{const b=document.createElement('button');b.type='button';b.className=mode===k?'on':'';b.textContent=l;b.setAttribute('aria-pressed',mode===k?'true':'false');b.onclick=()=>{LS.s('homegrp',k);render();};seg.appendChild(b);});
+ top.appendChild(seg);hd.appendChild(top);
+ const st=document.createElement('div');st.className='istats';
+ st.innerHTML=tot?(F.open+' tilbage · '+F.done+' klaret'+(lateN?' · <span class="m">'+lateN+' mangler</span>':'')+(overN?' · <span class="o">'+overN+' '+(overN===1?'forfalden':'forfaldne')+'</span>':'')):'Intet på listen i dag';
+ hd.appendChild(st);
+ const pg=document.createElement('div');pg.className='iprog';pg.innerHTML='<span style="width:'+(tot?Math.round(F.done/tot*100):0)+'%"></span>';hd.appendChild(pg);
+ root.appendChild(hd);
+ if(mode==='omraade'){const box=document.createElement('div');box.className='blk iomr';
+  homeGroups(F,mode,PROJECTS.map(p=>p.name)).forEach(g=>{const h=document.createElement('div');h.className='homeh';h.textContent=g.h+' · '+g.items.length;box.appendChild(h);
+   g.items.forEach(it=>box.appendChild(it.k==='task'?taskRow(it.ref):homeRow(it,mode,nowHM)));});
+  root.appendChild(box);w.appendChild(root);return;}
+ const groups=dayBlocks(F,nowHM);
+ // v1.97 trin 3: på telefon klappes overståede og kommende blokke sammen; tryk på overskriften folder ud
+ if(!IDAGUI.mq&&window.matchMedia){IDAGUI.mq=window.matchMedia('(max-width:600px)');if(IDAGUI.mq.addEventListener)IDAGUI.mq.addEventListener('change',()=>render());}
+ const phone=!!(IDAGUI.mq&&IDAGUI.mq.matches),curId=blkOfTime(nowHM),START={morgen:'00:00',dag:'09:00',aften:'17:00'};
+ const RANGE={morgen:'før kl. 9',dag:'kl. 9–17',aften:'efter kl. 17'},ICON={morgen:'sun-horizon',dag:'sun',aften:'moon-stars'},EMPTY={morgen:'Intet planlagt om morgenen',dag:'Intet planlagt i løbet af dagen',aften:'Intet planlagt om aftenen'};
+ const cols=document.createElement('div');cols.className='cols';
+ groups.forEach(g=>{
+  if(g.over){const s=document.createElement('section');s.className='blk overdue';s.setAttribute('aria-label','Forfaldent');
+   s.innerHTML='<div class="overdue-label">'+phIcon('warning-circle')+'Forfaldent</div>';g.items.forEach(it=>s.appendChild(idagRow(it,nowHM,'over')));root.appendChild(s);return;}
+  const s=document.createElement('section');s.className='blk '+g.id+(g.cur?' cur':'');s.setAttribute('aria-label',g.h+(g.cur?', nu':''));
+  const isDone=it=>it.done&&it.k!=='cal';const open=g.items.filter(it=>!isDone(it)),dn=g.items.filter(isDone);
+  const phase=blkPhase(g.id,curId);const shut=phone&&(g.id in IDAGUI.open?!IDAGUI.open[g.id]:phase!=='cur');
+  const sub=(shut&&phase==='next')?(open.length+' '+(open.length===1?'punkt':'punkter')+(untilText(nowHM,START[g.id])?' · '+untilText(nowHM,START[g.id]):'')):RANGE[g.id];
+  const bh=document.createElement('div');bh.className='blk-head';
+  bh.innerHTML='<'+(phone?'button type="button" aria-expanded="'+(shut?'false':'true')+'"':'div')+' class="bh"><span class="bi">'+phIcon(ICON[g.id])+'</span><span class="bn">'+g.h+'</span><span class="br">'+esc(sub)+'</span><span style="flex:1"></span>'+(g.late?'<span class="ipill">'+g.late+' mangler</span>':'')+(g.cur?'<span class="now">Nu</span>':'')+(phone?'<span class="bcar">'+phIcon(shut?'caret-down':'caret-up')+'</span>':'')+'</'+(phone?'button':'div')+'>'
+   +(shut?'':g.partner.map(p=>'<div class="partner">'+phIcon('users-three')+esc(p.title)+'</div>').join(''));
+  s.appendChild(bh);
+  if(phone)bh.querySelector('.bh').onclick=()=>{IDAGUI.open[g.id]=shut;render();};
+  if(shut){s.classList.add('shut');if(phase==='past')open.filter(it=>itemLate(it,nowHM)).forEach(it=>s.appendChild(idagRow(it,nowHM,g.id)));cols.appendChild(s);return;}
+  open.forEach(it=>s.appendChild(idagRow(it,nowHM,g.id)));
+  if(!g.items.length){const e=document.createElement('div');e.className='iempty';e.textContent=EMPTY[g.id];s.appendChild(e);}
+  if(dn.length){const ex=!!IDAGUI.fold[g.id];const fb=document.createElement('button');fb.type='button';fb.className='fold';fb.setAttribute('aria-expanded',ex?'true':'false');
+   fb.innerHTML=phIcon(ex?'caret-up':'caret-down')+(ex?'Skjul ':'')+dn.length+' klaret';fb.onclick=()=>{IDAGUI.fold[g.id]=!ex;render();};s.appendChild(fb);
+   if(ex)dn.forEach(it=>s.appendChild(idagRow(it,nowHM,g.id)));}
+  const exA=IDAGUI.add===g.id;const ab=document.createElement('button');ab.type='button';ab.className='addv';ab.setAttribute('aria-expanded',exA?'true':'false');ab.innerHTML=phIcon('plus')+'Ny';
+  ab.onclick=()=>{IDAGUI.add=exA?null:g.id;render();};s.appendChild(ab);
+  if(exA){const ch=document.createElement('div');ch.className='chips';
+   [['Opgave','check-circle',()=>addTaskModal({due:TODAY,blk:g.id})],['Vane','repeat',()=>newHabit(g.id)]].forEach(([l,ic,fn])=>{const b=document.createElement('button');b.type='button';b.className='chip';b.innerHTML=phIcon(ic)+l;b.onclick=()=>{IDAGUI.add=null;fn();};ch.appendChild(b);});
+   s.appendChild(ch);}
+  cols.appendChild(s);});
+ root.appendChild(cols);w.appendChild(root);}
 function homeTodoCard(w){
  const mode=LS.g('homegrp','tid');
  const h=healthGet();const wk=iso(weekStart(today));const L=h.log[wk]||{done:{}};
@@ -1236,6 +1414,7 @@ function homeTodoCard(w){
   roles:rolesForDay(LS.g('weekroles',{}),TODAY),roleDone:(LS.g('roledone',{})[TODAY])||[]});
  const tot=F.open+F.done;
  const _n=new Date();const nowHM=String(_n.getHours()).padStart(2,'0')+':'+String(_n.getMinutes()).padStart(2,'0');
+ if(true){idagCard(w,F,nowHM,mode);return;} // v1.97: nyt design; den gamle kort-visning nedenfor bruges ikke længere
  const lateN=[...F.over,...F.today].filter(it=>itemLate(it,nowHM)).length;
  const c=card('✅ I dag',F.open?(F.open+' tilbage · '+F.done+' klaret'+(lateN?' · <span style="color:var(--over);font-weight:600">'+lateN+' mangler</span>':'')):(tot?'Alt klaret i dag 🎉':''));c.classList.add('homecard');
  const tg=document.createElement('div');tg.className='homeseg';
@@ -1243,10 +1422,16 @@ function homeTodoCard(w){
  c.insertBefore(tg,c.firstChild);
  if(tot){const pb=document.createElement('div');pb.className='prog';pb.style.margin='0 0 6px';pb.innerHTML='<i style="width:'+Math.round(F.done/tot*100)+'%"></i>';c.appendChild(pb);}
  const groups=mode==='omraade'?homeGroups(F,mode,PROJECTS.map(p=>p.name)):dayBlocks(F,nowHM);
+ const _card=c;
  if(!(F.over.length+F.today.length))c.appendChild(emptyCTA('Intet på listen i dag. Nyd det — eller planlæg dagen.','☀️ Planlæg dagen',openPlanning));
+ const cols=document.createElement('div');cols.className='daycols'; // v1.97: Morgen · Dag · Aften side om side på brede skærme
  groups.forEach(g=>{const blk=mode!=='omraade'&&g.id&&g.id!=='over';
+  let c=_card;if(blk){c=document.createElement('div');c.className='daycol blk-'+g.id;cols.appendChild(c);if(!cols.parentNode)_card.appendChild(cols);}
+  else if(g.over&&mode!=='omraade'){const oh=document.createElement('div');oh.className='homeh over';oh.textContent=g.h+' · '+g.items.length;_card.appendChild(oh);
+   c=document.createElement('div');c.className='overgrid';_card.appendChild(c);
+   g.items.forEach(it=>c.appendChild(it.k==='task'?taskRow(it.ref):homeRow(it,mode,nowHM)));return;}
   const hd=document.createElement('div');hd.className='homeh'+(g.over?' over':'')+(blk?' blk':'');
-  hd.innerHTML='<span>'+esc(g.h)+' · '+g.items.length+'</span>'+(g.late?'<span class="homelate">'+g.late+' mangler</span>':'');
+  hd.innerHTML=(blk?'<span class="blkic">'+blkIcon(g.id)+'</span>':'')+'<span class="blkn">'+esc(g.h)+' · '+g.items.length+'</span>'+(g.late?'<span class="homelate">'+g.late+' mangler</span>':'');
   if(blk){const sp=document.createElement('span');sp.className='sp';hd.appendChild(sp);
    const ab=document.createElement('button');ab.className='homeadd';ab.textContent='＋ Vane';ab.title='Tilføj en vane til '+g.h.toLowerCase();ab.onclick=()=>newHabit(g.id);hd.appendChild(ab);}
   c.appendChild(hd);
@@ -1254,6 +1439,7 @@ function homeTodoCard(w){
   g.items.forEach(it=>{if(it.k==='task'){const r=taskRow(it.ref);if(itemLate(it,nowHM))r.classList.add('hlate');c.appendChild(r);}else c.appendChild(homeRow(it,mode,nowHM));});});
  w.appendChild(c);}
 function homeRow(it,mode,nowHM){
+ if(it.k==='habit'||it.k==='role'||it.k==='info'||it.k==='health')return homeRowC(it,mode,nowHM);
  const el=document.createElement('div');const late=itemLate(it,nowHM);el.className='row tcard homerow'+((it.done||(it.k==='cal'&&it.end&&it.end<nowHM))?' hdone':'')+(late?' hlate':'')+(it.k==='info'?' hinfo':'');
  const body=document.createElement('div');body.className='tbody';
  if(it.time){const tm=document.createElement('div');tm.className='hdtime';tm.textContent=it.time+(it.end?'–'+it.end:'');body.appendChild(tm);}
@@ -1287,6 +1473,7 @@ function ugemoedeP(w){
  const monD=weekStart(today);monD.setDate(monD.getDate()+WROFF*7);const mon=iso(monD);
  const all=LS.g('weekroles',{});const W=all[mon]||{r:{},note:''};W.r=W.r||{};
  const store=()=>{all[mon]=W;const lim=new Date(today);lim.setDate(lim.getDate()-56);const lk=iso(lim);Object.keys(all).forEach(k=>{if(k<lk)delete all[k];});LS.s('weekroles',all);};
+ const _w=w;w=document.createElement('div');w.className='wrcols';_w.appendChild(w);
  const c=card('👫 Søndagsmøde','Aftal ugen med Mikkel. Tryk på et felt for at skifte: Nina → Mikkel → Begge → tom. Aftalerne står på Forsiden den dag, de gælder.');
  const nav=document.createElement('div');nav.className='calnav';
  nav.innerHTML='<button class="navb" id="wrPv">‹</button><b>'+weekLabel(monD)+(WROFF===0?' · denne uge':WROFF===1?' · næste uge':'')+'</b><button class="navb" id="wrNx">›</button>';
@@ -1312,10 +1499,37 @@ function ugemoedeP(w){
  const sv=document.createElement('button');sv.className='btn';sv.style.marginTop='8px';sv.textContent='Gem noter';sv.onclick=()=>{W.note=ta.value.trim();store();toast('Gemt');};c2.appendChild(sv);
  w.appendChild(c2);
 }
+// v1.97: kompakt række til vaner, aftaler og træning — én linje med flueben til venstre (Ninas ønske 12/11)
+function homeRowSub(it,late){
+ const p=[];if(late)p.push('Mangler');
+ if(it.k==='habit'){if(it.by)p.push('senest '+it.by);if(it.rec&&it.rec!=='hver dag')p.push(it.rec);}
+ if(it.k==='role'&&it.both)p.push('sammen med Mikkel');
+ return p;}
+function homeRowC(it,mode,nowHM){
+ const late=itemLate(it,nowHM);
+ const el=document.createElement('div');el.className='homerow hc'+(it.done?' hdone':'')+(late?' hlate':'')+(it.k==='info'?' hinfo':'');
+ const hit=document.createElement('div');hit.className='hchit';
+ if(it.k==='info'){hit.textContent='👫';hit.title='Mikkels tur';}
+ else{const chk=document.createElement('div');chk.className='cchk'+(it.done?' done':'');hit.appendChild(chk);hit.title=it.done?'Fortryd':'Klaret i dag';
+  hit.onclick=()=>{if(it.k==='habit'){const l=LS.g('hlog',{});const a=l[it.id]||[];const ix=a.indexOf(TODAY);if(ix>=0)a.splice(ix,1);else a.push(TODAY);l[it.id]=a;LS.s('hlog',l);}
+   else if(it.k==='role'){roleDoneFlip(it.role);}
+   else{const h=healthGet();const wk=iso(weekStart(today));h.log[wk]=h.log[wk]||{done:{},note:{}};h.log[wk].done[it.id]=!h.log[wk].done[it.id];healthSet(h);}
+   toast(it.done?'Fortrudt':'Klaret ✓');render();};}
+ el.appendChild(hit);
+ const mid=document.createElement('div');mid.className='hcmid';
+ const ttl=document.createElement('div');ttl.className='ttl'+(it.done?' done':'');ttl.textContent=it.title;mid.appendChild(ttl);
+ ttl.onclick=()=>{if(it.k==='habit')habitModal(it.ref);else goto(it.k==='health'?'health':'ugemoede');};
+ const parts=homeRowSub(it,late);
+ if(parts.length){const sb=document.createElement('div');sb.className='hcsub';sb.innerHTML=parts.map((x,i)=>(i===0&&late)?'<span style="color:var(--over);font-weight:600">'+esc(x)+'</span>':esc(x)).join(' · ');mid.appendChild(sb);}
+ el.appendChild(mid);return el;}
 function dashP(w){
+ w.classList.add('fsd');
+ setTimeout(()=>{ // designet bruger ingen emoji: fjern pynte-emoji i overskrifter og knapper på Forsiden
+  const strip=el=>{const n=el.firstChild;if(n&&n.nodeType===3)n.nodeValue=n.nodeValue.replace(/^[^\p{L}\p{N}"(]+/u,'').replace(/\s*[\p{Extended_Pictographic}\uFE0F]+\s*$/u,'');};
+  w.querySelectorAll('.fsd>.card h2,.fsd>.card button').forEach(strip);},0);
  const h=new Date().getHours();const greet=h<5?'God nat':h<10?'Godmorgen':h<12?'God formiddag':h<18?'God eftermiddag':'God aften';
  const planned=LS.g('lastplan','')===TODAY,closed=LS.g('dayclosed','')===TODAY;
- const hero=document.createElement('div');hero.className='card';hero.dataset.skey='hej';
+ const hero=document.createElement('div');hero.className='card fhero';hero.dataset.skey='hej';
  hero.innerHTML='<h2>'+greet+', Nina 🌸</h2><p class="hint">'+(planned?'Dagen er planlagt ✓':'Dagen er ikke planlagt endnu')+(closed?' · Dagen er lukket 🌙':'')+'</p>'+(hlGet()?'<p style="font-size:13.5px;margin:2px 0 8px">🌟 <b>Dagens højdepunkt:</b> '+esc(hlGet().content)+'</p>':'');
  const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;flex-wrap:wrap';
  if(!planned&&!closed){const b=document.createElement('button');b.className='btn';b.textContent='☀️ Planlæg dagen';b.onclick=openPlanning;row.appendChild(b);}
@@ -1459,6 +1673,7 @@ function render(){
    sb.onclick=searchModal;pa.appendChild(sb);}}} // v69: ＋ flyttet ned til filterbarens højre ende (Ninas mockup)
  if(tab==='all')app.appendChild(statsBar()); // v58: optælling kun på Opgaver
  const p=navPills(tab);if(p)app.appendChild(p);
+ {const _wr=document.querySelector('.wrap');if(_wr)_wr.classList.toggle('wide',tab==='dash'||tab==='ugemoede');} // v1.97: bredere side på Mac, hvor indholdet står i kolonner
  const w=document.createElement('div');
  (({dash:dashP,planlaeg:planP,focus:focusP,prio:allP,all:allP,timeline:timelineP,dates:datesP,habits:habitsP,ugemoede:ugemoedeP,health:healthP,wheel:wheelP,projects:projP,goals:goalP})[tab]||dashP)(w);
  app.appendChild(w);sectionReorder(w);
@@ -2691,9 +2906,9 @@ function bulkBar(){const c=document.createElement('div');c.className='card';c.st
 // v68: tilføj-linjen og søgefeltet er væk fra siden — de bor nu i hver sin modal bag ＋ og 🔍.
 // v70: fuld opgaveoprettelse — samme layout og de samme pickere som opgavevinduet,
 // så en opgave kan sættes rigtigt op fra starten i stedet for at skulle redigeres bagefter.
-function addTaskModal(){const host=document.getElementById('modalHost');
- const d={id:null,content:'',pid:(PROJECTS[0]&&PROJECTS[0].id)||null,due:null,time:null,est:null,pri:null,rep:null,note:null,
-          q:null,imp:null,eff:null,done:false,star:false,parked:false,src:'me'};
+function addTaskModal(pre){const host=document.getElementById('modalHost');
+ const d=Object.assign({id:null,content:'',pid:(PROJECTS[0]&&PROJECTS[0].id)||null,due:null,time:null,est:null,pri:null,rep:null,note:null,
+          q:null,imp:null,eff:null,done:false,star:false,parked:false,src:'me'},pre||{}); // v1.97: "+ Ny" i en blok forudfylder dato og blok
  host.innerHTML='<div class="mbg" id="atBg"><div class="modal tview">'
   +'<div class="tvhead"><div class="tvcrumb" id="at_crumb"></div><button class="tvbtn" id="at_x" title="Annullér">✕</button></div>'
   +'<div class="tvcols"><div class="tvmain">'
@@ -2718,7 +2933,7 @@ function addTaskModal(){const host=document.getElementById('modalHost');
   const r=parseQuickAdd(v,true);
   const note=document.getElementById('at_n').value.trim();
   STORE.unshift({id:'t'+(UID++),content:r.content||v,pid:r.pid||d.pid,due:d.due,time:d.time,est:d.est,pri:d.pri,rep:d.rep,
-                 note:note||null,rec:null,q:null,imp:null,eff:null,done:false,star:false,src:'me'});
+                 note:note||null,rec:null,q:null,imp:null,eff:null,done:false,star:false,src:'me',...(d.blk?{blk:d.blk}:{})});
   save();close();toast('Tilføjet ✓'+(d.due?' — '+fmtDue(d.due):''));render();};
  document.getElementById('at_go').onclick=add;
  document.getElementById('at_cancel').onclick=close;
