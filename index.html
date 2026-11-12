@@ -1,4 +1,4 @@
-<!doctype html><!--LIFEOS 1.95 2026-11-06-->
+<!doctype html><!--LIFEOS 1.96 2026-11-11-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -265,6 +265,14 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 .homecard{position:relative}.homeseg{position:absolute;top:14px;right:14px;display:flex;gap:4px}
 .homeseg .pill{border:1px solid var(--line);background:#fff;color:var(--muted);cursor:pointer;min-height:30px;padding:4px 12px;font-size:12px}
 .homeseg .pill.active{background:#e7f6ee;color:#177245;border-color:#cfe8dd}
+.hlate{box-shadow:inset 3px 0 0 var(--over)}.homerow.hinfo{opacity:.7}.homelate{color:var(--over);margin-left:6px}
+.homeh.blk{display:flex;align-items:center;gap:6px;margin-top:18px}.homeh.blk .sp{flex:1}
+.homeadd{font:inherit;font-size:13px;font-weight:600;letter-spacing:0;text-transform:none;border:1px solid var(--line);background:#fff;color:#4a5057;border-radius:8px;min-height:36px;padding:6px 12px;cursor:pointer}
+.homenone{font-size:12.5px;color:var(--muted);padding:4px 2px 2px}
+.wr{display:grid;grid-template-columns:auto repeat(4,minmax(0,1fr));gap:6px;align-items:center;margin-top:6px}
+.wr .hd{font-size:12px;font-weight:700;color:#4a5057;text-align:center;position:sticky;top:var(--wrtop,0px);z-index:3;background:var(--card);padding:9px 0 7px;border-bottom:1px solid var(--line)}.wr .dl{font-size:13px;font-weight:600;padding-right:4px}.wr .dl.tdy{color:var(--home)}
+.wrc{font:inherit;font-size:13.5px;font-weight:600;min-height:44px;border:1px solid var(--line);border-radius:9px;background:#fff;color:#b0b5bb;cursor:pointer;padding:0 2px}
+.wrc.n{background:#f3effb;color:#6b4fc0;border-color:#ddd3f3}.wrc.m{background:#e9f3fb;color:#2c6aa0;border-color:#cfe2f3}.wrc.b{background:#eef7f2;color:#177245;border-color:#cfe8dd}.wrc[disabled]{visibility:hidden}
 .homeh{font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:14px 2px 4px}.homeh.over{color:var(--over)}
 .homerow.hdone{opacity:.55}.sdrow .remchk{width:22px;height:22px;margin-right:2px}.pill.top{background:#fdeceb;color:#c0392b}.pill.hold{background:#f0f0f0;color:#777}.pill.new{background:#eef2ff;color:#3949ab}
 .pj-note{color:var(--muted);font-size:12.5px;margin:5px 0 9px}
@@ -385,7 +393,7 @@ input,select,textarea{font-size:16px!important}} /* v55: iOS zoomer ved fokus p�
 <div class="wrap">
   <header>
     <h1>Nina's LifeOS</h1><span id="pageTitle"></span><span class="date" id="dateStr"></span><span id="pageActions" style="display:flex;gap:4px;margin-left:6px"></span>
-    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.95</span>
+    <span id="verChip" title="Version — tryk for detaljer" style="margin-left:auto;font-size:11.5px;color:#a8adb4;cursor:pointer;padding:4px 3px">v1.96</span>
     <span id="syncChip" style="margin-left:6px;font-size:12px;color:var(--muted)">⚪ ikke sat op</span>
     <button class="imp" id="undoBtn" title="Fortryd seneste ændring (⌘Z)" style="margin-left:0;opacity:.4">↩️</button>
     <button class="imp" id="ghBtn" style="margin-left:0">⚙️ Sync</button>
@@ -584,7 +592,7 @@ function dateActions(t){const out=[{k:'today',l:'I dag',d:TODAY},{k:'tom',l:'I m
  return out.filter(r=>{if(!r.d||seen.has(r.d))return false;seen.add(r.d);return true;});}
 document.getElementById('dateStr').textContent=today.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
 // ---------- v80: versionsnummer (1.80 = HOVEDVERSION.BYG, Ninas valg 3/8) ----------
-const APP={v:'1.95',d:'2026-11-06'};
+const APP={v:'1.96',d:'2026-11-11'};
 // Versionsmærket står som HTML-kommentar i filens første 100 bytes, så tjekket henter
 // kun et par hundrede bytes i stedet for hele appen (270 KB) hver gang.
 async function verRemote(){
@@ -1050,7 +1058,6 @@ function habitModal(t,isNew){
  host.innerHTML=`<div class="mbg"><div class="modal">
    <h3>${isNew?'Ny vane':'Rediger vane'}</h3>
    <label>Vane</label><input id="h_c" value="${esc(t.content).replace(/"/g,'&quot;')}">
-   <label>Kategori</label><select id="h_p">${PROJECTS.map(p=>`<option value="${p.id}"${t.pid===p.id?' selected':''}>${esc(p.name)}</option>`).join('')}</select>
    <label>Hyppighed</label><select id="h_r">
      <option value="hver dag"${t.rec==='hver dag'?' selected':''}>Hver dag</option>
      <option value="hverdage"${t.rec==='hverdage'?' selected':''}>Hverdage</option>
@@ -1059,6 +1066,10 @@ function habitModal(t,isNew){
      <option value="__custom__">Tilpasset…</option>
    </select>
    <input id="h_rc" placeholder="Tilpasset hyppighed (f.eks. hver mandag)" style="width:100%;margin-top:6px;display:none">
+   <div class="mrow"><div><label>Blok på I dag</label><select id="h_b">${[['morgen','Morgen'],['dag','Dag'],['aften','Aften']].map(b=>`<option value="${b[0]}"${(t.blk||'dag')===b[0]?' selected':''}>${b[1]}</option>`).join('')}</select></div>
+   <div><label>Senest kl. (valgfri)</label><input id="h_by" type="time" value="${esc(t.by||'')}"></div></div>
+   <p class="hint" style="margin:6px 0 0">Er vanen ikke krydset af til tiden, bliver den markeret som manglende på Forsiden. Uden tidspunkt gælder blokkens slutning (Morgen 9 · Dag 17 · Aften 23).</p>
+   ${isNew?'':'<div class="mrow" style="margin-top:10px"><button type="button" class="btn" id="h_up">↑ Flyt op</button><button type="button" class="btn" id="h_dn">↓ Flyt ned</button></div>'}
    <div class="mbtns">${isNew?'':'<button class="del">Slet</button>'}<button class="cancel">Annullér</button><button class="save">${isNew?'Opret vane':'Gem'}</button></div>
  </div></div>`;
  const close=()=>host.innerHTML='';
@@ -1069,7 +1080,10 @@ function habitModal(t,isNew){
  host.querySelector('.mbg').onclick=e=>{if(e.target===host.querySelector('.mbg'))(isNew?discard:close)();};
  host.querySelector('.cancel').onclick=isNew?discard:close;
  const delBtn=host.querySelector('.del');if(delBtn)delBtn.onclick=()=>{const l=LS.g('hlog',{});delete l[t.id];LS.s('hlog',l);close();delTasks([t],'Vane slettet');};
- host.querySelector('.save').onclick=()=>{t.content=document.getElementById('h_c').value.trim()||t.content;t.pid=document.getElementById('h_p').value;t.rec=sel.value==='__custom__'?(cust.value.trim()||t.rec):sel.value;save();close();toast(isNew?'Vane oprettet 🔁':'Gemt');render();};
+ const mv=dir=>{const blk=t.blk||'dag';habitMove(habitsAll().filter(x=>(x.blk||'dag')===blk),t.id,dir).forEach(o=>{const h=STORE.find(x=>x.id===o.id);if(h)h.ho=o.ho;});save();render();toast(dir<0?'Flyttet op':'Flyttet ned');};
+ const up=document.getElementById('h_up');if(up){up.onclick=()=>mv(-1);document.getElementById('h_dn').onclick=()=>mv(1);}
+ host.querySelector('.save').onclick=()=>{t.content=document.getElementById('h_c').value.trim()||t.content;t.rec=sel.value==='__custom__'?(cust.value.trim()||t.rec):sel.value;
+  const nb=document.getElementById('h_b').value;if(nb!==(t.blk||'dag')&&!isNew)t.ho=habitsAll().filter(x=>x!==t&&(x.blk||'dag')===nb).reduce((m,x)=>Math.max(m,x.ho||0),0)+10;t.blk=nb;t.by=document.getElementById('h_by').value||null;save();close();toast(isNew?'Vane oprettet 🔁':'Gemt');render();};
  setTimeout(()=>{const i=document.getElementById('h_c');if(i&&isNew){i.focus();i.select();}},50);
 }
 // ---------- render ----------
@@ -1108,6 +1122,7 @@ const NAV_RIT=[
  {ic:'☀️',l:'Planlæg dagen',id:'planlaeg',done:()=>LS.g('lastplan','')===TODAY,run:()=>openPlanning()},
  {ic:'🌙',l:'Luk dagen',done:()=>LS.g('dayclosed','')===TODAY,run:()=>shutdownModal()},
  {ic:'🎯',l:'Ugens målsætninger',done:()=>objsFor(objAll(),weekMonday(TODAY)).length>0,run:()=>weekPlanModal()},
+ {ic:'👫',l:'Søndagsmøde',id:'ugemoede',done:()=>{const d=new Date(today);if((today.getDay()+6)%7>=5)d.setDate(d.getDate()+7);const W=LS.g('weekroles',{})[weekMonday(iso(d))];return !!(W&&W.r&&Object.keys(W.r).some(k=>(W.r[k]||[]).some(Boolean)));},run:()=>goto('ugemoede')},
  {ic:'🧭',l:'Ugentlig gennemgang',done:()=>{const m=new Date(today);m.setDate(today.getDate()-((today.getDay()+6)%7));return LS.g('lastreview','')>=iso(m);},run:()=>weeklyModal()}
 ];
 function ritItem(it){const d=document.createElement('div');d.className='snav'+(it.id&&LS.g('tab','dash')===it.id?' active':'');d.innerHTML='<span class="ic">'+it.ic+'</span>'+it.l+(it.done()?'<span class="ritdone">✓</span>':'');d.onclick=()=>{document.getElementById('modalHost').innerHTML='';it.run();};return d;}
@@ -1166,13 +1181,17 @@ function homeFeed(o){
   const it={k:'rem',id:r.key,title:r.title,area:'Påmindelser',time:(!r.allDay&&r.due&&r.due.length>10)?r.due.slice(11,16):null,done:closed.has(r.key),over:r.day<TODAY,due:r.day,dueFull:r.due,list:r.list};
   if(it.over)over.push(it);else(it.time?timed:rems).push(it);});
  (o.habits||[]).forEach(t=>{const log=(o.hlog||{})[t.id]||[];if(!habitDueToday(t.rec,log,TODAY))return;
-  habs.push({k:'habit',id:t.id,title:t.content,area:'Vaner',time:null,done:log.includes(TODAY),over:false,rec:t.rec,ref:t});});
+  habs.push({k:'habit',id:t.id,title:t.content,area:'Vaner',time:null,done:log.includes(TODAY),over:false,rec:t.rec,ref:t,blk:t.blk||'dag',by:t.by||null,ho:t.ho||0});});
+ // v1.96: ugens aftaler fra søndagsmødet (Ninas egne kan krydses af; Mikkels vises som information)
+ const RL={aflever:['Aflevér Lily','Mikkel afleverer Lily','morgen',50],hent:['Hent Lily','Mikkel henter Lily','dag',90],mad:['Lav aftensmad','Mikkel laver aftensmad','aften',5],put:['Put Lily','Mikkel putter Lily','aften',45]};
+ const rl=[];(o.roles||[]).forEach(r=>{const d=RL[r.role];if(!d)return;const mine=r.who==='n'||r.who==='b';
+  rl.push({k:mine?'role':'info',id:'role_'+r.role,role:r.role,both:r.who==='b',title:mine?d[0]:d[1],area:'Ugeaftaler',time:null,done:mine&&(o.roleDone||[]).includes(r.role),over:false,blk:d[2],ho:d[3],by:null});});
  const pd=o.plan&&(o.plan.week||[]).find(d=>String(d.day||'').toLowerCase()===DAYS[dow]);
  if(pd&&!pd.rest)(pd.items||[]).forEach(x=>{const key=pd.id+'.'+x.id;hlth.push({k:'health',id:key,title:x.t,area:'Træning & sundhed',time:null,done:!!(o.hdone||{})[key],over:false});});
  (o.doneTasks||[]).forEach(t=>dn.push({k:'task',id:t.id,title:t.content,area:o.catName(t.pid),time:t.time||null,done:true,over:false,ref:t}));
  timed.sort((a,b)=>String(a.time).localeCompare(String(b.time)));
- tod.push(...allday,...timed,...untimed,...rems,...habs,...hlth,...dn);
- const open=[...over,...tod].filter(i=>i.k!=='cal'&&!i.done).length;
+ tod.push(...allday,...timed,...untimed,...rems,...habs,...rl,...hlth,...dn);
+ const open=[...over,...tod].filter(i=>i.k!=='cal'&&i.k!=='info'&&!i.done).length;
  const doneN=[...over,...tod].filter(i=>i.done).length;
  return {over,today:tod,open,done:doneN};}
 function homeGroups(F,mode,catOrder){
@@ -1180,45 +1199,119 @@ function homeGroups(F,mode,catOrder){
  const all=[...F.over,...F.today];const order=['Kalender',...(catOrder||[]),'Vaner','Træning & sundhed','Påmindelser'];
  const names=[...new Set(all.map(i=>i.area))].sort((a,b)=>{const ia=order.indexOf(a),ib=order.indexOf(b);return (ia<0?999:ia)-(ib<0?999:ib);});
  return names.map(n=>({h:n,items:all.filter(i=>i.area===n)}));}
+// v1.96: I dag-siden — dagen i tre blokke (Morgen · Dag · Aften), markering af det der mangler, og ugens aftaler.
+function blkOfTime(hm){return !hm?'dag':hm<'09:00'?'morgen':hm<'17:00'?'dag':'aften';}
+function itemBlk(it){if(it.k==='habit'||it.k==='role'||it.k==='info')return it.blk||'dag';if(it.k==='health')return 'dag';return blkOfTime(it.time);}
+function itemDeadline(it){
+ if(it.k==='habit'||it.k==='role')return it.by||({morgen:'09:00',dag:'17:00',aften:'23:00'})[it.blk||'dag'];
+ if((it.k==='task'||it.k==='rem')&&it.time)return it.time;
+ return null;}
+function itemLate(it,nowHM){if(!it||it.done||!nowHM)return false;const d=itemDeadline(it);return !!d&&nowHM>d;}
+function dayBlocks(F,nowHM){
+ const rank=it=>(it.k==='task'&&it.done)?6:(it.k==='cal'&&!it.time)?0:(it.k==='habit'||it.k==='role'||it.k==='info')?1:it.time?2:it.k==='task'?3:it.k==='rem'?4:5;
+ const out=[];if(F.over.length)out.push({id:'over',h:'Forfaldent',over:true,items:F.over,late:0});
+ [['morgen','Morgen'],['dag','Dag'],['aften','Aften']].forEach(([id,h])=>{
+  const items=F.today.map((it,i)=>({it,i})).filter(x=>itemBlk(x.it)===id).sort((a,b)=>{const ra=rank(a.it),rb=rank(b.it);if(ra!==rb)return ra-rb;
+   if(ra===1)return ((a.it.ho||0)-(b.it.ho||0))||(a.i-b.i);if(ra===2)return String(a.it.time).localeCompare(String(b.it.time))||(a.i-b.i);return a.i-b.i;}).map(x=>x.it);
+  out.push({id,h,items,late:items.filter(it=>itemLate(it,nowHM)).length});});
+ return out;}
+function rolesForDay(wr,TODAY){
+ const d=new Date(TODAY+'T12:00');const dow=(d.getDay()+6)%7;const W=(wr||{})[weekMonday(TODAY)];if(!W||!W.r)return [];
+ return ['aflever','hent','mad','put'].map(role=>({role,who:(W.r[role]||[])[dow]||''})).filter(x=>x.who==='n'||x.who==='m'||x.who==='b');}
+function roleCycle(v){return v==='n'?'m':v==='m'?'b':v==='b'?'':'n';}
+function habitMove(list,id,dir){
+ const a=list.slice().sort((x,y)=>(x.ho||0)-(y.ho||0));const i=a.findIndex(x=>x.id===id);const j=i+dir;
+ if(i>=0&&j>=0&&j<a.length){const t=a[i];a[i]=a[j];a[j]=t;}
+ return a.map((x,n)=>({id:x.id,ho:(n+1)*10}));}
+function roleDoneFlip(role){const all=LS.g('roledone',{});const a=all[TODAY]||[];const ix=a.indexOf(role);if(ix>=0)a.splice(ix,1);else a.push(role);all[TODAY]=a;
+ const lim=new Date(today);lim.setDate(lim.getDate()-14);const lk=iso(lim);Object.keys(all).forEach(k=>{if(k<lk)delete all[k];});LS.s('roledone',all);}
+function newHabit(blk){const hs=habitsAll().filter(x=>(x.blk||'dag')===blk);
+ const nt={id:'t'+(UID++),content:'Ny vane',pid:catByName('Sundhed')||catByName('Family'),due:TODAY,rec:'hver dag',pri:null,q:null,imp:null,eff:null,done:false,star:false,src:'me',blk:blk,by:null,ho:hs.reduce((m,x)=>Math.max(m,x.ho||0),0)+10};
+ STORE.push(nt);save();habitModal(nt,true);}
 function homeTodoCard(w){
  const mode=LS.g('homegrp','tid');
  const h=healthGet();const wk=iso(weekStart(today));const L=h.log[wk]||{done:{}};
  const F=homeFeed({TODAY,tasks:planTasks(),doneTasks:planDone(),habits:habitsAll(),hlog:LS.g('hlog',{}),plan:h.plan,hdone:L.done||{},
-  rems:remRows(LS.g('reminders',null),TODAY).rows,usedRem:STORE.filter(t=>t.remid).map(t=>t.remid),remClosed:remCloseGet().map(x=>x.k),cal:calToday().events,catName:id=>catOf(id).name});
+  rems:remRows(LS.g('reminders',null),TODAY).rows,usedRem:STORE.filter(t=>t.remid).map(t=>t.remid),remClosed:remCloseGet().map(x=>x.k),cal:calToday().events,catName:id=>catOf(id).name,
+  roles:rolesForDay(LS.g('weekroles',{}),TODAY),roleDone:(LS.g('roledone',{})[TODAY])||[]});
  const tot=F.open+F.done;
- const c=card('✅ I dag',F.open?(F.open+' tilbage · '+F.done+' klaret'):(tot?'Alt klaret i dag 🎉':''));c.classList.add('homecard');
+ const _n=new Date();const nowHM=String(_n.getHours()).padStart(2,'0')+':'+String(_n.getMinutes()).padStart(2,'0');
+ const lateN=[...F.over,...F.today].filter(it=>itemLate(it,nowHM)).length;
+ const c=card('✅ I dag',F.open?(F.open+' tilbage · '+F.done+' klaret'+(lateN?' · <span style="color:var(--over);font-weight:600">'+lateN+' mangler</span>':'')):(tot?'Alt klaret i dag 🎉':''));c.classList.add('homecard');
  const tg=document.createElement('div');tg.className='homeseg';
  [['tid','Tid'],['omraade','Område']].forEach(([k,l])=>{const b=document.createElement('button');b.className='pill'+(mode===k?' active':'');b.textContent=l;b.onclick=()=>{LS.s('homegrp',k);render();};tg.appendChild(b);});
  c.insertBefore(tg,c.firstChild);
  if(tot){const pb=document.createElement('div');pb.className='prog';pb.style.margin='0 0 6px';pb.innerHTML='<i style="width:'+Math.round(F.done/tot*100)+'%"></i>';c.appendChild(pb);}
- const groups=homeGroups(F,mode,PROJECTS.map(p=>p.name));
- if(!groups.length)c.appendChild(emptyCTA('Intet på listen i dag. Nyd det — eller planlæg dagen.','☀️ Planlæg dagen',openPlanning));
- const _n=new Date();const nowHM=String(_n.getHours()).padStart(2,'0')+':'+String(_n.getMinutes()).padStart(2,'0');
- groups.forEach(g=>{const hd=document.createElement('div');hd.className='homeh'+(g.over?' over':'');hd.textContent=g.h+' · '+g.items.length;c.appendChild(hd);
-  g.items.forEach(it=>c.appendChild(it.k==='task'?taskRow(it.ref):homeRow(it,mode,nowHM)));});
+ const groups=mode==='omraade'?homeGroups(F,mode,PROJECTS.map(p=>p.name)):dayBlocks(F,nowHM);
+ if(!(F.over.length+F.today.length))c.appendChild(emptyCTA('Intet på listen i dag. Nyd det — eller planlæg dagen.','☀️ Planlæg dagen',openPlanning));
+ groups.forEach(g=>{const blk=mode!=='omraade'&&g.id&&g.id!=='over';
+  const hd=document.createElement('div');hd.className='homeh'+(g.over?' over':'')+(blk?' blk':'');
+  hd.innerHTML='<span>'+esc(g.h)+' · '+g.items.length+'</span>'+(g.late?'<span class="homelate">'+g.late+' mangler</span>':'');
+  if(blk){const sp=document.createElement('span');sp.className='sp';hd.appendChild(sp);
+   const ab=document.createElement('button');ab.className='homeadd';ab.textContent='＋ Vane';ab.title='Tilføj en vane til '+g.h.toLowerCase();ab.onclick=()=>newHabit(g.id);hd.appendChild(ab);}
+  c.appendChild(hd);
+  if(blk&&!g.items.length){const e=document.createElement('div');e.className='homenone';e.textContent='Intet her endnu.';c.appendChild(e);}
+  g.items.forEach(it=>{if(it.k==='task'){const r=taskRow(it.ref);if(itemLate(it,nowHM))r.classList.add('hlate');c.appendChild(r);}else c.appendChild(homeRow(it,mode,nowHM));});});
  w.appendChild(c);}
 function homeRow(it,mode,nowHM){
- const el=document.createElement('div');el.className='row tcard homerow'+((it.done||(it.k==='cal'&&it.end&&it.end<nowHM))?' hdone':'');
+ const el=document.createElement('div');const late=itemLate(it,nowHM);el.className='row tcard homerow'+((it.done||(it.k==='cal'&&it.end&&it.end<nowHM))?' hdone':'')+(late?' hlate':'')+(it.k==='info'?' hinfo':'');
  const body=document.createElement('div');body.className='tbody';
  if(it.time){const tm=document.createElement('div');tm.className='hdtime';tm.textContent=it.time+(it.end?'–'+it.end:'');body.appendChild(tm);}
  const ttl=document.createElement('div');ttl.className='ttl'+(it.done?' done':'');ttl.textContent=it.title;body.appendChild(ttl);
  let sub=it.over?'<span style="color:var(--over)">Forfaldt '+esc(fmtDue(it.due))+'</span>':'';
  if(it.k==='cal'&&!it.time)sub='Hele dagen';
- if(it.k==='habit')sub='🔁 '+esc(it.rec||'');
+ const miss=late?'<span style="color:var(--over);font-weight:600">Mangler</span> · ':'';
+ if(it.k==='habit')sub=miss+'🔁 '+esc(it.rec||'')+(it.by?' · senest '+esc(it.by):'');
+ if(it.k==='role')sub=miss+(it.both?'👫 Sammen med Mikkel':'👫 Aftalt på søndagsmødet');
+ if(it.k==='info')sub='👫 Mikkels tur';
+ if(it.k==='rem'&&late&&!it.over)sub=miss+'kl. '+esc(it.time);
  if(sub){const dv=document.createElement('div');dv.className='duesub';dv.innerHTML=sub;body.appendChild(dv);}
  const sy=document.createElement('div');sy.className='symrow';
  if(it.k==='rem'){const chk=document.createElement('div');chk.className='cchk'+(it.done?' done':'');chk.title=it.done?'Fortryd — lad påmindelsen være åben':'Luk påmindelsen (også i Påmindelser-appen)';
   chk.onclick=()=>remCloseFlip({key:it.id,list:it.list,title:it.title,due:it.dueFull});sy.appendChild(chk);
   if(it.done){const p=document.createElement('span');p.className='symtxt';p.style.cursor='default';p.textContent='lukkes i Påmindelser…';p.title='Lukkes i Påmindelser-appen, næste gang din Mac tjekker (hvert 15. min)';sy.appendChild(p);}}
- else if(it.k==='habit'||it.k==='health'){const chk=document.createElement('div');chk.className='cchk'+(it.done?' done':'');chk.title=it.done?'Fortryd':'Klaret i dag';
+ else if(it.k==='habit'||it.k==='health'||it.k==='role'){const chk=document.createElement('div');chk.className='cchk'+(it.done?' done':'');chk.title=it.done?'Fortryd':'Klaret i dag';
   chk.onclick=()=>{if(it.k==='habit'){const l=LS.g('hlog',{});const a=l[it.id]||[];const ix=a.indexOf(TODAY);if(ix>=0)a.splice(ix,1);else a.push(TODAY);l[it.id]=a;LS.s('hlog',l);}
+   else if(it.k==='role'){roleDoneFlip(it.role);}
    else{const h=healthGet();const wk=iso(weekStart(today));h.log[wk]=h.log[wk]||{done:{},note:{}};h.log[wk].done[it.id]=!h.log[wk].done[it.id];healthSet(h);}
    toast(it.done?'Fortrudt':'Klaret ✓');render();};sy.appendChild(chk);
-  ttl.onclick=()=>goto(it.k==='habit'?'habits':'health');}
+  ttl.onclick=()=>{if(it.k==='habit')habitModal(it.ref);else goto(it.k==='role'?'ugemoede':'health');};}
+ else if(it.k==='info'){const s=document.createElement('span');s.className='sym';s.style.cursor='default';s.textContent='👫';sy.appendChild(s);ttl.onclick=()=>goto('ugemoede');}
  else{const s=document.createElement('span');s.className='sym';s.style.cursor='default';s.textContent='🗓';s.title='Aftale fra din kalender';sy.appendChild(s);
   ttl.onclick=()=>goto('timeline');}
  if(mode!=='omraade'||it.k==='rem'){const sl=document.createElement('div');sl.className='streamlbl';sl.textContent=it.k==='rem'&&it.list?it.list:it.area;sy.appendChild(sl);}
  body.appendChild(sy);el.appendChild(body);return el;}
+let WROFF=null; // v1.96: uge-offset på Søndagsmøde (0 = denne uge, 1 = næste uge)
+function ugemoedeP(w){
+ const dowT=(today.getDay()+6)%7;if(WROFF===null)WROFF=dowT>=5?1:0; // lør/søn: I planlægger den kommende uge
+ const monD=weekStart(today);monD.setDate(monD.getDate()+WROFF*7);const mon=iso(monD);
+ const all=LS.g('weekroles',{});const W=all[mon]||{r:{},note:''};W.r=W.r||{};
+ const store=()=>{all[mon]=W;const lim=new Date(today);lim.setDate(lim.getDate()-56);const lk=iso(lim);Object.keys(all).forEach(k=>{if(k<lk)delete all[k];});LS.s('weekroles',all);};
+ const c=card('👫 Søndagsmøde','Aftal ugen med Mikkel. Tryk på et felt for at skifte: Nina → Mikkel → Begge → tom. Aftalerne står på Forsiden den dag, de gælder.');
+ const nav=document.createElement('div');nav.className='calnav';
+ nav.innerHTML='<button class="navb" id="wrPv">‹</button><b>'+weekLabel(monD)+(WROFF===0?' · denne uge':WROFF===1?' · næste uge':'')+'</b><button class="navb" id="wrNx">›</button>';
+ nav.querySelector('#wrPv').onclick=()=>{WROFF--;render();};nav.querySelector('#wrNx').onclick=()=>{WROFF++;render();};c.appendChild(nav);
+ const ROLES=[['aflever','Aflevere'],['hent','Hente'],['mad','Aftensmad'],['put','Putte']];
+ const g=document.createElement('div');g.className='wr';
+ g.appendChild(document.createElement('div'));ROLES.forEach(r=>{const h=document.createElement('div');h.className='hd';h.textContent=r[1];g.appendChild(h);});
+ ['Man','Tir','Ons','Tor','Fre','Lør','Søn'].forEach((dn,i)=>{const d=new Date(monD);d.setDate(monD.getDate()+i);
+  const dl=document.createElement('div');dl.className='dl'+(iso(d)===TODAY?' tdy':'');dl.textContent=dn+' '+d.getDate()+'.';g.appendChild(dl);
+  ROLES.forEach(r=>{const v=(W.r[r[0]]||[])[i]||'';const b=document.createElement('button');b.className='wrc'+(v?' '+v:'');b.textContent=v==='n'?'Nina':v==='m'?'Mikkel':v==='b'?'Begge':'–';
+   b.title=r[1]+' '+dn.toLowerCase();if(i>=5&&(r[0]==='aflever'||r[0]==='hent'))b.disabled=true;
+   b.onclick=()=>{const a=W.r[r[0]]||['','','','','','',''];a[i]=roleCycle(a[i]||'');W.r[r[0]]=a;store();render();};g.appendChild(b);});});
+ c.appendChild(g);
+ {const hdEl=document.querySelector('header');g.style.setProperty('--wrtop',(hdEl?hdEl.offsetHeight-1:0)+'px');} // låst kolonneoverskrift lige under appens top
+ const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-top:12px';
+ const pm=new Date(monD);pm.setDate(pm.getDate()-7);const P=all[iso(pm)];
+ if(P&&P.r&&Object.keys(P.r).length){const cp=document.createElement('button');cp.className='btn';cp.textContent='Kopiér ugen før';cp.onclick=()=>{W.r=JSON.parse(JSON.stringify(P.r));store();render();toast('Kopieret — ret det, der er anderledes');};row.appendChild(cp);}
+ if(Object.keys(W.r).length){const cl=document.createElement('button');cl.className='btn';cl.textContent='Ryd ugen';cl.onclick=()=>{W.r={};store();render();toast('Ugen er ryddet');};row.appendChild(cl);}
+ if(row.children.length)c.appendChild(row);
+ w.appendChild(c);
+ const c2=card('📝 Aftaler og noter','Andet I aftaler for ugen — fx gæster, indkøb eller hvem der har en sen dag.');
+ const ta=document.createElement('textarea');ta.style.cssText='width:100%;border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit;font-size:13.5px;min-height:90px';ta.value=W.note||'';c2.appendChild(ta);
+ const sv=document.createElement('button');sv.className='btn';sv.style.marginTop='8px';sv.textContent='Gem noter';sv.onclick=()=>{W.note=ta.value.trim();store();toast('Gemt');};c2.appendChild(sv);
+ w.appendChild(c2);
+}
 function dashP(w){
  const h=new Date().getHours();const greet=h<5?'God nat':h<10?'Godmorgen':h<12?'God formiddag':h<18?'God eftermiddag':'God aften';
  const planned=LS.g('lastplan','')===TODAY,closed=LS.g('dayclosed','')===TODAY;
@@ -1367,7 +1460,7 @@ function render(){
  if(tab==='all')app.appendChild(statsBar()); // v58: optælling kun på Opgaver
  const p=navPills(tab);if(p)app.appendChild(p);
  const w=document.createElement('div');
- (({dash:dashP,planlaeg:planP,focus:focusP,prio:allP,all:allP,timeline:timelineP,dates:datesP,habits:habitsP,health:healthP,wheel:wheelP,projects:projP,goals:goalP})[tab]||dashP)(w);
+ (({dash:dashP,planlaeg:planP,focus:focusP,prio:allP,all:allP,timeline:timelineP,dates:datesP,habits:habitsP,ugemoede:ugemoedeP,health:healthP,wheel:wheelP,projects:projP,goals:goalP})[tab]||dashP)(w);
  app.appendChild(w);sectionReorder(w);
  if(tab==='wheel')drawWheel();
 }
@@ -1851,7 +1944,7 @@ function makeDraggable(container,onDrop,opts){opts=opts||{};
     if(moved)onDrop([...container.querySelectorAll('.tcard')].map(r=>r.dataset.tid));};
    document.addEventListener('pointermove',mv);document.addEventListener('pointerup',up);document.addEventListener('pointercancel',up);};
  });}
-function tabLabel(t){return ({dash:'Forside',focus:'Dagens plan',all:'Opgaver · Liste',prio:'Opgaver · Liste',timeline:'Kalender · Tidslinje',dates:'Kalender · Datoer',planlaeg:'Planlæg dagen',habits:'Vaner',health:'Sundhed',wheel:'Årshjul',projects:'Projekter',goals:'Mål'})[t]||t;}
+function tabLabel(t){return ({dash:'Forside',focus:'Dagens plan',all:'Opgaver · Liste',prio:'Opgaver · Liste',timeline:'Kalender · Tidslinje',dates:'Kalender · Datoer',planlaeg:'Planlæg dagen',ugemoede:'Søndagsmøde',habits:'Vaner',health:'Sundhed',wheel:'Årshjul',projects:'Projekter',goals:'Mål'})[t]||t;}
 function fbList(){return LS.g('feedback',[]);}
 function fbBadge(){const b=document.getElementById('fbBadge');if(!b)return;const n=fbList().filter(f=>f.status==='ny').length;b.style.display=n?'flex':'none';b.textContent=n;}
 function fbCompress(file,cb){const img=new Image();const rd=new FileReader();
